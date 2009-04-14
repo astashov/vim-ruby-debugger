@@ -72,6 +72,8 @@ function! s:command_jump_to_breakpoint(cmd)
 endfunction
 
 function! s:command_set_breakpoint(cmd)
+  let
+endfunction
 
 
 function! s:open_file(file, line)
