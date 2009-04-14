@@ -21,12 +21,12 @@ call system('mkdir -p ~/.vim/tmp')
 call system('touch ~/.vim/tmp/' . s:buffer_file)
 
 " Open file for input debugger commands
-" exe 'sp ' . s:buffer_file 
-" exe 'hide'
+exe 'sp ' . s:buffer_file 
+exe 'hide'
 
 " When file for input debugger commands is changed (new command is arrived),
 " it will process the command
-" exe 'au FileChangedShell ' . s:buffer_file . ' call s:receive_command()'
+exe 'au FileChangedShell ' . s:buffer_file . ' call Receive_command()'
 
 
 function! s:start_debugger()
@@ -38,7 +38,9 @@ endfunction
 function! Receive_command()
   let cmd = system('cat ' . s:buffer_file)
   if match(cmd, '<breakpoint ') != -1
-    call s:command_breakpoint(cmd)
+    call s:command_jump_to_breakpoint(cmd)
+  else if match(cmd, '<breakpointAdded ') != -1
+    call s:command_set_breackpoint(cmd)
   endif
 endfunction
 
@@ -47,7 +49,7 @@ function! Set_breakpoint()
   let line = line(".")
   let file = s:get_filename()
   let message = 'break ' . file . ':' . line
-  let response = s:send_message_to_debugger(message)
+  s:send_message_to_debugger(message)
   :exe ":sign place 2 line=" . line . " name=breakpoint file=" . file
 endfunction
 
@@ -62,12 +64,14 @@ function! s:send_message_to_debugger(message)
 endfunction
 
 
-function! s:command_breakpoint(cmd)
+function! s:command_jump_to_breakpoint(cmd)
   let matched_cmd = matchlist(a:cmd, 'file="\(.*\)"\s*line="\(.*\)"')
   let file = matched_cmd[1]
   let line = matched_cmd[2]
   call s:open_file(file, line)
 endfunction
+
+function! s:command_set_breakpoint(cmd)
 
 
 function! s:open_file(file, line)
