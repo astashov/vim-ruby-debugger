@@ -16,7 +16,7 @@ t2 = Thread.new do
     response = select([debugger], nil, nil, 10)
       if response && response[0] && response[0][0]
       output = response[0][0].recv(10000)
-      File.open(ARGV[2], 'w') { |f| f.print(output) }
+      system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"<C-\\\\><C-N>:call Debugger.receive_command('" + output.gsub('"', '\"') + "')<CR>\"");
     end
   end
 end
