@@ -28,16 +28,24 @@ function! RubyDebugger.start() dict
 endfunction
 
 
-function! RubyDebugger.receive_command(cmd) dict
-  let cmd = a:cmd
-  echo cmd
-  if empty(cmd) == 0
+function! RubyDebugger.receive_command() dict
+  let cmd = join(readfile("/home/anton/.vim/bin/debg"), "\n")
+  " Clear command line
+  echo ""
+  if !empty(cmd)
     if match(cmd, '<breakpoint ') != -1
       call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
     elseif match(cmd, '<breakpointAdded ') != -1
       call g:RubyDebugger.commands.set_breakpoint(cmd)
+    elseif match(cmd, '<variables>') != -1
+      call g:RubyDebugger.commands.set_variables(cmd)
     endif
   endif
+endfunction
+
+
+function! RubyDebugger.nothing(asdf) dict
+  echo "something"
 endfunction
 
 
@@ -69,6 +77,36 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   exe ":sign place " . attrs.no . " line=" . file_match[2] . " name=breakpoint file=" . file_match[1]
 endfunction
 
+
+" <variables>
+"   <variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a904"/>
+" </variables>
+function! RubyDebugger.commands.set_variables(cmd)
+  let tags = s:get_tags(a:cmd)
+  let list_of_variables = []
+  for tag in tags
+    let attrs = s:get_tag_attributes(tag)
+    let variables = {}
+    if has_key(attrs, 'name')
+      let variables["name"] = attrs.name
+    endif
+    if has_key(attrs, 'value')
+      let variables["value"] = attrs.value
+    endif
+    if has_key(attrs, 'type')
+      let variables["type"] = attrs.type
+    endif
+    if has_key(attrs, 'hasChildren')
+      let variables["has_children"] = attrs.hasChildren
+    endif
+    call add(list_of_variables, variables)
+  endfor
+  if !has_key(g:RubyDebugger.variables, 'list')
+    g:RubyDebugger.variables.list = []
+  endif
+  call extend(g:RubyDebugger.variables.list, list_of_variables)
+  call s:collect_variables()
+endfunction
 
 " *** End of debugger Commands ***
 
@@ -105,7 +143,7 @@ function! RubyDebugger.variables.create_window() dict
     setlocal cursorline
     setfiletype variablestree
 
-    call RubyDebugger.variables.update()
+    call g:RubyDebugger.variables.update()
 endfunction
 
 
@@ -123,25 +161,71 @@ endfunction
 
 function! RubyDebugger.variables.update() dict
 
+
+  let g:RubyDebugger.variables.need_to_get = [ 'local', 'self' ]
+  let g:RubyDebugger.variables.list = []
+  call s:collect_variables() 
 endfunction
+
 
 function! s:is_variables_window_open()
     return exists("g:variables_buffer_name") && bufloaded(g:variables_buffer_name)
 endfunction
 
+function! s:collect_variables()
+  if !empty(g:RubyDebugger.variables.need_to_get)
+    let type = remove(g:RubyDebugger.variables.need_to_get, 0)
+    if type == 'local'
+      call s:send_message_to_debugger('var local')
+    elseif type == 'self'
+      call s:send_message_to_debugger('var instance self')
+    end
+  else
+    call s:display_variables()
+  endif
+endfunction
+
+
+function! s:display_variables()
+  let curLine = line(".")
+  let curCol = col(".")
+  let topLine = line("w0")
+  " delete all lines in the buffer (being careful not to clobber a register)
+  silent 1,$delete _
+  for var in g:RubyDebugger.variables.list
+    call setline(curLine, get(var, "name", "undefined") . "\t" . get(var, "type", "undefined") . "\t" . get(var, "value", "undefined"))
+    let curLine = curLine + 1
+  endfor
+endfunction
 
 " *** End of variables window ***
 
+function! s:get_tags(cmd)
+  let tags = []
+  let cmd = a:cmd
+  let inner_tags_match = matchlist(cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
+  if empty(inner_tags_match) == 0
+    let pattern = '<.\{-}\/>' 
+    let inner_tags = inner_tags_match[1]
+    let tagmatch = matchlist(inner_tags, pattern)
+    while empty(tagmatch) == 0
+      call add(tags, tagmatch[0])
+      let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
+      let tagmatch = matchlist(inner_tags, pattern)
+    endwhile
+  endif
+  return tags
+endfunction
 
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
   let pattern = '\(\w\+\)="\(.\{-}\)"'
-  let tagmatch = matchlist(cmd, pattern) 
-  while empty(tagmatch) == 0
-    let attributes[tagmatch[1]] = tagmatch[2]
-    let cmd = substitute(cmd, tagmatch[0], '', '')
-    let tagmatch = matchlist(cmd, pattern) 
+  let attrmatch = matchlist(cmd, pattern) 
+  while empty(attrmatch) == 0
+    let attributes[attrmatch[1]] = attrmatch[2]
+    let cmd = substitute(cmd, attrmatch[0], '', '')
+    let attrmatch = matchlist(cmd, pattern) 
   endwhile
   return attributes
 endfunction
