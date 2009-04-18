@@ -1,0 +1,8 @@
+ruby_debugger/init.vim
+ruby_debugger/public.vim
+ruby_debugger/commands.vim
+ruby_debugger/window.vim
+ruby_debugger/var.vim
+ruby_debugger/var_child.vim
+ruby_debugger/var_parent.vim
+ruby_debugger/common.vim
