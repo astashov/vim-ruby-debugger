@@ -108,9 +108,11 @@ function! RubyDebugger.commands.set_variables(cmd)
     call add(list_of_variables, variable)
   endfor
   if !has_key(g:RubyDebugger.variables, 'list')
-    g:RubyDebugger.variables.list = []
+    let g:RubyDebugger.variables.list = s:VarParent.new({'hasChildren': 'true'})
+    let g:RubyDebugger.variables.list.children = []
+    call g:RubyDebugger.variables.list.open()
   endif
-  call extend(g:RubyDebugger.variables.list, list_of_variables)
+  call g:RubyDebugger.variables.list.add_childs(list_of_variables)
   call s:collect_variables()
 endfunction
 
@@ -214,7 +216,6 @@ endfunction
 
 function! RubyDebugger.variables.update() dict
   let g:RubyDebugger.variables.need_to_get = [ 'local' ]
-  let g:RubyDebugger.variables.list = []
   call s:collect_variables() 
 endfunction
 
@@ -246,7 +247,7 @@ function! s:display_variables()
   " delete all lines in the buffer (being careful not to clobber a register)
   silent 1,$delete _
 
-  for var in g:RubyDebugger.variables.list
+  for var in g:RubyDebugger.variables.list.children
     call setline(current_line, var.render())
     let current_line = current_line + 1
   endfor
@@ -262,7 +263,7 @@ let s:Var = {}
 
 " This is a proxy method for creating new variable
 function! s:Var.new(attrs)
-  if has_key(a:attrs, 'hasChild') && a:attrs['hasChild'] == 'true'
+  if has_key(a:attrs, 'hasChildren') && a:attrs['hasChildren'] == 'true'
     return s:VarParent.new(a:attrs)
   else
     return s:VarChild.new(a:attrs)
@@ -290,9 +291,9 @@ endfunction
 let s:VarParent = copy(s:VarChild)
 
 
-" Initizlizes new variable with childs
+" Initializes new variable with childs
 function! s:VarParent.new(attrs)
-  if !has_key(a:attrs, 'hasChild') || a:attrs['hasChild'] != 'true'
+  if !has_key(a:attrs, 'hasChildren') || a:attrs['hasChildren'] != 'true'
     throw "RubyDebug: VarParent must be initialized with hasChild = true"
   endif
   let new_variable = copy(self)
@@ -304,6 +305,23 @@ function! s:VarParent.new(attrs)
 endfunction
 
 
+function! s:VarParent.open()
+  let self.is_open = 1
+  if self.children ==# []
+    " return self._init_children(0)
+  else
+    return 0
+  endif
+endfunction
+
+
+function! s:VarParent.add_childs(childs)
+  if type(a:childs) == type([])
+    call extend(self.children, a:childs)
+  else
+    call add(self.children, a:childs)
+  end
+endfunction
 
 
 function! s:get_tags(cmd)
@@ -322,6 +340,7 @@ function! s:get_tags(cmd)
   endif
   return tags
 endfunction
+
 
 function! s:get_tag_attributes(cmd)
   let attributes = {}
