@@ -10,6 +10,8 @@ let RubyDebugger = { 'commands': {}, 'variables': {} }
 
 let s:rdebug_port = 39767
 let s:debugger_port = 39768
+let s:runtime_dir = split(&runtimepath, ',')[0]
+let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 
 " Init breakpoing signs
 hi breakpoint  term=NONE    cterm=NONE    gui=NONE
@@ -21,7 +23,7 @@ sign define breakpoint  linehl=breakpoint  text=>>
 
 function! RubyDebugger.start() dict
   let rdebug = 'rdebug-ide -p ' . s:rdebug_port . ' -- script/server &'
-  let debugger = 'ruby ' . expand("~/.vim/bin/debugger.rb") . ' ' . s:rdebug_port . ' ' . s:debugger_port . ' ' . v:progname . ' ' . v:servername . ' &'
+  let debugger = 'ruby ' . expand(s:runtime_dir . "/bin/ruby_debugger.rb") . ' ' . s:rdebug_port . ' ' . s:debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . s:tmp_file . '" &'
   call system(rdebug)
   exe 'sleep 1'
   call system(debugger)
@@ -29,7 +31,7 @@ endfunction
 
 
 function! RubyDebugger.receive_command() dict
-  let cmd = join(readfile("/home/anton/.vim/bin/debg"), "\n")
+  let cmd = join(readfile(s:tmp_file), "\n")
   " Clear command line
   echo ""
   if !empty(cmd)

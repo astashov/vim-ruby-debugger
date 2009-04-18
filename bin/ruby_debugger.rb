@@ -18,7 +18,9 @@ t2 = Thread.new do
       if response && response[0] && response[0][0]
       output = response[0][0].recv(10000)
       #command = ":call RubyDebugger.receive_command('" + output.gsub('"', '\"') + "')"
-      File.open('/home/anton/.vim/bin/debg', 'w') { |f| f.puts(CGI::unescapeHTML(output)) }
+      dir = File.dirname(ARGV[4])
+      Dir.mkdir(dir) unless File.exist?(dir) && File.directory?(dir)
+      File.open(ARGV[4], 'w') { |f| f.puts(CGI::unescapeHTML(output)) }
       command = ":call RubyDebugger.receive_command()"
       system("#{ARGV[2]} -silent --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"<C-\\\\><C-N>#{command}<CR>\"");
     end
