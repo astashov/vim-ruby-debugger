@@ -6,4 +6,6 @@ Planned features:
 2. Debugger will be look like in the Netbeans - you can go through the code, watch variables in separate window, set breakpoints, etc...
 3. Also, it will support command-line commands, like in the rdebug, e.g., you can execute 'p "Hello World"' in command line of VIM and it will output result: "Hello World". This feature I miss in the Netbeans very much. :)
 
+== Thanks
 
+Special thanks to tpope (for rails.vim) and Marty Grenfell (for NERDTree), mostly, I learn Vim Scripting from their projects.

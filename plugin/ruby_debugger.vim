@@ -6,12 +6,28 @@ map <Leader>r  :call RubyDebugger.receive_command()<CR>
 map <Leader>v  :call RubyDebugger.variables.toggle()<CR>
 command! Rdebugger :call RubyDebugger.start() 
 
-let RubyDebugger = { 'commands': {}, 'variables': {} }
+" if exists("g:loaded_ruby_debugger")
+"     finish
+" endif
+" if v:version < 700
+"     echoerr "RubyDebugger: This plugin requires Vim >= 7."
+"     finish
+" endif
+" let g:loaded_ruby_debugger = 1
+
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {} }
 
 let s:rdebug_port = 39767
 let s:debugger_port = 39768
 let s:runtime_dir = split(&runtimepath, ',')[0]
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
+
+let s:variables_buf_name = "Variables_Window"
+let s:next_buffer_number = 1
+
+let RubyDebugger.settings.variables_win_position = 'botright'
+let RubyDebugger.settings.variables_win_size = 10
+
 
 " Init breakpoing signs
 hi breakpoint  term=NONE    cterm=NONE    gui=NONE
@@ -115,23 +131,69 @@ endfunction
 " *** Variables window ***
 
 function! RubyDebugger.variables.toggle() dict
-  if !s:is_variables_window_open()
-    call g:RubyDebugger.variables.create_window()
+  if s:variables_exist_for_tab()
+    if !s:is_variables_open()
+      call self.create_window()
+    else
+      call self.close_window()
+    endif
   else
-    call g:RubyDebugger.variables.close_window()
+    call self.init()
+  end
+endfunction
+
+
+function! s:variables_exist_for_tab()
+  return exists("t:variables_buf_name") 
+endfunction
+
+
+function! s:is_variables_open()
+    return s:get_variables_win_num() != -1
+endfunction
+
+
+function! s:get_variables_win_num()
+  if s:variables_exist_for_tab()
+    return bufwinnr(t:variables_buf_name)
+  else
+    return -1
   endif
+endfunction
+
+
+function! s:next_buffer_name()
+  let name = s:variables_buf_name . s:next_buffer_number
+  let s:next_buffer_number += 1
+  return name
+endfunction
+
+
+function! RubyDebugger.variables.init() dict
+  if s:variables_exist_for_tab()
+    if s:is_variables_open()
+      call self.close_window()
+    endif
+    unlet t:variables_buf_name
+  endif
+
+  call self.create_window()
+
 endfunction
 
 
 function! RubyDebugger.variables.create_window() dict
     " create the variables tree window
-    let splitLocation = "botright "
-    let splitSize = 10
-    exec splitLocation . ' ' . splitSize . ' new'
+    let splitLocation = g:RubyDebugger.settings.variables_win_position
+    let splitSize = g:RubyDebugger.settings.variables_win_size
+    silent exec splitLocation . ' ' . splitSize . ' new'
 
-    let g:variables_buffer_name = 'Variables_Window' 
-    silent! exec "edit " . g:variables_buffer_name
-    let g:variables_buffer_number = bufnr("%")
+    if !exists('t:variables_buf_name')
+      let t:variables_buf_name = s:next_buffer_name()
+      silent! exec "edit " . t:variables_buf_name
+    else
+      silent! exec "buffer " . t:variables_buf_name
+    endif
 
     " set buffer options
     setlocal winfixwidth
@@ -150,14 +212,17 @@ endfunction
 
 
 function! RubyDebugger.variables.close_window() dict
-  if !s:is_variables_window_open()
+  if !s:is_variables_open()
     throw "No Variables Tree is open"
   endif
 
-  exe 'buffer ' . g:variables_buffer_number
-  close
-  unlet g:variables_buffer_name
-  unlet g:variables_buffer_number
+  if winnr("$") != 1
+    exe s:get_variables_win_num() . " wincmd w"
+    close
+    exe "wincmd p"
+  else
+    :q
+  endif
 endfunction
 
 
