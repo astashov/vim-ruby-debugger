@@ -2,6 +2,13 @@
 let s:VarParent = copy(s:VarChild)
 
 
+" Renders data of the variable
+function! s:VarParent.render()
+  return self._render(0, 0, [], len(self.children) ==# 1)
+endfunction
+
+
+
 " Initializes new variable with childs
 function! s:VarParent.new(attrs)
   if !has_key(a:attrs, 'hasChildren') || a:attrs['hasChildren'] != 'true'
@@ -12,6 +19,7 @@ function! s:VarParent.new(attrs)
   let new_variable.parent = {}
   let new_variable.is_open = 0
   let new_variable.children = []
+  let new_variable.type = "VarParent"
   return new_variable
 endfunction
 
@@ -28,8 +36,12 @@ endfunction
 
 function! s:VarParent.add_childs(childs)
   if type(a:childs) == type([])
+    for child in a:childs
+      let child.parent = self
+    endfor
     call extend(self.children, a:childs)
   else
+    let a:childs.parent = self
     call add(self.children, a:childs)
   end
 endfunction

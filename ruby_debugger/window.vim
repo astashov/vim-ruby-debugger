@@ -127,10 +127,12 @@ function! s:display_variables()
   " delete all lines in the buffer (being careful not to clobber a register)
   silent 1,$delete _
 
-  for var in g:RubyDebugger.variables.list.children
-    call setline(current_line, var.render())
-    let current_line = current_line + 1
-  endfor
+  call setline(current_line, "Variables:")
+
+  let old_p = @p
+  let @p = g:RubyDebugger.variables.list.render()
+  silent put p
+  let @p = old_p
   
   setlocal nomodifiable
 endfunction

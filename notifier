@@ -1,4 +1,5 @@
 #!/bin/sh
 while inotifywait -r -e create,modify,delete ruby_debugger/*.vim; do
+  sleep 0.3
   ruby collector.rb
 done

@@ -251,10 +251,12 @@ function! s:display_variables()
   " delete all lines in the buffer (being careful not to clobber a register)
   silent 1,$delete _
 
-  for var in g:RubyDebugger.variables.list.children
-    call setline(current_line, var.render())
-    let current_line = current_line + 1
-  endfor
+  call setline(current_line, "Variables:")
+
+  let old_p = @p
+  let @p = g:RubyDebugger.variables.list.render()
+  silent put p
+  let @p = old_p
   
   setlocal nomodifiable
 endfunction
@@ -287,21 +289,99 @@ function! s:VarChild.new(attrs)
   let new_variable = copy(self)
   let new_variable.attributes = a:attrs
   let new_variable.parent = {}
+  let new_variable.type = "VarChild"
   return new_variable
 endfunction
 
 
 " Renders data of the variable
 function! s:VarChild.render()
-  let output = get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined")
-  return output
+  return self._render(0, 0, [], len(self.parent.children) ==# 1)
 endfunction
 
 
+function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
+  let output = ""
+  if a:draw_text ==# 1
+    let tree_parts = ''
+
+    "get all the leading spaces and vertical tree parts for this line
+    if a:depth > 1
+      for j in a:vertical_map[0:-2]
+        if j ==# 1
+          let tree_parts = tree_parts . '| '
+        else
+          let tree_parts = tree_parts . '  '
+        endif
+      endfor
+    endif
+    
+    "get the last vertical tree part for this line which will be different
+    "if this node is the last child of its parent
+    if a:is_last_child
+      let tree_parts = tree_parts . '`'
+    else
+      let tree_parts = tree_parts . '|'
+    endif
+
+    "smack the appropriate dir/file symbol on the line before the file/dir
+    "name itself
+    if self.is_parent()
+      if self.is_open
+        let tree_parts = tree_parts . '~'
+      else
+        let tree_parts = tree_parts . '+'
+      endif
+    else
+      let tree_parts = tree_parts . '-'
+    endif
+    let line = tree_parts . self.to_s()
+    let output = output . line . "\n"
+
+  endif
+
+  if self.is_parent() && self.is_open
+
+    if len(self.children) > 0
+
+      "draw all the nodes children except the last
+      let last_index = len(self.children) - 1
+      if last_index > 0
+        for i in self.children[0:last_index - 1]
+          let output = output . i._render(a:depth + 1, 1, add(copy(a:vertical_map), 1), 0)
+        endfor
+      endif
+
+      "draw the last child, indicating that it IS the last
+      let output = output . self.children[last_index]._render(a:depth + 1, 1, add(copy(a:vertical_map), 0), 1)
+
+    endif
+  endif
+
+  return output
+
+endfunction
+
+
+function! s:VarChild.is_parent()
+  return has_key(self.attributes, 'hasChildren') && get(self.attributes, 'hasChildren') ==# 'true'
+endfunction
+
+
+function! s:VarChild.to_s()
+  return get(self.attributes, "name", "undefined") . ' ' . get(self.attributes, "type", "undefined") . ' ' . get(self.attributes, "value", "undefined")
+endfunction
 
 
 " Inherits VarParent from VarChild
 let s:VarParent = copy(s:VarChild)
+
+
+" Renders data of the variable
+function! s:VarParent.render()
+  return self._render(0, 0, [], len(self.children) ==# 1)
+endfunction
+
 
 
 " Initializes new variable with childs
@@ -314,6 +394,7 @@ function! s:VarParent.new(attrs)
   let new_variable.parent = {}
   let new_variable.is_open = 0
   let new_variable.children = []
+  let new_variable.type = "VarParent"
   return new_variable
 endfunction
 
@@ -330,12 +411,87 @@ endfunction
 
 function! s:VarParent.add_childs(childs)
   if type(a:childs) == type([])
+    for child in a:childs
+      let child.parent = self
+    endfor
     call extend(self.children, a:childs)
   else
+    let a:childs.parent = self
     call add(self.children, a:childs)
   end
 endfunction
 
+
+
+
+function! s:get_tags(cmd)
+  let tags = []
+  let cmd = a:cmd
+  let inner_tags_match = matchlist(cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
+  if empty(inner_tags_match) == 0
+    let pattern = '<.\{-}\/>' 
+    let inner_tags = inner_tags_match[1]
+    let tagmatch = matchlist(inner_tags, pattern)
+    while empty(tagmatch) == 0
+      call add(tags, tagmatch[0])
+      let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
+      let tagmatch = matchlist(inner_tags, pattern)
+    endwhile
+  endif
+  return tags
+endfunction
+
+
+function! s:get_tag_attributes(cmd)
+  let attributes = {}
+  let cmd = a:cmd
+  let pattern = '\(\w\+\)="\(.\{-}\)"'
+  let attrmatch = matchlist(cmd, pattern) 
+  while empty(attrmatch) == 0
+    let attributes[attrmatch[1]] = attrmatch[2]
+    let cmd = substitute(cmd, attrmatch[0], '', '')
+    let attrmatch = matchlist(cmd, pattern) 
+  endwhile
+  return attributes
+endfunction
+
+
+function! s:get_filename()
+  return bufname("%")
+endfunction
+
+
+function! s:send_message_to_debugger(message)
+  call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
+endfunction
+
+
+function! s:jump_to_file(file, line)
+  " If no buffer with this file has been loaded, create new one
+  if !bufexists(bufname(a:file))
+     exe ":e! " . l:fileName
+  endif
+
+  let l:winNr = bufwinnr(bufnr(a:file))
+  if l:winNr != -1
+     exe l:winNr . "wincmd w"
+  endif
+
+  " open buffer of a:file
+  if bufname(a:file) != bufname("%")
+     exe ":buffer " . bufnr(a:file)
+  endif
+
+  " jump to line
+  exe ":" . a:line
+  normal z.
+  if foldlevel(a:line) != 0
+     normal zo
+  endif
+
+  return bufname(a:file)
+
+endfunction
 
 
 
