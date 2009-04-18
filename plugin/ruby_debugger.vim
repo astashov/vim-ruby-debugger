@@ -41,7 +41,7 @@ function! RubyDebugger.start() dict
   let rdebug = 'rdebug-ide -p ' . s:rdebug_port . ' -- script/server &'
   let debugger = 'ruby ' . expand(s:runtime_dir . "/bin/ruby_debugger.rb") . ' ' . s:rdebug_port . ' ' . s:debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . s:tmp_file . '" &'
   call system(rdebug)
-  exe 'sleep 1'
+  exe 'sleep 2'
   call system(debugger)
 endfunction
 
@@ -104,20 +104,8 @@ function! RubyDebugger.commands.set_variables(cmd)
   let list_of_variables = []
   for tag in tags
     let attrs = s:get_tag_attributes(tag)
-    let variables = {}
-    if has_key(attrs, 'name')
-      let variables["name"] = attrs.name
-    endif
-    if has_key(attrs, 'value')
-      let variables["value"] = attrs.value
-    endif
-    if has_key(attrs, 'type')
-      let variables["type"] = attrs.type
-    endif
-    if has_key(attrs, 'hasChildren')
-      let variables["has_children"] = attrs.hasChildren
-    endif
-    call add(list_of_variables, variables)
+    let variable = s:Var.new(attrs)
+    call add(list_of_variables, variable)
   endfor
   if !has_key(g:RubyDebugger.variables, 'list')
     g:RubyDebugger.variables.list = []
@@ -176,9 +164,7 @@ function! RubyDebugger.variables.init() dict
     endif
     unlet t:variables_buf_name
   endif
-
   call self.create_window()
-
 endfunction
 
 
@@ -227,9 +213,7 @@ endfunction
 
 
 function! RubyDebugger.variables.update() dict
-
-
-  let g:RubyDebugger.variables.need_to_get = [ 'local', 'self' ]
+  let g:RubyDebugger.variables.need_to_get = [ 'local' ]
   let g:RubyDebugger.variables.list = []
   call s:collect_variables() 
 endfunction
@@ -254,18 +238,73 @@ endfunction
 
 
 function! s:display_variables()
-  let curLine = line(".")
-  let curCol = col(".")
-  let topLine = line("w0")
+  setlocal modifiable
+
+  let current_line = line(".")
+  let current_column = col(".")
+  let top_line = line("w0")
   " delete all lines in the buffer (being careful not to clobber a register)
   silent 1,$delete _
+
   for var in g:RubyDebugger.variables.list
-    call setline(curLine, get(var, "name", "undefined") . "\t" . get(var, "type", "undefined") . "\t" . get(var, "value", "undefined"))
-    let curLine = curLine + 1
+    call setline(current_line, var.render())
+    let current_line = current_line + 1
   endfor
+  
+  setlocal nomodifiable
 endfunction
 
 " *** End of variables window ***
+
+" *** Start of variables ***
+let s:VarChild = {}
+let s:Var = {}
+
+" This is a proxy method for creating new variable
+function! s:Var.new(attrs)
+  if has_key(a:attrs, 'hasChild') && a:attrs['hasChild'] == 'true'
+    return s:VarParent.new(a:attrs)
+  else
+    return s:VarChild.new(a:attrs)
+  end
+endfunction
+
+
+" Initializes new variable without childs
+function! s:VarChild.new(attrs)
+  let new_variable = copy(self)
+  let new_variable.attributes = a:attrs
+  let new_variable.parent = {}
+  return new_variable
+endfunction
+
+
+" Renders data of the variable
+function! s:VarChild.render()
+  let output = get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined")
+  return output
+endfunction
+
+
+" Inherits VarParent from VarChild
+let s:VarParent = copy(s:VarChild)
+
+
+" Initizlizes new variable with childs
+function! s:VarParent.new(attrs)
+  if !has_key(a:attrs, 'hasChild') || a:attrs['hasChild'] != 'true'
+    throw "RubyDebug: VarParent must be initialized with hasChild = true"
+  endif
+  let new_variable = copy(self)
+  let new_variable.attributes = a:attrs
+  let new_variable.parent = {}
+  let new_variable.is_open = 0
+  let new_variable.children = []
+  return new_variable
+endfunction
+
+
+
 
 function! s:get_tags(cmd)
   let tags = []
