@@ -26,11 +26,24 @@ endfunction
 
 function! s:VarParent.open()
   let self.is_open = 1
-  if self.children ==# []
-    " return self._init_children(0)
+  if empty(self.children)
+    return self._init_children()
   else
     return 0
   endif
+endfunction
+
+
+function! s:VarParent._init_children()
+  "remove all the current child nodes
+  let self.children = []
+  if !has_key(self.attributes, "name")
+    return 0
+  endif
+
+  let g:RubyDebugger.current_variable = self.attributes.name
+  call s:send_message_to_debugger('var instance ' . self.attributes.name)
+   
 endfunction
 
 
@@ -47,4 +60,17 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
+function! s:VarParent.find_variable(name)
+  if has_key(self.attributes, "name") && self.attributes.name ==# a:name
+    return self
+  else
+    for child in self.children
+      let result = child.find_variable(a:name)
+      if type(result) == type({})
+        return result
+      endif
+    endfor
+  endif
+  return 0
+endfunction
 

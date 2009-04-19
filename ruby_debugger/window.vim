@@ -75,6 +75,8 @@ function! RubyDebugger.variables.create_window() dict
     setlocal cursorline
     setfiletype variablestree
 
+    call s:bind_mappings()
+
     call g:RubyDebugger.variables.update()
 endfunction
 
@@ -135,6 +137,18 @@ function! s:display_variables()
   let @p = old_p
   
   setlocal nomodifiable
+endfunction
+
+
+function! s:bind_mappings()
+  nnoremap <silent> <buffer> <2-leftmouse> :call <SID>activate_node()<cr>
+  nnoremap <silent> <buffer> o :call <SID>activate_node()<cr>"
+endfunction
+
+
+function! s:activate_node()
+  let variable = s:Var.get_selected()
+  call variable.open()
 endfunction
 
 " *** End of variables window ***

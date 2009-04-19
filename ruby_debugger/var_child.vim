@@ -90,3 +90,16 @@ function! s:VarChild.to_s()
   return get(self.attributes, "name", "undefined") . ' ' . get(self.attributes, "type", "undefined") . ' ' . get(self.attributes, "value", "undefined")
 endfunction
 
+
+function! s:VarChild.find_variable(name)
+  if get(self.attributes, "name") ==# a:name
+    return self
+  else
+    return 0
+  endif
+endfunction
+
+
+
+
+

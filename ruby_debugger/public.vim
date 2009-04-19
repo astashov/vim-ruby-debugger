@@ -11,9 +11,8 @@ endfunction
 
 
 function! RubyDebugger.receive_command() dict
-  let cmd = join(readfile(s:tmp_file), "\n")
+  let cmd = join(readfile(s:tmp_file), "")
   " Clear command line
-  echo ""
   if !empty(cmd)
     if match(cmd, '<breakpoint ') != -1
       call g:RubyDebugger.commands.jump_to_breakpoint(cmd)

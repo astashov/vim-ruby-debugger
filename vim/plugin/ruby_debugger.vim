@@ -46,9 +46,8 @@ endfunction
 
 
 function! RubyDebugger.receive_command() dict
-  let cmd = join(readfile(s:tmp_file), "\n")
+  let cmd = join(readfile(s:tmp_file), "")
   " Clear command line
-  echo ""
   if !empty(cmd)
     if match(cmd, '<breakpoint ') != -1
       call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
@@ -111,9 +110,20 @@ function! RubyDebugger.commands.set_variables(cmd)
   if !has_key(g:RubyDebugger.variables, 'list')
     let g:RubyDebugger.variables.list = s:VarParent.new({'hasChildren': 'true'})
     let g:RubyDebugger.variables.list.children = []
-    call g:RubyDebugger.variables.list.open()
+    let g:RubyDebugger.variables.list.is_open = 1
   endif
-  call g:RubyDebugger.variables.list.add_childs(list_of_variables)
+  if has_key(g:RubyDebugger, 'current_variable')
+    let variable = g:RubyDebugger.variables.list.find_variable(g:RubyDebugger.current_variable)
+    unlet g:RubyDebugger.current_variable
+    if type(variable) == type({})
+      call variable.add_childs(list_of_variables)
+    else
+      return 0
+    endif
+  else
+    call g:RubyDebugger.variables.list.add_childs(list_of_variables)
+  endif
+
   call s:collect_variables()
 endfunction
 
@@ -199,6 +209,8 @@ function! RubyDebugger.variables.create_window() dict
     setlocal cursorline
     setfiletype variablestree
 
+    call s:bind_mappings()
+
     call g:RubyDebugger.variables.update()
 endfunction
 
@@ -261,6 +273,18 @@ function! s:display_variables()
   setlocal nomodifiable
 endfunction
 
+
+function! s:bind_mappings()
+  nnoremap <silent> <buffer> <2-leftmouse> :call <SID>activate_node()<cr>
+  nnoremap <silent> <buffer> o :call <SID>activate_node()<cr>"
+endfunction
+
+
+function! s:activate_node()
+  let variable = s:Var.get_selected()
+  call variable.open()
+endfunction
+
 " *** End of variables window ***
 
 
@@ -278,6 +302,13 @@ function! s:Var.new(attrs)
 endfunction
 
 
+function! s:Var.get_selected()
+  let line = getline(".") 
+  let match = matchlist(line, '\([| ~+\-]*\)\([a-zA-Z_\-]\+\)')
+  let name = get(match, 2)
+  let variable = g:RubyDebugger.variables.list.find_variable(name)
+  return variable
+endfunction
 
 
 " *** Start of variables ***
@@ -373,6 +404,19 @@ function! s:VarChild.to_s()
 endfunction
 
 
+function! s:VarChild.find_variable(name)
+  if get(self.attributes, "name") ==# a:name
+    return self
+  else
+    return 0
+  endif
+endfunction
+
+
+
+
+
+
 " Inherits VarParent from VarChild
 let s:VarParent = copy(s:VarChild)
 
@@ -401,11 +445,24 @@ endfunction
 
 function! s:VarParent.open()
   let self.is_open = 1
-  if self.children ==# []
-    " return self._init_children(0)
+  if empty(self.children)
+    return self._init_children()
   else
     return 0
   endif
+endfunction
+
+
+function! s:VarParent._init_children()
+  "remove all the current child nodes
+  let self.children = []
+  if !has_key(self.attributes, "name")
+    return 0
+  endif
+
+  let g:RubyDebugger.current_variable = self.attributes.name
+  call s:send_message_to_debugger('var instance ' . self.attributes.name)
+   
 endfunction
 
 
@@ -422,6 +479,19 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
+function! s:VarParent.find_variable(name)
+  if has_key(self.attributes, "name") && self.attributes.name ==# a:name
+    return self
+  else
+    for child in self.children
+      let result = child.find_variable(a:name)
+      if type(result) == type({})
+        return result
+      endif
+    endfor
+  endif
+  return 0
+endfunction
 
 
 function! s:get_tags(cmd)

@@ -30,9 +30,20 @@ function! RubyDebugger.commands.set_variables(cmd)
   if !has_key(g:RubyDebugger.variables, 'list')
     let g:RubyDebugger.variables.list = s:VarParent.new({'hasChildren': 'true'})
     let g:RubyDebugger.variables.list.children = []
-    call g:RubyDebugger.variables.list.open()
+    let g:RubyDebugger.variables.list.is_open = 1
   endif
-  call g:RubyDebugger.variables.list.add_childs(list_of_variables)
+  if has_key(g:RubyDebugger, 'current_variable')
+    let variable = g:RubyDebugger.variables.list.find_variable(g:RubyDebugger.current_variable)
+    unlet g:RubyDebugger.current_variable
+    if type(variable) == type({})
+      call variable.add_childs(list_of_variables)
+    else
+      return 0
+    endif
+  else
+    call g:RubyDebugger.variables.list.add_childs(list_of_variables)
+  endif
+
   call s:collect_variables()
 endfunction
 
