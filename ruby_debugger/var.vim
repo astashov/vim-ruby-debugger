@@ -12,9 +12,9 @@ endfunction
 
 function! s:Var.get_selected()
   let line = getline(".") 
-  let match = matchlist(line, '\([| ~+\-]*\)\([a-zA-Z_\-]\+\)')
-  let name = get(match, 2)
-  let variable = g:RubyDebugger.variables.list.find_variable(name)
+  let match = matchlist(line, '[| ]\+[+\-\~]\+\(.\{-}\)\s') 
+  let name = get(match, 1)
+  let variable = g:RubyDebugger.variables.list.find_variable({'name' : name})
   return variable
 endfunction
 

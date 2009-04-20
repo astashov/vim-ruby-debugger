@@ -81,6 +81,16 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
 endfunction
 
 
+function! s:VarChild.open()
+  return 0
+endfunction
+
+
+function! s:VarChild.close()
+  return 0
+endfunction
+
+
 function! s:VarChild.is_parent()
   return has_key(self.attributes, 'hasChildren') && get(self.attributes, 'hasChildren') ==# 'true'
 endfunction
@@ -91,15 +101,23 @@ function! s:VarChild.to_s()
 endfunction
 
 
-function! s:VarChild.find_variable(name)
-  if get(self.attributes, "name") ==# a:name
+function! s:VarChild.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
-    return 0
+    return {}
   endif
 endfunction
 
 
+function! s:VarChild._match_attributes(attrs)
+  let conditions = 1
+  for attr in keys(a:attrs)
+    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:attrs[attr]) 
+  endfor
+  
+  return conditions
+endfunction
 
 
 

@@ -76,7 +76,6 @@ function! RubyDebugger.variables.create_window() dict
     setfiletype variablestree
 
     call s:bind_mappings()
-
     call g:RubyDebugger.variables.update()
 endfunction
 
@@ -102,17 +101,11 @@ function! RubyDebugger.variables.update() dict
 endfunction
 
 
-function! s:is_variables_window_open()
-    return exists("g:variables_buffer_name") && bufloaded(g:variables_buffer_name)
-endfunction
-
 function! s:collect_variables()
   if !empty(g:RubyDebugger.variables.need_to_get)
     let type = remove(g:RubyDebugger.variables.need_to_get, 0)
     if type == 'local'
       call s:send_message_to_debugger('var local')
-    elseif type == 'self'
-      call s:send_message_to_debugger('var instance self')
     end
   else
     call s:display_variables()
@@ -129,13 +122,22 @@ function! s:display_variables()
   " delete all lines in the buffer (being careful not to clobber a register)
   silent 1,$delete _
 
-  call setline(current_line, "Variables:")
+  call setline(top_line, "Variables:")
+  call cursor(top_line + 1, current_column)
 
   let old_p = @p
   let @p = g:RubyDebugger.variables.list.render()
   silent put p
   let @p = old_p
-  
+
+ "restore the view
+  let old_scrolloff=&scrolloff
+  let &scrolloff=0
+  call cursor(top_line, 1)
+  normal! zt
+  call cursor(current_line, current_column)
+  let &scrolloff = old_scrolloff 
+
   setlocal nomodifiable
 endfunction
 
@@ -148,7 +150,13 @@ endfunction
 
 function! s:activate_node()
   let variable = s:Var.get_selected()
-  call variable.open()
+  if variable != {} && variable.type == "VarParent"
+    if variable.is_open
+      call variable.close()
+    else
+      call variable.open()
+    endif
+  endif
 endfunction
 
 " *** End of variables window ***

@@ -12,7 +12,7 @@ endfunction
 " Initializes new variable with childs
 function! s:VarParent.new(attrs)
   if !has_key(a:attrs, 'hasChildren') || a:attrs['hasChildren'] != 'true'
-    throw "RubyDebug: VarParent must be initialized with hasChild = true"
+    throw "RubyDebug: VarParent must be initialized with hasChildren = true"
   endif
   let new_variable = copy(self)
   let new_variable.attributes = a:attrs
@@ -26,12 +26,17 @@ endfunction
 
 function! s:VarParent.open()
   let self.is_open = 1
-  if empty(self.children)
-    return self._init_children()
-  else
-    return 0
-  endif
+  call self._init_children()
+  return 0
 endfunction
+
+
+function! s:VarParent.close()
+  let self.is_open = 0
+  call g:RubyDebugger.variables.update()
+  return 0
+endfunction
+
 
 
 function! s:VarParent._init_children()
@@ -42,8 +47,10 @@ function! s:VarParent._init_children()
   endif
 
   let g:RubyDebugger.current_variable = self.attributes.name
-  call s:send_message_to_debugger('var instance ' . self.attributes.name)
-   
+  if has_key(self.attributes, 'objectId')
+    call s:send_message_to_debugger('var instance ' . self.attributes.objectId)
+  endif
+
 endfunction
 
 
@@ -60,17 +67,17 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
-function! s:VarParent.find_variable(name)
-  if has_key(self.attributes, "name") && self.attributes.name ==# a:name
+function! s:VarParent.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     for child in self.children
-      let result = child.find_variable(a:name)
-      if type(result) == type({})
+      let result = child.find_variable(a:attrs)
+      if result != {}
         return result
       endif
     endfor
   endif
-  return 0
+  return {}
 endfunction
 

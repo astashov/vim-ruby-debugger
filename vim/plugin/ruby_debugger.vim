@@ -109,19 +109,21 @@ function! RubyDebugger.commands.set_variables(cmd)
   endfor
   if !has_key(g:RubyDebugger.variables, 'list')
     let g:RubyDebugger.variables.list = s:VarParent.new({'hasChildren': 'true'})
-    let g:RubyDebugger.variables.list.children = []
     let g:RubyDebugger.variables.list.is_open = 1
+    let g:RubyDebugger.variables.list.children = []
   endif
   if has_key(g:RubyDebugger, 'current_variable')
-    let variable = g:RubyDebugger.variables.list.find_variable(g:RubyDebugger.current_variable)
+    let variable = g:RubyDebugger.variables.list.find_variable({'name': g:RubyDebugger.current_variable})
     unlet g:RubyDebugger.current_variable
-    if type(variable) == type({})
+    if variable != {}
       call variable.add_childs(list_of_variables)
     else
       return 0
     endif
   else
-    call g:RubyDebugger.variables.list.add_childs(list_of_variables)
+    if g:RubyDebugger.variables.list.children == []
+      call g:RubyDebugger.variables.list.add_childs(list_of_variables)
+    endif
   endif
 
   call s:collect_variables()
@@ -210,7 +212,6 @@ function! RubyDebugger.variables.create_window() dict
     setfiletype variablestree
 
     call s:bind_mappings()
-
     call g:RubyDebugger.variables.update()
 endfunction
 
@@ -236,17 +237,11 @@ function! RubyDebugger.variables.update() dict
 endfunction
 
 
-function! s:is_variables_window_open()
-    return exists("g:variables_buffer_name") && bufloaded(g:variables_buffer_name)
-endfunction
-
 function! s:collect_variables()
   if !empty(g:RubyDebugger.variables.need_to_get)
     let type = remove(g:RubyDebugger.variables.need_to_get, 0)
     if type == 'local'
       call s:send_message_to_debugger('var local')
-    elseif type == 'self'
-      call s:send_message_to_debugger('var instance self')
     end
   else
     call s:display_variables()
@@ -263,13 +258,22 @@ function! s:display_variables()
   " delete all lines in the buffer (being careful not to clobber a register)
   silent 1,$delete _
 
-  call setline(current_line, "Variables:")
+  call setline(top_line, "Variables:")
+  call cursor(top_line + 1, current_column)
 
   let old_p = @p
   let @p = g:RubyDebugger.variables.list.render()
   silent put p
   let @p = old_p
-  
+
+ "restore the view
+  let old_scrolloff=&scrolloff
+  let &scrolloff=0
+  call cursor(top_line, 1)
+  normal! zt
+  call cursor(current_line, current_column)
+  let &scrolloff = old_scrolloff 
+
   setlocal nomodifiable
 endfunction
 
@@ -282,7 +286,13 @@ endfunction
 
 function! s:activate_node()
   let variable = s:Var.get_selected()
-  call variable.open()
+  if variable != {} && variable.type == "VarParent"
+    if variable.is_open
+      call variable.close()
+    else
+      call variable.open()
+    endif
+  endif
 endfunction
 
 " *** End of variables window ***
@@ -304,9 +314,9 @@ endfunction
 
 function! s:Var.get_selected()
   let line = getline(".") 
-  let match = matchlist(line, '\([| ~+\-]*\)\([a-zA-Z_\-]\+\)')
-  let name = get(match, 2)
-  let variable = g:RubyDebugger.variables.list.find_variable(name)
+  let match = matchlist(line, '[| ]\+[+\-\~]\+\(.\{-}\)\s') 
+  let name = get(match, 1)
+  let variable = g:RubyDebugger.variables.list.find_variable({'name' : name})
   return variable
 endfunction
 
@@ -394,6 +404,16 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
 endfunction
 
 
+function! s:VarChild.open()
+  return 0
+endfunction
+
+
+function! s:VarChild.close()
+  return 0
+endfunction
+
+
 function! s:VarChild.is_parent()
   return has_key(self.attributes, 'hasChildren') && get(self.attributes, 'hasChildren') ==# 'true'
 endfunction
@@ -404,15 +424,23 @@ function! s:VarChild.to_s()
 endfunction
 
 
-function! s:VarChild.find_variable(name)
-  if get(self.attributes, "name") ==# a:name
+function! s:VarChild.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
-    return 0
+    return {}
   endif
 endfunction
 
 
+function! s:VarChild._match_attributes(attrs)
+  let conditions = 1
+  for attr in keys(a:attrs)
+    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:attrs[attr]) 
+  endfor
+  
+  return conditions
+endfunction
 
 
 
@@ -431,7 +459,7 @@ endfunction
 " Initializes new variable with childs
 function! s:VarParent.new(attrs)
   if !has_key(a:attrs, 'hasChildren') || a:attrs['hasChildren'] != 'true'
-    throw "RubyDebug: VarParent must be initialized with hasChild = true"
+    throw "RubyDebug: VarParent must be initialized with hasChildren = true"
   endif
   let new_variable = copy(self)
   let new_variable.attributes = a:attrs
@@ -445,12 +473,17 @@ endfunction
 
 function! s:VarParent.open()
   let self.is_open = 1
-  if empty(self.children)
-    return self._init_children()
-  else
-    return 0
-  endif
+  call self._init_children()
+  return 0
 endfunction
+
+
+function! s:VarParent.close()
+  let self.is_open = 0
+  call g:RubyDebugger.variables.update()
+  return 0
+endfunction
+
 
 
 function! s:VarParent._init_children()
@@ -461,8 +494,10 @@ function! s:VarParent._init_children()
   endif
 
   let g:RubyDebugger.current_variable = self.attributes.name
-  call s:send_message_to_debugger('var instance ' . self.attributes.name)
-   
+  if has_key(self.attributes, 'objectId')
+    call s:send_message_to_debugger('var instance ' . self.attributes.objectId)
+  endif
+
 endfunction
 
 
@@ -479,18 +514,18 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
-function! s:VarParent.find_variable(name)
-  if has_key(self.attributes, "name") && self.attributes.name ==# a:name
+function! s:VarParent.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     for child in self.children
-      let result = child.find_variable(a:name)
-      if type(result) == type({})
+      let result = child.find_variable(a:attrs)
+      if result != {}
         return result
       endif
     endfor
   endif
-  return 0
+  return {}
 endfunction
 
 

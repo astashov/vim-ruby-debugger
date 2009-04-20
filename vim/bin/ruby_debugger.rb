@@ -11,7 +11,7 @@ def read_socket(response, debugger)
   output = ""
   if response && response[0] && response[0][0]
     output = response[0][0].recv(10000)
-    another_response = select([debugger], nil, nil, 0.05)
+    another_response = select([debugger], nil, nil, 0.01)
     if another_response && another_response[0] && another_response[0][0]
       output += read_socket(another_response, debugger)
     end
@@ -34,6 +34,8 @@ end
 t2 = Thread.new do
   loop do 
     response = select([debugger], nil, nil)
+    # Recursively read socket with interval 0.01 seconds. If there will no message in next 0.01 seconds, stop read.
+    # This is need for reading whole message, because sometimes select/recv reads not all available data
     output = read_socket(response, debugger)
     puts output
     File.open(ARGV[4], 'w') { |f| f.puts(CGI::unescapeHTML(output)) }
