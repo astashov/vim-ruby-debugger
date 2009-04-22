@@ -1,5 +1,6 @@
 " *** Public interface ***
 
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {} }
 
 function! RubyDebugger.start() dict
   let rdebug = 'rdebug-ide -p ' . s:rdebug_port . ' -- script/server &'
@@ -25,8 +26,12 @@ function! RubyDebugger.receive_command() dict
 endfunction
 
 
-function! RubyDebugger.nothing(asdf) dict
-  echo "something"
+function! RubyDebugger.open_variables() dict
+"  if g:RubyDebugger.variables == {}
+"    echo "You are not in the running program"
+"  else
+    call s:variables_window.open()
+"  endif
 endfunction
 
 

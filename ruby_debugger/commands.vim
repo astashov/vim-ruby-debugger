@@ -5,6 +5,7 @@
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
+  call s:send_message_to_debugger('var local')
 endfunction
 
 
@@ -27,26 +28,27 @@ function! RubyDebugger.commands.set_variables(cmd)
     let variable = s:Var.new(attrs)
     call add(list_of_variables, variable)
   endfor
-  if !has_key(g:RubyDebugger.variables, 'list')
-    let g:RubyDebugger.variables.list = s:VarParent.new({'hasChildren': 'true'})
-    let g:RubyDebugger.variables.list.is_open = 1
-    let g:RubyDebugger.variables.list.children = []
+  if g:RubyDebugger.variables == {}
+    let g:RubyDebugger.variables = s:VarParent.new({'hasChildren': 'true'})
+    let g:RubyDebugger.variables.is_open = 1
+    let g:RubyDebugger.variables.children = []
   endif
   if has_key(g:RubyDebugger, 'current_variable')
-    let variable = g:RubyDebugger.variables.list.find_variable({'name': g:RubyDebugger.current_variable})
+    let variable = g:RubyDebugger.variables.find_variable({'name': g:RubyDebugger.current_variable})
     unlet g:RubyDebugger.current_variable
     if variable != {}
       call variable.add_childs(list_of_variables)
+      let s:variables_window.data = g:RubyDebugger.variables
+      call s:variables_window.open()
     else
       return 0
     endif
   else
-    if g:RubyDebugger.variables.list.children == []
-      call g:RubyDebugger.variables.list.add_childs(list_of_variables)
+    if g:RubyDebugger.variables.children == []
+      call g:RubyDebugger.variables.add_childs(list_of_variables)
+      let s:variables_window.data = g:RubyDebugger.variables
     endif
   endif
-
-  call s:collect_variables()
 endfunction
 
 " *** End of debugger Commands ***

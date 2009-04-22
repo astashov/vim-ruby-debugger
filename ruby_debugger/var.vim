@@ -14,7 +14,8 @@ function! s:Var.get_selected()
   let line = getline(".") 
   let match = matchlist(line, '[| ]\+[+\-\~]\+\(.\{-}\)\s') 
   let name = get(match, 1)
-  let variable = g:RubyDebugger.variables.list.find_variable({'name' : name})
+  let variable = g:RubyDebugger.variables.find_variable({'name' : name})
+  let g:RubyDebugger.current_variable = variable
   return variable
 endfunction
 

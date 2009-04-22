@@ -1,9 +1,5 @@
-" Vim plugin for debugging Rails applications
-" Maintainer: Anton Astashov (anton at astashov dot net, http://astashov.net)
-
 map <Leader>b  :call RubyDebugger.set_breakpoint()<CR>
-map <Leader>r  :call RubyDebugger.receive_command()<CR>
-map <Leader>v  :call RubyDebugger.variables.toggle()<CR>
+map <Leader>v  :call RubyDebugger.open_variables()<CR>
 command! Rdebugger :call RubyDebugger.start() 
 
 " if exists("g:loaded_ruby_debugger")
@@ -15,15 +11,12 @@ command! Rdebugger :call RubyDebugger.start()
 " endif
 " let g:loaded_ruby_debugger = 1
 
-let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {} }
-
 let s:rdebug_port = 39767
 let s:debugger_port = 39768
 let s:runtime_dir = split(&runtimepath, ',')[0]
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 
-let s:variables_buf_name = "Variables_Window"
-let s:next_buffer_number = 1
+let s:variables_window = s:WindowVariables.new("variables", "Variables_Window", g:RubyDebugger.variables)
 
 let RubyDebugger.settings.variables_win_position = 'botright'
 let RubyDebugger.settings.variables_win_size = 10

@@ -1,92 +1,32 @@
-" *** Variables window ***
+" *** Abstract Class for creating window. Should be inherited. ***
 
-function! RubyDebugger.variables.toggle() dict
-  if s:variables_exist_for_tab()
-    if !s:is_variables_open()
-      call self.create_window()
-    else
-      call self.close_window()
-    endif
-  else
-    call self.init()
-  end
+let s:Window = {} 
+let s:Window['next_buffer_number'] = 1 
+let s:Window['position'] = 'botright'
+let s:Window['size'] = 10
+
+
+function! s:Window.new(name, title, data) dict
+  let new_variable = copy(self)
+  let new_variable.name = a:name
+  let new_variable.title = a:title
+  let new_variable.data = a:data
+  return new_variable
 endfunction
 
 
-function! s:variables_exist_for_tab()
-  return exists("t:variables_buf_name") 
+function! s:Window.clear() dict
+  silent 1,$delete _
 endfunction
 
 
-function! s:is_variables_open()
-    return s:get_variables_win_num() != -1
-endfunction
-
-
-function! s:get_variables_win_num()
-  if s:variables_exist_for_tab()
-    return bufwinnr(t:variables_buf_name)
-  else
-    return -1
-  endif
-endfunction
-
-
-function! s:next_buffer_name()
-  let name = s:variables_buf_name . s:next_buffer_number
-  let s:next_buffer_number += 1
-  return name
-endfunction
-
-
-function! RubyDebugger.variables.init() dict
-  if s:variables_exist_for_tab()
-    if s:is_variables_open()
-      call self.close_window()
-    endif
-    unlet t:variables_buf_name
-  endif
-  call self.create_window()
-endfunction
-
-
-function! RubyDebugger.variables.create_window() dict
-    " create the variables tree window
-    let splitLocation = g:RubyDebugger.settings.variables_win_position
-    let splitSize = g:RubyDebugger.settings.variables_win_size
-    silent exec splitLocation . ' ' . splitSize . ' new'
-
-    if !exists('t:variables_buf_name')
-      let t:variables_buf_name = s:next_buffer_name()
-      silent! exec "edit " . t:variables_buf_name
-    else
-      silent! exec "buffer " . t:variables_buf_name
-    endif
-
-    " set buffer options
-    setlocal winfixwidth
-    setlocal noswapfile
-    setlocal buftype=nofile
-    setlocal nowrap
-    setlocal foldcolumn=0
-    setlocal nobuflisted
-    setlocal nospell
-    iabc <buffer>
-    setlocal cursorline
-    setfiletype variablestree
-
-    call s:bind_mappings()
-    call g:RubyDebugger.variables.update()
-endfunction
-
-
-function! RubyDebugger.variables.close_window() dict
-  if !s:is_variables_open()
-    throw "No Variables Tree is open"
+function! s:Window.close() dict
+  if !self.is_open()
+    throw "RubyDebug: Window " . self.name . " is not open"
   endif
 
   if winnr("$") != 1
-    exe s:get_variables_win_num() . " wincmd w"
+    call self.focus()
     close
     exe "wincmd p"
   else
@@ -95,71 +35,129 @@ function! RubyDebugger.variables.close_window() dict
 endfunction
 
 
-function! RubyDebugger.variables.update() dict
-  let g:RubyDebugger.variables.need_to_get = [ 'local' ]
-  call s:collect_variables() 
-endfunction
-
-
-function! s:collect_variables()
-  if !empty(g:RubyDebugger.variables.need_to_get)
-    let type = remove(g:RubyDebugger.variables.need_to_get, 0)
-    if type == 'local'
-      call s:send_message_to_debugger('var local')
-    end
+function! s:Window.get_number() dict
+  if self._exist_for_tab()
+    return bufwinnr(self._buf_name())
   else
-    call s:display_variables()
+    return -1
   endif
 endfunction
 
 
-function! s:display_variables()
+function! s:Window.display()
+  call self.focus()
   setlocal modifiable
 
   let current_line = line(".")
   let current_column = col(".")
   let top_line = line("w0")
-  " delete all lines in the buffer (being careful not to clobber a register)
-  silent 1,$delete _
 
-  call setline(top_line, "Variables:")
+  call self.clear()
+
+  call setline(top_line, self.title)
   call cursor(top_line + 1, current_column)
 
-  let old_p = @p
-  let @p = g:RubyDebugger.variables.list.render()
-  silent put p
-  let @p = old_p
-
- "restore the view
-  let old_scrolloff=&scrolloff
-  let &scrolloff=0
-  call cursor(top_line, 1)
-  normal! zt
-  call cursor(current_line, current_column)
-  let &scrolloff = old_scrolloff 
+  call self._insert_data()
+  call self._restore_view(top_line, current_line, current_column)
 
   setlocal nomodifiable
 endfunction
 
 
-function! s:bind_mappings()
-  nnoremap <silent> <buffer> <2-leftmouse> :call <SID>activate_node()<cr>
-  nnoremap <silent> <buffer> o :call <SID>activate_node()<cr>"
+function! s:Window.focus() dict
+  exe self.get_number() . " wincmd w"
 endfunction
 
 
-function! s:activate_node()
-  let variable = s:Var.get_selected()
-  if variable != {} && variable.type == "VarParent"
-    if variable.is_open
-      call variable.close()
-    else
-      call variable.open()
+function! s:Window.is_open() dict
+    return self.get_number() != -1
+endfunction
+
+
+function! s:Window.open() dict
+    if !self.is_open()
+      " create the variables tree window
+      silent exec self.position . ' ' . self.size . ' new'
+
+      if !self._exist_for_tab()
+        call self._set_buf_name(self._next_buffer_name())
+        silent! exec "edit " . self._buf_name()
+        " This function does not exist in Window class and should be declared in
+        " childrens
+        call self.bind_mappings()
+      else
+        silent! exec "buffer " . self._buf_name()
+      endif
+
+      " set buffer options
+      setlocal winfixwidth
+      setlocal noswapfile
+      setlocal buftype=nofile
+      setlocal nowrap
+      setlocal foldcolumn=0
+      setlocal nobuflisted
+      setlocal nospell
+      iabc <buffer>
+      setlocal cursorline
+      setfiletype ruby_debugger_window
     endif
-  endif
+    call self.display()
 endfunction
 
-" *** End of variables window ***
+
+function! s:Window.toggle() dict
+  if self._exist_for_tab() && self.is_open()
+    call self.close()
+  else
+    call self.open()
+  end
+endfunction
+
+
+function! s:Window._buf_name() dict
+  return t:window_{self.name}_buf_name
+endfunction
+
+
+function! s:Window._exist_for_tab() dict
+  return exists("t:window_" . self.name . "_buf_name") 
+endfunction
+
+
+function! s:Window._insert_data() dict
+  let old_p = @p
+  let @p = self.data.render()
+  silent put p
+  let @p = old_p
+endfunction
+
+
+function! s:Window._next_buffer_name() dict
+  let name = self.name . s:Window.next_buffer_number
+  let s:Window.next_buffer_number += 1
+  return name
+endfunction
+
+
+function! s:Window._restore_view(top_line, current_line, current_column) dict
+ "restore the view
+  let old_scrolloff=&scrolloff
+  let &scrolloff=0
+  call cursor(a:top_line, 1)
+  normal! zt
+  call cursor(a:current_line, a:current_column)
+  let &scrolloff = old_scrolloff 
+endfunction
+
+
+function! s:Window._set_buf_name(name) dict
+  let t:window_{self.name}_buf_name = a:name
+endfunction
+
+
+
+
+
 
 
 
