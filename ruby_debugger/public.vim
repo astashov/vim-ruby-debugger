@@ -8,11 +8,13 @@ function! RubyDebugger.start() dict
   call system(rdebug)
   exe 'sleep 2'
   call system(debugger)
+  call g:RubyDebugger.logger.put("Start debugger")
 endfunction
 
 
 function! RubyDebugger.receive_command() dict
   let cmd = join(readfile(s:tmp_file), "")
+  call g:RubyDebugger.logger.put("Received command: " . cmd)
   " Clear command line
   if !empty(cmd)
     if match(cmd, '<breakpoint ') != -1
@@ -30,7 +32,8 @@ function! RubyDebugger.open_variables() dict
 "  if g:RubyDebugger.variables == {}
 "    echo "You are not in the running program"
 "  else
-    call s:variables_window.open()
+    call s:variables_window.toggle()
+  call g:RubyDebugger.logger.put("Opened variables window")
 "  endif
 endfunction
 
@@ -40,6 +43,7 @@ function! RubyDebugger.set_breakpoint() dict
   let file = s:get_filename()
   let message = 'break ' . file . ':' . line
   call s:send_message_to_debugger(message)
+  call g:RubyDebugger.logger.put("Set breakpoint to: " . file . ":" . line)
 endfunction
 
 

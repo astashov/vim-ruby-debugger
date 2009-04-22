@@ -2,7 +2,7 @@ function! s:get_tags(cmd)
   let tags = []
   let cmd = a:cmd
   let inner_tags_match = matchlist(cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
-  if empty(inner_tags_match) == 0
+  if !empty(inner_tags_match)
     let pattern = '<.\{-}\/>' 
     let inner_tags = inner_tags_match[1]
     let tagmatch = matchlist(inner_tags, pattern)

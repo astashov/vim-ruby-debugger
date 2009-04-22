@@ -8,11 +8,13 @@ function! RubyDebugger.start() dict
   call system(rdebug)
   exe 'sleep 2'
   call system(debugger)
+  call g:RubyDebugger.logger.put("Start debugger")
 endfunction
 
 
 function! RubyDebugger.receive_command() dict
   let cmd = join(readfile(s:tmp_file), "")
+  call g:RubyDebugger.logger.put("Received command: " . cmd)
   " Clear command line
   if !empty(cmd)
     if match(cmd, '<breakpoint ') != -1
@@ -30,7 +32,8 @@ function! RubyDebugger.open_variables() dict
 "  if g:RubyDebugger.variables == {}
 "    echo "You are not in the running program"
 "  else
-    call s:variables_window.open()
+    call s:variables_window.toggle()
+  call g:RubyDebugger.logger.put("Opened variables window")
 "  endif
 endfunction
 
@@ -40,6 +43,7 @@ function! RubyDebugger.set_breakpoint() dict
   let file = s:get_filename()
   let message = 'break ' . file . ':' . line
   call s:send_message_to_debugger(message)
+  call g:RubyDebugger.logger.put("Set breakpoint to: " . file . ":" . line)
 endfunction
 
 
@@ -55,6 +59,7 @@ endfunction
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
+  call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
   call s:send_message_to_debugger('var local')
 endfunction
 
@@ -64,6 +69,7 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
   exe ":sign place " . attrs.no . " line=" . file_match[2] . " name=breakpoint file=" . file_match[1]
+  call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
 endfunction
 
 
@@ -84,19 +90,25 @@ function! RubyDebugger.commands.set_variables(cmd)
     let g:RubyDebugger.variables.children = []
   endif
   if has_key(g:RubyDebugger, 'current_variable')
-    let variable = g:RubyDebugger.variables.find_variable({'name': g:RubyDebugger.current_variable})
+    let variable_name = g:RubyDebugger.current_variable
+    call g:RubyDebugger.logger.put("Trying to find variable: " . variable_name)
+    let variable = g:RubyDebugger.variables.find_variable({'name': variable_name})
     unlet g:RubyDebugger.current_variable
     if variable != {}
+      call g:RubyDebugger.logger.put("Found variable: " . variable_name)
       call variable.add_childs(list_of_variables)
       let s:variables_window.data = g:RubyDebugger.variables
+      call g:RubyDebugger.logger.put("Opening child variable: " . variable_name)
       call s:variables_window.open()
     else
+      call g:RubyDebugger.logger.put("Can't found variable with name: " . variable_name)
       return 0
     endif
   else
     if g:RubyDebugger.variables.children == []
       call g:RubyDebugger.variables.add_childs(list_of_variables)
       let s:variables_window.data = g:RubyDebugger.variables
+      call g:RubyDebugger.logger.put("Initializing local variables")
     endif
   endif
 endfunction
@@ -140,6 +152,7 @@ function! s:Window.close() dict
   else
     :q
   endif
+  call self._log("Closed window with name: " . self.name)
 endfunction
 
 
@@ -153,6 +166,7 @@ endfunction
 
 
 function! s:Window.display()
+  call self._log("Start displaying data in window with name: " . self.name)
   call self.focus()
   setlocal modifiable
 
@@ -169,11 +183,13 @@ function! s:Window.display()
   call self._restore_view(top_line, current_line, current_column)
 
   setlocal nomodifiable
+  call self._log("Complete displaying data in window with name: " . self.name)
 endfunction
 
 
 function! s:Window.focus() dict
   exe self.get_number() . " wincmd w"
+  call self._log("Set focus to window with name: " . self.name)
 endfunction
 
 
@@ -208,12 +224,14 @@ function! s:Window.open() dict
       iabc <buffer>
       setlocal cursorline
       setfiletype ruby_debugger_window
+      call self._log("Opened window with name: " . self.name)
     endif
     call self.display()
 endfunction
 
 
 function! s:Window.toggle() dict
+  call self._log("Toggling window with name: " . self.name)
   if self._exist_for_tab() && self.is_open()
     call self.close()
   else
@@ -237,6 +255,14 @@ function! s:Window._insert_data() dict
   let @p = self.data.render()
   silent put p
   let @p = old_p
+  call self._log("Inserted data to window with name: " . self.name)
+endfunction
+
+
+function! s:Window._log(string) dict
+  if has_key(self, 'logger')
+    call self.logger.put(a:string)
+  endif
 endfunction
 
 
@@ -255,6 +281,7 @@ function! s:Window._restore_view(top_line, current_line, current_column) dict
   normal! zt
   call cursor(a:current_line, a:current_column)
   let &scrolloff = old_scrolloff 
+  call self._log("Restored view of window with name: " . self.name)
 endfunction
 
 
@@ -312,7 +339,7 @@ function! s:Var.get_selected()
   let match = matchlist(line, '[| ]\+[+\-\~]\+\(.\{-}\)\s') 
   let name = get(match, 1)
   let variable = g:RubyDebugger.variables.find_variable({'name' : name})
-  let g:RubyDebugger.current_variable = variable
+  let g:RubyDebugger.current_variable = name
   return variable
 endfunction
 
@@ -529,7 +556,7 @@ function! s:get_tags(cmd)
   let tags = []
   let cmd = a:cmd
   let inner_tags_match = matchlist(cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
-  if empty(inner_tags_match) == 0
+  if !empty(inner_tags_match)
     let pattern = '<.\{-}\/>' 
     let inner_tags = inner_tags_match[1]
     let tagmatch = matchlist(inner_tags, pattern)
@@ -597,6 +624,25 @@ endfunction
 
 
 
+let s:Logger = {} 
+
+function! s:Logger.new(file)
+  let new_variable = copy(self)
+  let new_variable.file = a:file
+  call writefile([], new_variable.file)
+  return new_variable
+endfunction
+
+function! s:Logger.put(string)
+  let file = readfile(self.file)
+  let string = strftime("%Y/%m/%d %H:%M:%S") . ' ' . a:string
+  call add(file, string)
+  call writefile(file, self.file)
+endfunction
+
+
+
+
 map <Leader>b  :call RubyDebugger.set_breakpoint()<CR>
 map <Leader>v  :call RubyDebugger.open_variables()<CR>
 command! Rdebugger :call RubyDebugger.start() 
@@ -620,6 +666,8 @@ let s:variables_window = s:WindowVariables.new("variables", "Variables_Window", 
 let RubyDebugger.settings.variables_win_position = 'botright'
 let RubyDebugger.settings.variables_win_size = 10
 
+let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
+let s:variables_window.logger = RubyDebugger.logger
 
 " Init breakpoing signs
 hi breakpoint  term=NONE    cterm=NONE    gui=NONE
