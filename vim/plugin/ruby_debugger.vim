@@ -1,21 +1,18 @@
 " *** Public interface ***
 
-let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {} }
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
 
 function! RubyDebugger.start() dict
-  call g:RubyDebugger.stop()
-  let rdebug = 'rdebug-ide -p ' . s:rdebug_port . ' -- script/server &'
-  let debugger = 'ruby ' . expand(s:runtime_dir . "/bin/ruby_debugger.rb") . ' ' . s:rdebug_port . ' ' . s:debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . s:tmp_file . '" &'
-  call system(rdebug)
-  exe 'sleep 2'
-  call system(debugger)
-  call g:RubyDebugger.logger.put("Start debugger")
-endfunction
+  let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
+  call g:RubyDebugger.server.start()
 
-
-function! RubyDebugger.stop() dict
-  call s:stop_server('localhost', '39767')
-  call s:stop_server('localhost', '39768')
+  " Send only first breakpoint to the debugger. All other breakpoints will be
+  " sent by 'set_breakpoint' command
+  let breakpoint = get(g:RubyDebugger.breakpoints, 0)
+  if type(breakpoint) == type({})
+    call breakpoint.send_to_debugger()
+  endif
+  echo "Debugger started"
 endfunction
 
 
@@ -37,21 +34,20 @@ endfunction
 
 
 function! RubyDebugger.open_variables() dict
-"  if g:RubyDebugger.variables == {}
-"    echo "You are not in the running program"
-"  else
+  if g:RubyDebugger.variables == {}
+    echo "You are not in the running program"
+  else
     call s:variables_window.toggle()
-  call g:RubyDebugger.logger.put("Opened variables window")
-"  endif
+    call g:RubyDebugger.logger.put("Opened variables window")
+  endif
 endfunction
 
 
 function! RubyDebugger.set_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
-  let message = 'break ' . file . ':' . line
-  call s:send_message_to_debugger(message)
-  call g:RubyDebugger.logger.put("Set breakpoint to: " . file . ":" . line)
+  let breakpoint = s:Breakpoint.new(file, line)
+  call add(g:RubyDebugger.breakpoints, breakpoint)
 endfunction
 
 
@@ -76,8 +72,23 @@ endfunction
 function! RubyDebugger.commands.set_breakpoint(cmd)
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
-  exe ":sign place " . attrs.no . " line=" . file_match[2] . " name=breakpoint file=" . file_match[1]
+  " Set pid of current debugger to current breakpoint
+  let pid = g:RubyDebugger.server.rdebug_pid
+
+  for breakpoint in g:RubyDebugger.breakpoints
+    if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
+      let breakpoint.debugger_id = attrs.no
+      let breakpoint.rdebug_pid = pid
+    endif
+  endfor
+
   call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
+
+  let not_assigned_breakpoints = filter(copy(g:RubyDebugger.breakpoints), '!has_key(v:val, "rdebug_pid") || v:val["rdebug_pid"] != ' . pid)
+  let not_assigned_breakpoint = get(not_assigned_breakpoints, 0)
+  if type(not_assigned_breakpoint) == type({})
+    call not_assigned_breakpoint.send_to_debugger()
+  endif
 endfunction
 
 
@@ -110,7 +121,6 @@ function! RubyDebugger.commands.set_variables(cmd)
       call s:variables_window.open()
     else
       call g:RubyDebugger.logger.put("Can't found variable with name: " . variable_name)
-      return 0
     endif
   else
     if g:RubyDebugger.variables.children == []
@@ -593,37 +603,12 @@ endfunction
 
 
 function! s:get_filename()
-  return bufname("%")
+  return expand("%:p")
 endfunction
 
 
 function! s:send_message_to_debugger(message)
   call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
-endfunction
-
-
-function! s:get_pid_for(bind,port)
-  if has("win32") || has("win64")
-    let netstat = system("netstat -anop tcp")
-    let pid = matchstr(netstat,'\<'.a:bind.':'.a:port.'\>.\{-\}LISTENING\s\+\zs\d\+')
-  elseif executable('lsof')
-    let pid = system("lsof -i 4tcp@" . a:bind . ':' . a:port . " | grep LISTEN | awk '{print $2}'")
-    let pid = substitute(pid, '\n', '', '')
-  else
-    let pid = ""
-  endif
-  return pid
-endfunction
-
-
-function! s:stop_server(bind, port)
-  let pid = s:get_pid_for(a:bind, a:port)
-  if pid =~ '^\d\+$'
-    echo "Killing server with pid " . pid
-    call system("ruby -e 'Process.kill(9,".pid.")'")
-    sleep 100m
-    call g:RubyDebugger.logger.put("Killed server with pid: " . pid)
-  endif
 endfunction
 
 
@@ -672,6 +657,118 @@ function! s:Logger.put(string)
   call add(file, string)
   call writefile(file, self.file)
 endfunction
+
+
+
+
+let s:Breakpoint = { 'id': 0 }
+
+function! s:Breakpoint.new(file, line)
+  let var = copy(self)
+  let var.file = a:file
+  let var.line = a:line
+  let s:Breakpoint.id += 1
+  let var.id = s:Breakpoint.id
+
+  call var._set_sign()
+  call var.send_to_debugger() 
+  call var._log("Set breakpoint to: " . var.file . ":" . var.line)
+  return var
+endfunction
+
+
+function! s:Breakpoint._set_sign() dict
+  if has("signs")
+    exe ":sign place " . self.id . " line=" . self.line . " name=breakpoint file=" . self.file
+  endif
+endfunction
+
+
+function! s:Breakpoint.send_to_debugger() dict
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+    let message = 'break ' . self.file . ':' . self.line
+    call s:send_message_to_debugger(message)
+  endif
+endfunction
+
+
+function! s:Breakpoint._log(string) dict
+  call g:RubyDebugger.logger.put(a:string)
+endfunction
+
+let s:Server = {}
+
+function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
+  let var = copy(self)
+  let var.rdebug_port = a:rdebug_port
+  let var.debugger_port = a:debugger_port
+  let var.runtime_dir = a:runtime_dir
+  let var.tmp_file = a:tmp_file
+  return var
+endfunction
+
+
+function! s:Server.start() dict
+  call self._stop_server('localhost', s:rdebug_port)
+  call self._stop_server('localhost', s:debugger_port)
+  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- script/server &'
+  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
+  call system(rdebug)
+  exe 'sleep 2'
+  call system(debugger)
+
+  let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
+  let self.debugger_pid = self._get_pid('localhost', self.debugger_port)
+
+  call g:RubyDebugger.logger.put("Start debugger")
+endfunction  
+
+
+function! s:Server.stop() dict
+  call self._kill_process(self.rdebug_pid)
+  call self._kill_process(self.debugger_pid)
+endfunction
+
+
+function! s:Server.is_running() dict
+  return (self._get_pid('localhost', self.rdebug_port) =~ '^\d\+$') && (self._get_pid('localhost', self.debugger_port) =~ '^\d\+$')
+endfunction
+
+
+function! s:Server._get_pid(bind, port)
+  if has("win32") || has("win64")
+    let netstat = system("netstat -anop tcp")
+    let pid = matchstr(netstat, '\<' . a:bind . ':' . a:port . '\>.\{-\}LISTENING\s\+\zs\d\+')
+  elseif executable('lsof')
+    let pid = system("lsof -i 4tcp@" . a:bind . ':' . a:port . " | grep LISTEN | awk '{print $2}'")
+    let pid = substitute(pid, '\n', '', '')
+  else
+    let pid = ""
+  endif
+  return pid
+endfunction
+
+
+function! s:Server._stop_server(bind, port) dict
+  let pid = self._get_pid(a:bind, a:port)
+  if pid =~ '^\d\+$'
+    call self._kill_process(pid)
+  endif
+endfunction
+
+
+function! s:Server._kill_process(pid) dict
+  echo "Killing server with pid " . a:pid
+  call system("ruby -e 'Process.kill(9," . a:pid . ")'")
+  sleep 100m
+  call self._log("Killed server with pid: " . a:pid)
+endfunction
+
+
+function! s:Server._log(string) dict
+  call g:RubyDebugger.logger.put(a:string)
+endfunction
+
 
 
 

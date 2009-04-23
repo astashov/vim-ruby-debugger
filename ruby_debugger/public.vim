@@ -1,21 +1,18 @@
 " *** Public interface ***
 
-let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {} }
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
 
 function! RubyDebugger.start() dict
-  call g:RubyDebugger.stop()
-  let rdebug = 'rdebug-ide -p ' . s:rdebug_port . ' -- script/server &'
-  let debugger = 'ruby ' . expand(s:runtime_dir . "/bin/ruby_debugger.rb") . ' ' . s:rdebug_port . ' ' . s:debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . s:tmp_file . '" &'
-  call system(rdebug)
-  exe 'sleep 2'
-  call system(debugger)
-  call g:RubyDebugger.logger.put("Start debugger")
-endfunction
+  let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
+  call g:RubyDebugger.server.start()
 
-
-function! RubyDebugger.stop() dict
-  call s:stop_server('localhost', '39767')
-  call s:stop_server('localhost', '39768')
+  " Send only first breakpoint to the debugger. All other breakpoints will be
+  " sent by 'set_breakpoint' command
+  let breakpoint = get(g:RubyDebugger.breakpoints, 0)
+  if type(breakpoint) == type({})
+    call breakpoint.send_to_debugger()
+  endif
+  echo "Debugger started"
 endfunction
 
 
@@ -37,21 +34,20 @@ endfunction
 
 
 function! RubyDebugger.open_variables() dict
-"  if g:RubyDebugger.variables == {}
-"    echo "You are not in the running program"
-"  else
+  if g:RubyDebugger.variables == {}
+    echo "You are not in the running program"
+  else
     call s:variables_window.toggle()
-  call g:RubyDebugger.logger.put("Opened variables window")
-"  endif
+    call g:RubyDebugger.logger.put("Opened variables window")
+  endif
 endfunction
 
 
 function! RubyDebugger.set_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
-  let message = 'break ' . file . ':' . line
-  call s:send_message_to_debugger(message)
-  call g:RubyDebugger.logger.put("Set breakpoint to: " . file . ":" . line)
+  let breakpoint = s:Breakpoint.new(file, line)
+  call add(g:RubyDebugger.breakpoints, breakpoint)
 endfunction
 
 

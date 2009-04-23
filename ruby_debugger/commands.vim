@@ -14,8 +14,23 @@ endfunction
 function! RubyDebugger.commands.set_breakpoint(cmd)
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
-  exe ":sign place " . attrs.no . " line=" . file_match[2] . " name=breakpoint file=" . file_match[1]
+  " Set pid of current debugger to current breakpoint
+  let pid = g:RubyDebugger.server.rdebug_pid
+
+  for breakpoint in g:RubyDebugger.breakpoints
+    if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
+      let breakpoint.debugger_id = attrs.no
+      let breakpoint.rdebug_pid = pid
+    endif
+  endfor
+
   call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
+
+  let not_assigned_breakpoints = filter(copy(g:RubyDebugger.breakpoints), '!has_key(v:val, "rdebug_pid") || v:val["rdebug_pid"] != ' . pid)
+  let not_assigned_breakpoint = get(not_assigned_breakpoints, 0)
+  if type(not_assigned_breakpoint) == type({})
+    call not_assigned_breakpoint.send_to_debugger()
+  endif
 endfunction
 
 
@@ -48,7 +63,6 @@ function! RubyDebugger.commands.set_variables(cmd)
       call s:variables_window.open()
     else
       call g:RubyDebugger.logger.put("Can't found variable with name: " . variable_name)
-      return 0
     endif
   else
     if g:RubyDebugger.variables.children == []
