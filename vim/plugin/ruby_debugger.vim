@@ -3,6 +3,7 @@
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {} }
 
 function! RubyDebugger.start() dict
+  call g:RubyDebugger.stop()
   let rdebug = 'rdebug-ide -p ' . s:rdebug_port . ' -- script/server &'
   let debugger = 'ruby ' . expand(s:runtime_dir . "/bin/ruby_debugger.rb") . ' ' . s:rdebug_port . ' ' . s:debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . s:tmp_file . '" &'
   call system(rdebug)
@@ -10,6 +11,13 @@ function! RubyDebugger.start() dict
   call system(debugger)
   call g:RubyDebugger.logger.put("Start debugger")
 endfunction
+
+
+function! RubyDebugger.stop() dict
+  call s:stop_server('localhost', '39767')
+  call s:stop_server('localhost', '39768')
+endfunction
+
 
 
 function! RubyDebugger.receive_command() dict
@@ -591,6 +599,31 @@ endfunction
 
 function! s:send_message_to_debugger(message)
   call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
+endfunction
+
+
+function! s:get_pid_for(bind,port)
+  if has("win32") || has("win64")
+    let netstat = system("netstat -anop tcp")
+    let pid = matchstr(netstat,'\<'.a:bind.':'.a:port.'\>.\{-\}LISTENING\s\+\zs\d\+')
+  elseif executable('lsof')
+    let pid = system("lsof -i 4tcp@" . a:bind . ':' . a:port . " | grep LISTEN | awk '{print $2}'")
+    let pid = substitute(pid, '\n', '', '')
+  else
+    let pid = ""
+  endif
+  return pid
+endfunction
+
+
+function! s:stop_server(bind, port)
+  let pid = s:get_pid_for(a:bind, a:port)
+  if pid =~ '^\d\+$'
+    echo "Killing server with pid " . pid
+    call system("ruby -e 'Process.kill(9,".pid.")'")
+    sleep 100m
+    call g:RubyDebugger.logger.put("Killed server with pid: " . pid)
+  endif
 endfunction
 
 

@@ -3,6 +3,7 @@
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {} }
 
 function! RubyDebugger.start() dict
+  call g:RubyDebugger.stop()
   let rdebug = 'rdebug-ide -p ' . s:rdebug_port . ' -- script/server &'
   let debugger = 'ruby ' . expand(s:runtime_dir . "/bin/ruby_debugger.rb") . ' ' . s:rdebug_port . ' ' . s:debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . s:tmp_file . '" &'
   call system(rdebug)
@@ -10,6 +11,13 @@ function! RubyDebugger.start() dict
   call system(debugger)
   call g:RubyDebugger.logger.put("Start debugger")
 endfunction
+
+
+function! RubyDebugger.stop() dict
+  call s:stop_server('localhost', '39767')
+  call s:stop_server('localhost', '39768')
+endfunction
+
 
 
 function! RubyDebugger.receive_command() dict
