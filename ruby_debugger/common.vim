@@ -1,7 +1,7 @@
 function! s:get_tags(cmd)
   let tags = []
   let cmd = a:cmd
-  let inner_tags_match = matchlist(cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
+  let inner_tags_match = s:get_inner_tags(cmd)
   if !empty(inner_tags_match)
     let pattern = '<.\{-}\/>' 
     let inner_tags = inner_tags_match[1]
@@ -16,10 +16,15 @@ function! s:get_tags(cmd)
 endfunction
 
 
+function! s:get_inner_tags(cmd)
+  return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
+endfunction 
+
+
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
-  let pattern = '\(\w\+\)="\(.\{-}\)"'
+  let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
   let attrmatch = matchlist(cmd, pattern) 
   while empty(attrmatch) == 0
     let attributes[attrmatch[1]] = attrmatch[2]
@@ -43,12 +48,12 @@ endfunction
 function! s:jump_to_file(file, line)
   " If no buffer with this file has been loaded, create new one
   if !bufexists(bufname(a:file))
-     exe ":e! " . l:fileName
+     exe ":e! " . a:file
   endif
 
-  let l:winNr = bufwinnr(bufnr(a:file))
-  if l:winNr != -1
-     exe l:winNr . "wincmd w"
+  let window_number = bufwinnr(bufnr(a:file))
+  if window_number != -1
+     exe window_number . "wincmd w"
   endif
 
   " open buffer of a:file

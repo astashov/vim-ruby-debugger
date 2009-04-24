@@ -24,10 +24,16 @@ function! RubyDebugger.receive_command() dict
   if !empty(cmd)
     if match(cmd, '<breakpoint ') != -1
       call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+    elseif match(cmd, '<suspended ') != -1
+      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
     elseif match(cmd, '<breakpointAdded ') != -1
       call g:RubyDebugger.commands.set_breakpoint(cmd)
     elseif match(cmd, '<variables>') != -1
       call g:RubyDebugger.commands.set_variables(cmd)
+    elseif match(cmd, '<error>') != -1
+      call g:RubyDebugger.commands.error(cmd)
+    elseif match(cmd, '<message>') != -1
+      call g:RubyDebugger.commands.message(cmd)
     endif
   endif
 endfunction
@@ -51,6 +57,28 @@ function! RubyDebugger.set_breakpoint() dict
 endfunction
 
 
+function! RubyDebugger.next() dict
+  call s:send_message_to_debugger("next")
+  call g:RubyDebugger.logger.put("Step over")
+endfunction
+
+
+function! RubyDebugger.step() dict
+  call s:send_message_to_debugger("step")
+  call g:RubyDebugger.logger.put("Step into")
+endfunction
+
+
+function! RubyDebugger.continue() dict
+  call s:send_message_to_debugger("cont")
+  call g:RubyDebugger.logger.put("Continue")
+endfunction
+
+
+function! RubyDebugger.exit() dict
+  call s:send_message_to_debugger("exit")
+endfunction
+
 " *** End of public interface
 
 
@@ -60,6 +88,7 @@ endfunction
 
 
 " <breakpoint file="test.rb" line="1" threadId="1" />
+" <suspended file='test.rb' line='1' threadId='1' />
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
@@ -128,6 +157,28 @@ function! RubyDebugger.commands.set_variables(cmd)
       let s:variables_window.data = g:RubyDebugger.variables
       call g:RubyDebugger.logger.put("Initializing local variables")
     endif
+  endif
+endfunction
+
+
+" <error>Error</error>
+function! RubyDebugger.commands.error(cmd)
+  let error_match = s:get_inner_tags(a:cmd) 
+  if !empty(error_match)
+    let error = error_match[1]
+    echo "RubyDebugger Error: " . error
+    call g:RubyDebugger.logger.put("Got error: " . error)
+  endif
+endfunction
+
+
+" <message>Message</message>
+function! RubyDebugger.commands.message(cmd)
+  let message_match = s:get_inner_tags(a:cmd) 
+  if !empty(message_match)
+    let message = message_match[1]
+    echo "RubyDebugger Message: " . message
+    call g:RubyDebugger.logger.put("Got message: " . message)
   endif
 endfunction
 
@@ -573,7 +624,7 @@ endfunction
 function! s:get_tags(cmd)
   let tags = []
   let cmd = a:cmd
-  let inner_tags_match = matchlist(cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
+  let inner_tags_match = s:get_inner_tags(cmd)
   if !empty(inner_tags_match)
     let pattern = '<.\{-}\/>' 
     let inner_tags = inner_tags_match[1]
@@ -588,10 +639,15 @@ function! s:get_tags(cmd)
 endfunction
 
 
+function! s:get_inner_tags(cmd)
+  return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
+endfunction 
+
+
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
-  let pattern = '\(\w\+\)="\(.\{-}\)"'
+  let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
   let attrmatch = matchlist(cmd, pattern) 
   while empty(attrmatch) == 0
     let attributes[attrmatch[1]] = attrmatch[2]
@@ -615,12 +671,12 @@ endfunction
 function! s:jump_to_file(file, line)
   " If no buffer with this file has been loaded, create new one
   if !bufexists(bufname(a:file))
-     exe ":e! " . l:fileName
+     exe ":e! " . a:file
   endif
 
-  let l:winNr = bufwinnr(bufnr(a:file))
-  if l:winNr != -1
-     exe l:winNr . "wincmd w"
+  let window_number = bufwinnr(bufnr(a:file))
+  if window_number != -1
+     exe window_number . "wincmd w"
   endif
 
   " open buffer of a:file
@@ -775,6 +831,11 @@ endfunction
 
 map <Leader>b  :call RubyDebugger.set_breakpoint()<CR>
 map <Leader>v  :call RubyDebugger.open_variables()<CR>
+map <Leader>s  :call RubyDebugger.step()<CR>
+map <Leader>n  :call RubyDebugger.next()<CR>
+map <Leader>c  :call RubyDebugger.continue()<CR>
+map <Leader>e  :call RubyDebugger.exit()<CR>
+
 command! Rdebugger :call RubyDebugger.start() 
 
 " if exists("g:loaded_ruby_debugger")

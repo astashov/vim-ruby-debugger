@@ -2,6 +2,7 @@
 
 
 " <breakpoint file="test.rb" line="1" threadId="1" />
+" <suspended file='test.rb' line='1' threadId='1' />
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
@@ -70,6 +71,28 @@ function! RubyDebugger.commands.set_variables(cmd)
       let s:variables_window.data = g:RubyDebugger.variables
       call g:RubyDebugger.logger.put("Initializing local variables")
     endif
+  endif
+endfunction
+
+
+" <error>Error</error>
+function! RubyDebugger.commands.error(cmd)
+  let error_match = s:get_inner_tags(a:cmd) 
+  if !empty(error_match)
+    let error = error_match[1]
+    echo "RubyDebugger Error: " . error
+    call g:RubyDebugger.logger.put("Got error: " . error)
+  endif
+endfunction
+
+
+" <message>Message</message>
+function! RubyDebugger.commands.message(cmd)
+  let message_match = s:get_inner_tags(a:cmd) 
+  if !empty(message_match)
+    let message = message_match[1]
+    echo "RubyDebugger Message: " . message
+    call g:RubyDebugger.logger.put("Got message: " . message)
   endif
 endfunction
 

@@ -1,5 +1,10 @@
 map <Leader>b  :call RubyDebugger.set_breakpoint()<CR>
 map <Leader>v  :call RubyDebugger.open_variables()<CR>
+map <Leader>s  :call RubyDebugger.step()<CR>
+map <Leader>n  :call RubyDebugger.next()<CR>
+map <Leader>c  :call RubyDebugger.continue()<CR>
+map <Leader>e  :call RubyDebugger.exit()<CR>
+
 command! Rdebugger :call RubyDebugger.start() 
 
 " if exists("g:loaded_ruby_debugger")

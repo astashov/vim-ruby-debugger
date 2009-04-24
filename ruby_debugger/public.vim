@@ -24,10 +24,16 @@ function! RubyDebugger.receive_command() dict
   if !empty(cmd)
     if match(cmd, '<breakpoint ') != -1
       call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+    elseif match(cmd, '<suspended ') != -1
+      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
     elseif match(cmd, '<breakpointAdded ') != -1
       call g:RubyDebugger.commands.set_breakpoint(cmd)
     elseif match(cmd, '<variables>') != -1
       call g:RubyDebugger.commands.set_variables(cmd)
+    elseif match(cmd, '<error>') != -1
+      call g:RubyDebugger.commands.error(cmd)
+    elseif match(cmd, '<message>') != -1
+      call g:RubyDebugger.commands.message(cmd)
     endif
   endif
 endfunction
@@ -50,6 +56,28 @@ function! RubyDebugger.set_breakpoint() dict
   call add(g:RubyDebugger.breakpoints, breakpoint)
 endfunction
 
+
+function! RubyDebugger.next() dict
+  call s:send_message_to_debugger("next")
+  call g:RubyDebugger.logger.put("Step over")
+endfunction
+
+
+function! RubyDebugger.step() dict
+  call s:send_message_to_debugger("step")
+  call g:RubyDebugger.logger.put("Step into")
+endfunction
+
+
+function! RubyDebugger.continue() dict
+  call s:send_message_to_debugger("cont")
+  call g:RubyDebugger.logger.put("Continue")
+endfunction
+
+
+function! RubyDebugger.exit() dict
+  call s:send_message_to_debugger("exit")
+endfunction
 
 " *** End of public interface
 
