@@ -29,6 +29,16 @@ let RubyDebugger.settings.variables_win_size = 10
 let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
 let s:variables_window.logger = RubyDebugger.logger
 
+if &t_Co < '16'
+  let s:breakpoint_ctermbg = 1
+else
+  let s:breakpoint_ctermbg = 4
+endif
+
 " Init breakpoing signs
-hi breakpoint  term=NONE    cterm=NONE    gui=NONE
-sign define breakpoint  linehl=breakpoint  text=>>
+exe "hi Breakpoint term=NONE ctermbg=" . s:breakpoint_ctermbg . " guifg=#E6E1DC guibg=#7E1111"
+sign define breakpoint linehl=Breakpoint  text=xx
+
+" Init current line signs
+hi CurrentLine term=NONE ctermbg=2 guifg=#E6E1DC guibg=#144212 term=NONE
+sign define current_line linehl=CurrentLine text=>>

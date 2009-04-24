@@ -7,6 +7,13 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
   call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
+
+
+  if has("signs")
+    exe ":sign unplace 120"
+    exe ":sign place 120 line=" . attrs.line . " name=current_line file=" . attrs.file
+  endif
+
   call s:send_message_to_debugger('var local')
 endfunction
 

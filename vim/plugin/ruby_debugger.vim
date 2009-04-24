@@ -93,6 +93,13 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
   call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
+
+
+  if has("signs")
+    exe ":sign unplace 120"
+    exe ":sign place 120 line=" . attrs.line . " name=current_line file=" . attrs.file
+  endif
+
   call s:send_message_to_debugger('var local')
 endfunction
 
@@ -860,7 +867,17 @@ let RubyDebugger.settings.variables_win_size = 10
 let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
 let s:variables_window.logger = RubyDebugger.logger
 
+if &t_Co < '16'
+  let s:breakpoint_ctermbg = 1
+else
+  let s:breakpoint_ctermbg = 4
+endif
+
 " Init breakpoing signs
-hi breakpoint  term=NONE    cterm=NONE    gui=NONE
-sign define breakpoint  linehl=breakpoint  text=>>
+exe "hi Breakpoint term=NONE ctermbg=" . s:breakpoint_ctermbg . " guifg=#E6E1DC guibg=#7E1111"
+sign define breakpoint linehl=Breakpoint  text=xx
+
+" Init current line signs
+hi CurrentLine term=NONE ctermbg=2 guifg=#E6E1DC guibg=#144212 term=NONE
+sign define current_line linehl=CurrentLine text=>>
 

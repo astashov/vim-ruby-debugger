@@ -31,14 +31,17 @@ First file is a debugger plugin and second is a small ruby script, that makes in
 
 == Using
 
-1. Run Vim, and go to the directory with some your Rails application.
+1. Run Vim. If you use gvim, it will automatically start the server, but if you use vim, you need to set
+servername explicitly, e.g., vim --servername VIM
+
+2. Go to the directory with some your Rails application.
   :cd ~/projects/rails
 
 2. Run Server with Debugger:
   :Rdebugger
 It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and ~/.vim/bin/ruby_debugger.rb on these ports accordingly.
 
-3. Set breakpoint somewhere by <Leader>b (e.g., '\b'). You should see >> symbol at current line.
+3. Set breakpoint somewhere by <Leader>b (e.g., '\b'). You should see 'xx' symbol at current line.
 
 4. Open page with the breakpoint in the browser. Vim should automatically set current line to breakpoint.
 
