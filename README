@@ -6,6 +6,55 @@ Planned features:
 2. Debugger will be look like in the Netbeans - you can go through the code, watch variables in separate window, set breakpoints, etc...
 3. Also, it will support command-line commands, like in the rdebug, e.g., you can execute 'p "Hello World"' in command line of VIM and it will output result: "Hello World". This feature I miss in the Netbeans very much. :)
 
+
+= Requirements
+
+* Vim >= 7.0, compiled with +signs and +clientserver. You can verify it by VIM command: 
+
+    :echo has("signs") && has("clientserver") && v:version > 700
+
+  It should show result '1'.
+
+* ruby-debug-ide gem
+
+
+== Installation
+
+This is still a very alpha, but you already can try it. I didn't try it in Windows yet (I think it will not work there), only Linux. To install it:
+
+1. Clone the repo
+  git clone git://github.com/astashov/vim-ruby-debugger.git
+
+2. Copy contents of 'vim' folder to your ~/.vim/. You should have 2 files there then: ~/.vim/plugin/ruby_debugger.vim and ~/.vim/bin/ruby_debugger.rb
+First file is a debugger plugin and second is a small ruby script, that makes interaction between the VIM and the ruby-debug-ide gem.
+
+
+== Using
+
+1. Run Vim, and go to the directory with some your Rails application.
+  :cd ~/projects/rails
+
+2. Run Server with Debugger:
+  :Rdebugger
+It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and ~/.vim/bin/ruby_debugger.rb on these ports accordingly.
+
+3. Set breakpoint somewhere by <Leader>b (e.g., '\b'). You should see >> symbol at current line.
+
+4. Open page with the breakpoint in the browser. Vim should automatically set current line to breakpoint.
+
+5. After this, you can use commands:
+  <Leader>b - set breakpoint at current line
+  <Leader>v - open/close window with variables. You can expand/collapse variables by 'o' in normal mode or left-mouse double-click
+  <Leader>n - step over
+  <Leader>s - step into
+  <Leader>c - continue
+
+
+== Screenshot
+
+Here: http://astashov.net/vim_ruby_debugger.png
+
+
 == Thanks
 
 Special thanks to tpope (for rails.vim) and Marty Grenfell (for NERDTree), mostly, I learn Vim Scripting from their projects.

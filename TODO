@@ -9,3 +9,5 @@ Add colors for breakpoints, current position in the program.
 Add deleting breakpoints (one, all)
 
 Add window for watching breakpoints, like the Variables Window. There user can watch all breakpoints, delete it, or move to the breakpoint quickly
+
+Write documentation of the plugin for the VIM
