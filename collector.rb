@@ -2,7 +2,7 @@ class Collector
 
   def initialize(input, output)
     @path = File.dirname(__FILE__)
-    @input_file = @path + '/' + input
+    @input_files = input.map{|i| @path + '/' + i}
     @output_file = @path + '/' + output
     @file = ''
   end
@@ -17,7 +17,7 @@ class Collector
   
     def read_file
       @file = ""
-      plan = File.read(@input_file).split("\n")
+      plan = @input_files.inject([]) {|sum, i| sum += File.read(i).split("\n") }
       plan.each do |line|
         @file += File.read(@path + '/' + line)
         @file += "\n"
@@ -35,5 +35,9 @@ class Collector
 end
 
 
-common = Collector.new('ruby_debugger_plan.txt', 'vim/plugin/ruby_debugger.vim')
+common = Collector.new(['ruby_debugger_plan.txt'], 'vim/plugin/ruby_debugger.vim')
 common.accumulate!
+
+
+with_tests = Collector.new(['ruby_debugger_plan.txt', 'ruby_test_plan.txt'], 'vim/plugin/ruby_debugger_test.vim')
+with_tests.accumulate!

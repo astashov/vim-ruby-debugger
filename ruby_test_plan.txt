@@ -1,0 +1,2 @@
+tests/framework.vim
+tests/server.vim
