@@ -1,3 +1,117 @@
+map <Leader>b  :call g:RubyDebugger.set_breakpoint()<CR>
+map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
+map <Leader>s  :call g:RubyDebugger.step()<CR>
+map <Leader>n  :call g:RubyDebugger.next()<CR>
+map <Leader>c  :call g:RubyDebugger.continue()<CR>
+map <Leader>e  :call g:RubyDebugger.exit()<CR>
+
+command! Rdebugger :call g:RubyDebugger.start() 
+
+" if exists("g:loaded_ruby_debugger")
+"     finish
+" endif
+" if v:version < 700
+"     echoerr "RubyDebugger: This plugin requires Vim >= 7."
+"     finish
+" endif
+" let g:loaded_ruby_debugger = 1
+
+let s:rdebug_port = 39767
+let s:debugger_port = 39768
+let s:runtime_dir = split(&runtimepath, ',')[0]
+let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
+
+if &t_Co < '16'
+  let s:breakpoint_ctermbg = 1
+else
+  let s:breakpoint_ctermbg = 4
+endif
+
+" Init breakpoing signs
+exe "hi Breakpoint term=NONE ctermbg=" . s:breakpoint_ctermbg . " guifg=#E6E1DC guibg=#7E1111"
+sign define breakpoint linehl=Breakpoint  text=xx
+
+" Init current line signs
+hi CurrentLine term=NONE ctermbg=2 guifg=#E6E1DC guibg=#144212 term=NONE
+sign define current_line linehl=CurrentLine text=>>
+
+function! s:get_tags(cmd)
+  let tags = []
+  let cmd = a:cmd
+  let inner_tags_match = s:get_inner_tags(cmd)
+  if !empty(inner_tags_match)
+    let pattern = '<.\{-}\/>' 
+    let inner_tags = inner_tags_match[1]
+    let tagmatch = matchlist(inner_tags, pattern)
+    while empty(tagmatch) == 0
+      call add(tags, tagmatch[0])
+      let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
+      let tagmatch = matchlist(inner_tags, pattern)
+    endwhile
+  endif
+  return tags
+endfunction
+
+
+function! s:get_inner_tags(cmd)
+  return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
+endfunction 
+
+
+function! s:get_tag_attributes(cmd)
+  let attributes = {}
+  let cmd = a:cmd
+  let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
+  let attrmatch = matchlist(cmd, pattern) 
+  while empty(attrmatch) == 0
+    let attributes[attrmatch[1]] = attrmatch[2]
+    let cmd = substitute(cmd, attrmatch[0], '', '')
+    let attrmatch = matchlist(cmd, pattern) 
+  endwhile
+  return attributes
+endfunction
+
+
+function! s:get_filename()
+  return expand("%:p")
+endfunction
+
+
+function! s:send_message_to_debugger(message)
+  call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
+endfunction
+
+
+function! s:jump_to_file(file, line)
+  " If no buffer with this file has been loaded, create new one
+  if !bufexists(bufname(a:file))
+     exe ":e! " . a:file
+  endif
+
+  let window_number = bufwinnr(bufnr(a:file))
+  if window_number != -1
+     exe window_number . "wincmd w"
+  endif
+
+  " open buffer of a:file
+  if bufname(a:file) != bufname("%")
+     exe ":buffer " . bufnr(a:file)
+  endif
+
+  " jump to line
+  exe ":" . a:line
+  normal z.
+  if foldlevel(a:line) != 0
+     normal zo
+  endif
+
+  return bufname(a:file)
+
+endfunction
+
+
+
+
 " *** Public interface ***
 
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
@@ -39,6 +153,9 @@ function! RubyDebugger.receive_command() dict
 endfunction
 
 
+let RubyDebugger.send_command = function("s:send_message_to_debugger")
+
+
 function! RubyDebugger.open_variables() dict
   if g:RubyDebugger.variables == {}
     echo "You are not in the running program"
@@ -58,25 +175,25 @@ endfunction
 
 
 function! RubyDebugger.next() dict
-  call s:send_message_to_debugger("next")
+  call g:RubyDebugger.send_command("next")
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
-  call s:send_message_to_debugger("step")
+  call ("step")
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
-  call s:send_message_to_debugger("cont")
+  call g:RubyDebugger.send_command("cont")
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
 
 function! RubyDebugger.exit() dict
-  call s:send_message_to_debugger("exit")
+  call g:RubyDebugger.send_command("exit")
 endfunction
 
 " *** End of public interface
@@ -100,7 +217,7 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
     exe ":sign place 120 line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 
-  call s:send_message_to_debugger('var local')
+  call g:RubyDebugger.send_command('var local')
 endfunction
 
 
@@ -594,7 +711,7 @@ function! s:VarParent._init_children()
 
   let g:RubyDebugger.current_variable = self.attributes.name
   if has_key(self.attributes, 'objectId')
-    call s:send_message_to_debugger('var instance ' . self.attributes.objectId)
+    call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
   endif
 
 endfunction
@@ -626,83 +743,6 @@ function! s:VarParent.find_variable(attrs)
   endif
   return {}
 endfunction
-
-
-function! s:get_tags(cmd)
-  let tags = []
-  let cmd = a:cmd
-  let inner_tags_match = s:get_inner_tags(cmd)
-  if !empty(inner_tags_match)
-    let pattern = '<.\{-}\/>' 
-    let inner_tags = inner_tags_match[1]
-    let tagmatch = matchlist(inner_tags, pattern)
-    while empty(tagmatch) == 0
-      call add(tags, tagmatch[0])
-      let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
-      let tagmatch = matchlist(inner_tags, pattern)
-    endwhile
-  endif
-  return tags
-endfunction
-
-
-function! s:get_inner_tags(cmd)
-  return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
-endfunction 
-
-
-function! s:get_tag_attributes(cmd)
-  let attributes = {}
-  let cmd = a:cmd
-  let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
-  let attrmatch = matchlist(cmd, pattern) 
-  while empty(attrmatch) == 0
-    let attributes[attrmatch[1]] = attrmatch[2]
-    let cmd = substitute(cmd, attrmatch[0], '', '')
-    let attrmatch = matchlist(cmd, pattern) 
-  endwhile
-  return attributes
-endfunction
-
-
-function! s:get_filename()
-  return expand("%:p")
-endfunction
-
-
-function! s:send_message_to_debugger(message)
-  call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
-endfunction
-
-
-function! s:jump_to_file(file, line)
-  " If no buffer with this file has been loaded, create new one
-  if !bufexists(bufname(a:file))
-     exe ":e! " . a:file
-  endif
-
-  let window_number = bufwinnr(bufnr(a:file))
-  if window_number != -1
-     exe window_number . "wincmd w"
-  endif
-
-  " open buffer of a:file
-  if bufname(a:file) != bufname("%")
-     exe ":buffer " . bufnr(a:file)
-  endif
-
-  " jump to line
-  exe ":" . a:line
-  normal z.
-  if foldlevel(a:line) != 0
-     normal zo
-  endif
-
-  return bufname(a:file)
-
-endfunction
-
-
 
 
 let s:Logger = {} 
@@ -750,7 +790,7 @@ endfunction
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'break ' . self.file . ':' . self.line
-    call s:send_message_to_debugger(message)
+    call g:RubyDebugger.send_command(message)
   endif
 endfunction
 
@@ -838,29 +878,6 @@ endfunction
 
 
 
-map <Leader>b  :call g:RubyDebugger.set_breakpoint()<CR>
-map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
-map <Leader>s  :call g:RubyDebugger.step()<CR>
-map <Leader>n  :call g:RubyDebugger.next()<CR>
-map <Leader>c  :call g:RubyDebugger.continue()<CR>
-map <Leader>e  :call g:RubyDebugger.exit()<CR>
-
-command! Rdebugger :call g:RubyDebugger.start() 
-
-" if exists("g:loaded_ruby_debugger")
-"     finish
-" endif
-" if v:version < 700
-"     echoerr "RubyDebugger: This plugin requires Vim >= 7."
-"     finish
-" endif
-" let g:loaded_ruby_debugger = 1
-
-let s:rdebug_port = 39767
-let s:debugger_port = 39768
-let s:runtime_dir = split(&runtimepath, ',')[0]
-let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
-
 let s:variables_window = s:WindowVariables.new("variables", "Variables_Window", g:RubyDebugger.variables)
 
 let RubyDebugger.settings.variables_win_position = 'botright'
@@ -868,18 +885,4 @@ let RubyDebugger.settings.variables_win_size = 10
 
 let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
 let s:variables_window.logger = RubyDebugger.logger
-
-if &t_Co < '16'
-  let s:breakpoint_ctermbg = 1
-else
-  let s:breakpoint_ctermbg = 4
-endif
-
-" Init breakpoing signs
-exe "hi Breakpoint term=NONE ctermbg=" . s:breakpoint_ctermbg . " guifg=#E6E1DC guibg=#7E1111"
-sign define breakpoint linehl=Breakpoint  text=xx
-
-" Init current line signs
-hi CurrentLine term=NONE ctermbg=2 guifg=#E6E1DC guibg=#144212 term=NONE
-sign define current_line linehl=CurrentLine text=>>
 

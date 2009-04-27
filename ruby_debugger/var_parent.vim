@@ -48,7 +48,7 @@ function! s:VarParent._init_children()
 
   let g:RubyDebugger.current_variable = self.attributes.name
   if has_key(self.attributes, 'objectId')
-    call s:send_message_to_debugger('var instance ' . self.attributes.objectId)
+    call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
   endif
 
 endfunction

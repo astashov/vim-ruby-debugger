@@ -1,6 +1,6 @@
 let s:Tests.server = {}
 
-function! s:Tests.server.setup()
+function! s:Tests.server.before()
   call s:Server._stop_server('localhost', s:rdebug_port)
   call s:Server._stop_server('localhost', s:debugger_port)
 endfunction

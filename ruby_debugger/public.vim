@@ -39,6 +39,9 @@ function! RubyDebugger.receive_command() dict
 endfunction
 
 
+let RubyDebugger.send_command = function("s:send_message_to_debugger")
+
+
 function! RubyDebugger.open_variables() dict
   if g:RubyDebugger.variables == {}
     echo "You are not in the running program"
@@ -58,25 +61,25 @@ endfunction
 
 
 function! RubyDebugger.next() dict
-  call s:send_message_to_debugger("next")
+  call g:RubyDebugger.send_command("next")
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
-  call s:send_message_to_debugger("step")
+  call ("step")
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
-  call s:send_message_to_debugger("cont")
+  call g:RubyDebugger.send_command("cont")
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
 
 function! RubyDebugger.exit() dict
-  call s:send_message_to_debugger("exit")
+  call g:RubyDebugger.send_command("exit")
 endfunction
 
 " *** End of public interface

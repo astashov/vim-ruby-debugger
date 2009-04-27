@@ -14,7 +14,7 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
     exe ":sign place 120 line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 
-  call s:send_message_to_debugger('var local')
+  call g:RubyDebugger.send_command('var local')
 endfunction
 
 

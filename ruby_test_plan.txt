@@ -1,2 +1,4 @@
 tests/framework.vim
+tests/mock.vim
 tests/server.vim
+tests/breakpoint.vim

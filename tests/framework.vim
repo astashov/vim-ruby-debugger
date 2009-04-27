@@ -3,12 +3,23 @@ let TU = { 'output': '', 'errors': '', 'success': ''}
 function! TU.run()
   for key in keys(s:Tests)
     let g:TU.output = g:TU.output . "\n" . key . ":\n"
+    if has_key(s:Tests[key], 'before_all')
+      call s:Tests[key].before_all()
+    endif
     for test in keys(s:Tests[key])
       if test =~ '^test_'
-        call s:Tests[key].setup()
+        if has_key(s:Tests[key], 'before')
+          call s:Tests[key].before()
+        endif
         call s:Tests[key][test](test)
+        if has_key(s:Tests[key], 'after')
+          call s:Tests[key].after()
+        endif
       endif
     endfor
+    if has_key(s:Tests[key], 'after_all')
+      call s:Tests[key].after_all()
+    endif
     let g:TU.output = g:TU.output . "\n"
   endfor
   call g:TU.show_output()

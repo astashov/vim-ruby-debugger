@@ -24,7 +24,7 @@ endfunction
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'break ' . self.file . ':' . self.line
-    call s:send_message_to_debugger(message)
+    call g:RubyDebugger.send_command(message)
   endif
 endfunction
 
