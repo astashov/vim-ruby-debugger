@@ -29,6 +29,8 @@ endfunction
 function! s:Server.stop() dict
   call self._kill_process(self.rdebug_pid)
   call self._kill_process(self.debugger_pid)
+  let self.rdebug_pid = ""
+  let self.debugger_pid = ""
 endfunction
 
 

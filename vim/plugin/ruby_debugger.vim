@@ -790,6 +790,8 @@ endfunction
 function! s:Server.stop() dict
   call self._kill_process(self.rdebug_pid)
   call self._kill_process(self.debugger_pid)
+  let self.rdebug_pid = ""
+  let self.debugger_pid = ""
 endfunction
 
 
@@ -836,14 +838,14 @@ endfunction
 
 
 
-map <Leader>b  :call RubyDebugger.set_breakpoint()<CR>
-map <Leader>v  :call RubyDebugger.open_variables()<CR>
-map <Leader>s  :call RubyDebugger.step()<CR>
-map <Leader>n  :call RubyDebugger.next()<CR>
-map <Leader>c  :call RubyDebugger.continue()<CR>
-map <Leader>e  :call RubyDebugger.exit()<CR>
+map <Leader>b  :call g:RubyDebugger.set_breakpoint()<CR>
+map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
+map <Leader>s  :call g:RubyDebugger.step()<CR>
+map <Leader>n  :call g:RubyDebugger.next()<CR>
+map <Leader>c  :call g:RubyDebugger.continue()<CR>
+map <Leader>e  :call g:RubyDebugger.exit()<CR>
 
-command! Rdebugger :call RubyDebugger.start() 
+command! Rdebugger :call g:RubyDebugger.start() 
 
 " if exists("g:loaded_ruby_debugger")
 "     finish

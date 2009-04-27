@@ -790,6 +790,8 @@ endfunction
 function! s:Server.stop() dict
   call self._kill_process(self.rdebug_pid)
   call self._kill_process(self.debugger_pid)
+  let self.rdebug_pid = ""
+  let self.debugger_pid = ""
 endfunction
 
 
@@ -836,14 +838,14 @@ endfunction
 
 
 
-map <Leader>b  :call RubyDebugger.set_breakpoint()<CR>
-map <Leader>v  :call RubyDebugger.open_variables()<CR>
-map <Leader>s  :call RubyDebugger.step()<CR>
-map <Leader>n  :call RubyDebugger.next()<CR>
-map <Leader>c  :call RubyDebugger.continue()<CR>
-map <Leader>e  :call RubyDebugger.exit()<CR>
+map <Leader>b  :call g:RubyDebugger.set_breakpoint()<CR>
+map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
+map <Leader>s  :call g:RubyDebugger.step()<CR>
+map <Leader>n  :call g:RubyDebugger.next()<CR>
+map <Leader>c  :call g:RubyDebugger.continue()<CR>
+map <Leader>e  :call g:RubyDebugger.exit()<CR>
 
-command! Rdebugger :call RubyDebugger.start() 
+command! Rdebugger :call g:RubyDebugger.start() 
 
 " if exists("g:loaded_ruby_debugger")
 "     finish
@@ -885,44 +887,87 @@ let TU = { 'output': '', 'errors': '', 'success': ''}
 
 function! TU.run()
   for key in keys(s:Tests)
-    if key =~ '^test_'
-      source s:runtime_dir . '/plugin/ruby_debugger_test.vim'
-      call s:Tests.setup()
-      call s:Tests[key]()
-    endif
+    let g:TU.output = g:TU.output . "\n" . key . ":\n"
+    for test in keys(s:Tests[key])
+      if test =~ '^test_'
+        call s:Tests[key].setup()
+        call s:Tests[key][test](test)
+      endif
+    endfor
+    let g:TU.output = g:TU.output . "\n"
   endfor
   call g:TU.show_output()
 endfunction
 
 
 function! TU.show_output()
-  echo g:TU.output
+  echo g:TU.output . "\n" . g:TU.errors
 endfunction
 
 
 function! TU.ok(condition, description, test)
-  call g:TU._process(a:condition, a:description, a:test)
+  if a:condition
+    let g:TU.output = g:TU.output . "."
+    let g:TU.success = g:TU.success . a:test . ": " . a:description . ", true\n"
+  else
+    let g:TU.output = g:TU.output . "F"
+    let g:TU.errors = g:TU.errors . a:test . ": " . a:description . ", expected true, got false.\n"
+  endif
 endfunction
 
 
 function! TU.equal(expected, actual, description, test)
-  call g:TU._process(a:expected == a:actual, a:description, a:test)
-endfunction
-
-
-function! TU._process(condition, description, test)
-  if a:condition
-    let g:TU.output += "."
-    let g:TU.success += a:test . ": " . a:description . "\n"
+  if a:expected == a:actual
+    let g:TU.output = g:TU.output . "."
+    let g:TU.success = g:TU.success . a:test . ": " . a:description . ", equals\n"
   else
-    let g:TU.output += "F"
-    let g:TU.errors += a:test . ": " . a:description . "\n"
+    let g:TU.output = g:TU.output . "F"
+    let g:TU.errors = g:TU.errors . a:test . ": " . a:description . ", expected " . a:expected . ", got " . a:actual . ".\n"
   endif
 endfunction
 
 
 let s:Tests = {}
 
+let s:Tests.server = {}
 
+function! s:Tests.server.setup()
+  call s:Server._stop_server('localhost', s:rdebug_port)
+  call s:Server._stop_server('localhost', s:debugger_port)
+endfunction
+
+function! s:Tests.server.test_should_run_server(test)
+  exe "Rdebugger" 
+  call g:TU.ok(type(g:RubyDebugger.server) == type({}), "Server should be initialized", a:test)
+  call g:TU.ok(g:RubyDebugger.server.is_running(), "Server should be run", a:test)
+  call g:TU.ok(g:RubyDebugger.server.rdebug_pid != "", "Process rdebug-ide should be run", a:test)
+  call g:TU.ok(g:RubyDebugger.server.debugger_pid != "", "Process debugger.rb should be run", a:test)
+endfunction
+
+
+function! s:Tests.server.test_should_stop_server(test)
+  exe "Rdebugger"
+  call g:RubyDebugger.server.stop()
+  call g:TU.ok(!g:RubyDebugger.server.is_running(), "Server should not be run", a:test)
+  call g:TU.equal("", s:Server._get_pid('localhost', s:rdebug_port), "Process rdebug-ide should not exist", a:test)
+  call g:TU.equal("", s:Server._get_pid('localhost', s:debugger_port), "Process debugger.rb should not exist", a:test)
+  call g:TU.equal("", g:RubyDebugger.server.rdebug_pid, "Pid of rdebug-ide should be nullified", a:test)
+  call g:TU.equal("", g:RubyDebugger.server.debugger_pid, "Pid of debugger.rb should be nullified", a:test)
+endfunction
+
+
+function! s:Tests.server.test_should_kill_old_server_before_starting_new(test)
+  exe "Rdebugger"
+  let old_rdebug_pid = g:RubyDebugger.server.rdebug_pid
+  let old_debugger_pid = g:RubyDebugger.server.debugger_pid
+  exe "Rdebugger"
+  call g:TU.ok(g:RubyDebugger.server.is_running(), "Server should be run", a:test)
+  call g:TU.ok(g:RubyDebugger.server.rdebug_pid != "", "Process rdebug-ide should be run", a:test)
+  call g:TU.ok(g:RubyDebugger.server.debugger_pid != "", "Process debugger.rb should be run", a:test)
+  call g:TU.ok(g:RubyDebugger.server.rdebug_pid != old_rdebug_pid, "Rdebug-ide should have new pid", a:test)
+  call g:TU.ok(g:RubyDebugger.server.debugger_pid != old_debugger_pid, "Debugger.rb should have new pid", a:test)
+endfunction
+
+ 
 
 
