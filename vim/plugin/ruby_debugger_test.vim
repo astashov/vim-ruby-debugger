@@ -946,18 +946,30 @@ let s:Tests = {}
 let s:Mock = { 'breakpoints': 0 }
 
 function! s:mock_debugger(message)
+  let cmd = ""
   if a:message =~ 'break'
     let matches = matchlist(a:message, 'break \(.*\):\(.*\)')
     let cmd = '<breakpointAdded no="1" location="' . matches[1] . ':' . matches[2] . '" />'
     let s:Mock.breakpoints += 1
+  elseif a:message =~ 'var local'
+    let cmd = '<variables>'
+    let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
+    let cmd = cmd . '<variable name="some_local" kind="local" value="bla" type="String" hasChildren="false" objectId="-0x2418a905" />'
+    let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a906" />'
+    let cmd = cmd . '<variable name="hash" kind="local" value="Hash (2 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a907" />'
+    let cmd = cmd . '</variables>'
   endif
-  call writefile([ cmd ], s:tmp_file)
-  call g:RubyDebugger.receive_command()
+  if cmd != "" 
+    call writefile([ cmd ], s:tmp_file)
+    call g:RubyDebugger.receive_command()
+  endif
 endfunction
+
 
 function! s:Mock.mock_debugger()
   let g:RubyDebugger.send_command = function("s:mock_debugger") 
 endfunction
+
 
 function! s:Mock.unmock_debugger()
   let g:RubyDebugger.send_command = function("s:send_message_to_debugger")
@@ -1079,6 +1091,37 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
 endfunction
 
   
+function! s:Tests.breakpoint.test_jump_to_breakpoint_by_breakpoint(test)
+  call s:Tests.breakpoint.jump_to_breakpoint('breakpoint', a:test)
+endfunction
 
+
+function! s:Tests.breakpoint.test_jump_to_breakpoint_by_suspended(test)
+  call s:Tests.breakpoint.jump_to_breakpoint('suspended', a:test)
+endfunction
+
+
+function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
+  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  
+  " Write 2 lines and set current line to second line. We will jump to first
+  " line
+  exe "new " . filename
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  exe "write"
+
+  call g:TU.equal(2, line("."), "Current line before jumping is second", a:test)
+
+  let cmd = '<' . a:cmd . ' file="' . filename . '" line="1" />'
+  call writefile([ cmd ], s:tmp_file)
+  call g:RubyDebugger.receive_command()
+
+  call g:TU.equal(1, line("."), "Current line before jumping is first", a:test)
+  call g:TU.equal(filename, expand("%"), "Jumped to correct file", a:test)
+
+  silent exe "close"
+  silent exe "!rm " . filename
+endfunction
 
 

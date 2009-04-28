@@ -67,5 +67,36 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
 endfunction
 
   
+function! s:Tests.breakpoint.test_jump_to_breakpoint_by_breakpoint(test)
+  call s:Tests.breakpoint.jump_to_breakpoint('breakpoint', a:test)
+endfunction
 
+
+function! s:Tests.breakpoint.test_jump_to_breakpoint_by_suspended(test)
+  call s:Tests.breakpoint.jump_to_breakpoint('suspended', a:test)
+endfunction
+
+
+function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
+  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  
+  " Write 2 lines and set current line to second line. We will jump to first
+  " line
+  exe "new " . filename
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  exe "write"
+
+  call g:TU.equal(2, line("."), "Current line before jumping is second", a:test)
+
+  let cmd = '<' . a:cmd . ' file="' . filename . '" line="1" />'
+  call writefile([ cmd ], s:tmp_file)
+  call g:RubyDebugger.receive_command()
+
+  call g:TU.equal(1, line("."), "Current line before jumping is first", a:test)
+  call g:TU.equal(filename, expand("%"), "Jumped to correct file", a:test)
+
+  silent exe "close"
+  silent exe "!rm " . filename
+endfunction
 
