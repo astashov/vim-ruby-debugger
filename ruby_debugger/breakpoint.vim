@@ -8,7 +8,6 @@ function! s:Breakpoint.new(file, line)
   let var.id = s:Breakpoint.id
 
   call var._set_sign()
-  call var.send_to_debugger() 
   call var._log("Set breakpoint to: " . var.file . ":" . var.line)
   return var
 endfunction

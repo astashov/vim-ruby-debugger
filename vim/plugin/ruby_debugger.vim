@@ -171,6 +171,7 @@ function! RubyDebugger.set_breakpoint() dict
   let file = s:get_filename()
   let breakpoint = s:Breakpoint.new(file, line)
   call add(g:RubyDebugger.breakpoints, breakpoint)
+  call breakpoint.send_to_debugger() 
 endfunction
 
 
@@ -181,7 +182,7 @@ endfunction
 
 
 function! RubyDebugger.step() dict
-  call ("step")
+  call g:RubyDebugger.send_command("step")
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
@@ -774,7 +775,6 @@ function! s:Breakpoint.new(file, line)
   let var.id = s:Breakpoint.id
 
   call var._set_sign()
-  call var.send_to_debugger() 
   call var._log("Set breakpoint to: " . var.file . ":" . var.line)
   return var
 endfunction

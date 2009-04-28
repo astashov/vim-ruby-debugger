@@ -171,6 +171,7 @@ function! RubyDebugger.set_breakpoint() dict
   let file = s:get_filename()
   let breakpoint = s:Breakpoint.new(file, line)
   call add(g:RubyDebugger.breakpoints, breakpoint)
+  call breakpoint.send_to_debugger() 
 endfunction
 
 
@@ -181,7 +182,7 @@ endfunction
 
 
 function! RubyDebugger.step() dict
-  call ("step")
+  call g:RubyDebugger.send_command("step")
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
@@ -774,7 +775,6 @@ function! s:Breakpoint.new(file, line)
   let var.id = s:Breakpoint.id
 
   call var._set_sign()
-  call var.send_to_debugger() 
   call var._log("Set breakpoint to: " . var.file . ":" . var.line)
   return var
 endfunction
@@ -946,7 +946,12 @@ let s:Tests = {}
 let s:Mock = {}
 
 function! s:mock_debugger(message)
-  echo "Bla!"
+  if a:message =~ 'break'
+    let matches = matchlist(a:message, 'break \(.*\):\(.*\)')
+    let cmd = '<breakpointAdded no="1" location="' . matches[1] . ':' . matches[2] . '" />'
+  endif
+  call writefile([ cmd ], s:tmp_file)
+  call g:RubyDebugger.receive_command()
 endfunction
 
 function! s:Mock.mock_debugger()
@@ -958,6 +963,11 @@ function! s:Mock.unmock_debugger()
 endfunction
 
 let s:Tests.server = {}
+
+function! s:Tests.server.before_all()
+  let g:RubyDebugger.breakpoints = []
+  let g:RubyDebugger.variables = {} 
+endfunction
 
 function! s:Tests.server.before()
   call s:Server._stop_server('localhost', s:rdebug_port)
@@ -1002,6 +1012,8 @@ endfunction
 let s:Tests.breakpoint = {}
 
 function! s:Tests.breakpoint.before_all()
+  let g:RubyDebugger.breakpoints = []
+  let g:RubyDebugger.variables = {} 
   exe "Rdebugger"
   call s:Mock.mock_debugger()
 endfunction
@@ -1015,7 +1027,17 @@ endfunction
 
 
 function! s:Tests.breakpoint.test_should_set_breakpoint(test)
-
+  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  exe "new " . filename
+  call g:RubyDebugger.set_breakpoint()
+  let breakpoint = get(g:RubyDebugger.breakpoints, 0)
+  call g:TU.equal(1, breakpoint.id, "Id of first breakpoint should == 1", a:test)
+  call g:TU.equal(filename, breakpoint.file, "File should be set right", a:test)
+  call g:TU.equal(1, breakpoint.line, "Line should be set right", a:test)
+  " TODO: Find way to test sign
+  call g:TU.equal(g:RubyDebugger.server.rdebug_pid, breakpoint.rdebug_pid, "Breakpoint should be assigned to running server", a:test)
+  call g:TU.equal(1, breakpoint.debugger_id, "Breakpoint should get number from debugger", a:test)
+  exe "close" 
 endfunction
 
 

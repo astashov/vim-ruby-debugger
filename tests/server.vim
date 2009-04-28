@@ -1,5 +1,10 @@
 let s:Tests.server = {}
 
+function! s:Tests.server.before_all()
+  let g:RubyDebugger.breakpoints = []
+  let g:RubyDebugger.variables = {} 
+endfunction
+
 function! s:Tests.server.before()
   call s:Server._stop_server('localhost', s:rdebug_port)
   call s:Server._stop_server('localhost', s:debugger_port)

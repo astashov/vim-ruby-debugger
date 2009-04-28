@@ -1,7 +1,12 @@
 let s:Mock = {}
 
 function! s:mock_debugger(message)
-  echo "Bla!"
+  if a:message =~ 'break'
+    let matches = matchlist(a:message, 'break \(.*\):\(.*\)')
+    let cmd = '<breakpointAdded no="1" location="' . matches[1] . ':' . matches[2] . '" />'
+  endif
+  call writefile([ cmd ], s:tmp_file)
+  call g:RubyDebugger.receive_command()
 endfunction
 
 function! s:Mock.mock_debugger()
