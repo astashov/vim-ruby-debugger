@@ -13,6 +13,11 @@ function! s:mock_debugger(message)
     let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a906" />'
     let cmd = cmd . '<variable name="hash" kind="local" value="Hash (2 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a907" />'
     let cmd = cmd . '</variables>'
+  elseif a:message =~ 'var instance -0x2418a904'
+    let cmd = '<variables>'
+    let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
+    let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
+    let cmd = cmd . '</variables>'
   endif
   if cmd != "" 
     call writefile([ cmd ], s:tmp_file)

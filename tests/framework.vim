@@ -58,4 +58,15 @@ function! TU.equal(expected, actual, description, test)
 endfunction
 
 
+function! TU.match(expected, actual, description, test)
+  if a:expected =~ a:actual
+    let g:TU.output = g:TU.output . "."
+    let g:TU.success = g:TU.success . a:test . ": " . a:description . ", match one to other\n"
+  else
+    let g:TU.output = g:TU.output . "F"
+    let g:TU.errors = g:TU.errors . a:test . ": " . a:description . ", expected to match " . a:expected . ", got " . a:actual . ".\n"
+  endif
+endfunction
+
+
 let s:Tests = {}
