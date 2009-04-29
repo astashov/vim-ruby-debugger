@@ -80,7 +80,7 @@ endfunction
 
 function! s:Window.open() dict
     if !self.is_open()
-      " create the variables tree window
+      " create the window
       silent exec self.position . ' ' . self.size . ' new'
 
       if !self._exist_for_tab()

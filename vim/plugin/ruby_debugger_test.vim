@@ -394,7 +394,7 @@ endfunction
 
 function! s:Window.open() dict
     if !self.is_open()
-      " create the variables tree window
+      " create the window
       silent exec self.position . ' ' . self.size . ' new'
 
       if !self._exist_for_tab()
@@ -697,7 +697,7 @@ endfunction
 
 function! s:VarParent.close()
   let self.is_open = 0
-  call g:RubyDebugger.variables.update()
+  call s:variables_window.display()
   return 0
 endfunction
 
@@ -888,27 +888,32 @@ let s:variables_window.logger = RubyDebugger.logger
 
 let TU = { 'output': '', 'errors': '', 'success': ''}
 
-function! TU.run()
+
+function! TU.run(...)
   for key in keys(s:Tests)
-    let g:TU.output = g:TU.output . "\n" . key . ":\n"
-    if has_key(s:Tests[key], 'before_all')
-      call s:Tests[key].before_all()
-    endif
-    for test in keys(s:Tests[key])
-      if test =~ '^test_'
-        if has_key(s:Tests[key], 'before')
-          call s:Tests[key].before()
-        endif
-        call s:Tests[key][test](test)
-        if has_key(s:Tests[key], 'after')
-          call s:Tests[key].after()
-        endif
+    " Run tests only if function was called without arguments, of argument ==
+    " current tests group.
+    if !a:0 || a:1 == key
+      let g:TU.output = g:TU.output . "\n" . key . ":\n"
+      if has_key(s:Tests[key], 'before_all')
+        call s:Tests[key].before_all()
       endif
-    endfor
-    if has_key(s:Tests[key], 'after_all')
-      call s:Tests[key].after_all()
+      for test in keys(s:Tests[key])
+        if test =~ '^test_'
+          if has_key(s:Tests[key], 'before')
+            call s:Tests[key].before()
+          endif
+          call s:Tests[key][test](test)
+          if has_key(s:Tests[key], 'after')
+            call s:Tests[key].after()
+          endif
+        endif
+      endfor
+      if has_key(s:Tests[key], 'after_all')
+        call s:Tests[key].after_all()
+      endif
+      let g:TU.output = g:TU.output . "\n"
     endif
-    let g:TU.output = g:TU.output . "\n"
   endfor
   call g:TU.show_output()
 endfunction
@@ -974,6 +979,23 @@ endfunction
 function! s:Mock.unmock_debugger()
   let g:RubyDebugger.send_command = function("s:send_message_to_debugger")
 endfunction
+
+
+function! s:Mock.mock_file()
+  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  exe "new " . filename
+  exe "write"
+  return filename
+endfunction
+
+
+function! s:Mock.unmock_file(filename)
+  silent exe "close"
+  silent exe "!rm " . a:filename
+endfunction
+
+
+
 
 let s:Tests.server = {}
 
@@ -1045,9 +1067,7 @@ endfunction
 
 function! s:Tests.breakpoint.test_should_set_breakpoint(test)
   exe "Rdebugger"
-  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
-  exe "new " . filename
-  exe "write"
+  let filename = s:Mock.mock_file()
   call g:RubyDebugger.set_breakpoint()
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   call g:TU.equal(1, breakpoint.id, "Id of first breakpoint should == 1", a:test)
@@ -1056,16 +1076,13 @@ function! s:Tests.breakpoint.test_should_set_breakpoint(test)
   " TODO: Find way to test sign
   call g:TU.equal(g:RubyDebugger.server.rdebug_pid, breakpoint.rdebug_pid, "Breakpoint should be assigned to running server", a:test)
   call g:TU.equal(1, breakpoint.debugger_id, "Breakpoint should get number from debugger", a:test)
-  silent exe "close" 
-  silent exe "!rm " . filename
+  call s:Mock.unmock_file(filename)
 endfunction
 
 
 function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_running_server(test)
-  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
-  
+  let filename = s:Mock.mock_file()
   " Write 3 lines of text and set 3 breakpoints (on every line)
-  exe "new " . filename
   exe "normal iblablabla"
   exe "normal oblabla" 
   exe "normal obla" 
@@ -1086,8 +1103,7 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
   for breakpoint in g:RubyDebugger.breakpoints
     call g:TU.equal(g:RubyDebugger.server.rdebug_pid, breakpoint.rdebug_pid, "Breakpoint should have PID of running server", a:test)
   endfor
-  silent exe "close"
-  silent exe "!rm " . filename
+  call s:Mock.unmock_file(filename)
 endfunction
 
   
@@ -1102,11 +1118,10 @@ endfunction
 
 
 function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
-  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  let filename = s:Mock.mock_file()
   
   " Write 2 lines and set current line to second line. We will jump to first
   " line
-  exe "new " . filename
   exe "normal iblablabla"
   exe "normal oblabla" 
   exe "write"
@@ -1120,8 +1135,57 @@ function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
   call g:TU.equal(1, line("."), "Current line before jumping is first", a:test)
   call g:TU.equal(filename, expand("%"), "Jumped to correct file", a:test)
 
-  silent exe "close"
-  silent exe "!rm " . filename
+  call s:Mock.unmock_file(filename)
 endfunction
 
+
+let s:Tests.variables = {}
+
+function! s:Tests.variables.before_all()
+  call s:Mock.mock_debugger()
+endfunction
+
+
+function! s:Tests.variables.after_all()
+  call s:Mock.unmock_debugger()
+endfunction
+
+
+function! s:Tests.variables.before()
+  let g:RubyDebugger.breakpoints = []
+  let g:RubyDebugger.variables = {} 
+  call s:Server._stop_server('localhost', s:rdebug_port)
+  call s:Server._stop_server('localhost', s:debugger_port)
+endfunction
+
+
+function! s:Tests.variables.test_should_not_open_window_without_got_variables(test)
+  call g:RubyDebugger.open_variables()
+  " It should not be opened
+  call g:TU.ok(!s:variables_window.is_open(), "Variables window should not be opened", a:test)
+endfunction
+
+
+function! s:Tests.variables.test_should_init_variables_after_breakpoint(test)
+  let filename = s:Mock.mock_file()
+  
+  let cmd = '<breakpoint file="' . filename . '" line="1" />'
+  call writefile([ cmd ], s:tmp_file)
+  call g:RubyDebugger.receive_command()
+
+  call g:TU.equal("VarParent", g:RubyDebugger.variables.type, "Root variable should be initialized", a:test)
+  call g:TU.equal(4, len(g:RubyDebugger.variables.children), "4 variables should be initialized", a:test)
+  call g:TU.equal(3, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarParent"')), "3 Parent variables should be initialized", a:test)
+  call g:TU.equal(1, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarChild"')), "1 Child variable should be initialized", a:test)
+
+  call s:Mock.unmock_file(filename)
+endfunction
+
+  " It should execute 'var local' after jumping to breakpoint
+
+"  call WindowVaribalies.toggle()
+"
+"
+"
+"  call s:Mock.ummock_file(filename)
 

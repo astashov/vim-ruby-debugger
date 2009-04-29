@@ -29,3 +29,20 @@ endfunction
 function! s:Mock.unmock_debugger()
   let g:RubyDebugger.send_command = function("s:send_message_to_debugger")
 endfunction
+
+
+function! s:Mock.mock_file()
+  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  exe "new " . filename
+  exe "write"
+  return filename
+endfunction
+
+
+function! s:Mock.unmock_file(filename)
+  silent exe "close"
+  silent exe "!rm " . a:filename
+endfunction
+
+
+

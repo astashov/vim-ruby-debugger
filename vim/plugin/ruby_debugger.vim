@@ -394,7 +394,7 @@ endfunction
 
 function! s:Window.open() dict
     if !self.is_open()
-      " create the variables tree window
+      " create the window
       silent exec self.position . ' ' . self.size . ' new'
 
       if !self._exist_for_tab()
@@ -697,7 +697,7 @@ endfunction
 
 function! s:VarParent.close()
   let self.is_open = 0
-  call g:RubyDebugger.variables.update()
+  call s:variables_window.display()
   return 0
 endfunction
 

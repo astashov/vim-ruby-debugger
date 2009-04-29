@@ -21,9 +21,7 @@ endfunction
 
 function! s:Tests.breakpoint.test_should_set_breakpoint(test)
   exe "Rdebugger"
-  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
-  exe "new " . filename
-  exe "write"
+  let filename = s:Mock.mock_file()
   call g:RubyDebugger.set_breakpoint()
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   call g:TU.equal(1, breakpoint.id, "Id of first breakpoint should == 1", a:test)
@@ -32,16 +30,13 @@ function! s:Tests.breakpoint.test_should_set_breakpoint(test)
   " TODO: Find way to test sign
   call g:TU.equal(g:RubyDebugger.server.rdebug_pid, breakpoint.rdebug_pid, "Breakpoint should be assigned to running server", a:test)
   call g:TU.equal(1, breakpoint.debugger_id, "Breakpoint should get number from debugger", a:test)
-  silent exe "close" 
-  silent exe "!rm " . filename
+  call s:Mock.unmock_file(filename)
 endfunction
 
 
 function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_running_server(test)
-  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
-  
+  let filename = s:Mock.mock_file()
   " Write 3 lines of text and set 3 breakpoints (on every line)
-  exe "new " . filename
   exe "normal iblablabla"
   exe "normal oblabla" 
   exe "normal obla" 
@@ -62,8 +57,7 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
   for breakpoint in g:RubyDebugger.breakpoints
     call g:TU.equal(g:RubyDebugger.server.rdebug_pid, breakpoint.rdebug_pid, "Breakpoint should have PID of running server", a:test)
   endfor
-  silent exe "close"
-  silent exe "!rm " . filename
+  call s:Mock.unmock_file(filename)
 endfunction
 
   
@@ -78,11 +72,10 @@ endfunction
 
 
 function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
-  let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  let filename = s:Mock.mock_file()
   
   " Write 2 lines and set current line to second line. We will jump to first
   " line
-  exe "new " . filename
   exe "normal iblablabla"
   exe "normal oblabla" 
   exe "write"
@@ -96,7 +89,6 @@ function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
   call g:TU.equal(1, line("."), "Current line before jumping is first", a:test)
   call g:TU.equal(filename, expand("%"), "Jumped to correct file", a:test)
 
-  silent exe "close"
-  silent exe "!rm " . filename
+  call s:Mock.unmock_file(filename)
 endfunction
 

@@ -33,7 +33,7 @@ endfunction
 
 function! s:VarParent.close()
   let self.is_open = 0
-  call g:RubyDebugger.variables.update()
+  call s:variables_window.display()
   return 0
 endfunction
 
