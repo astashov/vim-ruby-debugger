@@ -45,6 +45,7 @@ function! s:get_tags(cmd)
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
       call add(tags, tagmatch[0])
+      let tagmatch[0] = escape(tagmatch[0], '[]')
       let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
       let tagmatch = matchlist(inner_tags, pattern)
     endwhile
@@ -65,6 +66,7 @@ function! s:get_tag_attributes(cmd)
   let attrmatch = matchlist(cmd, pattern) 
   while empty(attrmatch) == 0
     let attributes[attrmatch[1]] = attrmatch[2]
+    let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
@@ -698,6 +700,9 @@ endfunction
 function! s:VarParent.close()
   let self.is_open = 0
   call s:variables_window.display()
+  if exists(g:RubyDebugger.current_variable)
+    unlet g:RubyDebugger.current_variable
+  endif
   return 0
 endfunction
 
@@ -984,6 +989,11 @@ function! s:mock_debugger(message)
     let cmd = cmd . '<variable name="hash_local" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a910" />'
     let cmd = cmd . '<variable name="hash_array" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a911" />'
     let cmd = cmd . '</variables>'
+  elseif a:message =~ 'var instance -0x2418a906'
+    let cmd = '<variables>'
+    let cmd = cmd . '<variable name="[0]" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a912" />'
+    let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
+    let cmd = cmd . '</variables>'
   endif
   if cmd != "" 
     call writefile([ cmd ], s:tmp_file)
@@ -1188,6 +1198,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_init_variables_after_breakpoint(test)
+  call g:RubyDebugger.logger.put("1")
   let filename = s:Mock.mock_file()
   
   let cmd = '<breakpoint file="' . filename . '" line="1" />'
@@ -1204,6 +1215,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_variables_window(test)
+  call g:RubyDebugger.logger.put("2")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -1220,6 +1232,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_variables_window_after_opening(test)
+  call g:RubyDebugger.logger.put("3")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -1229,6 +1242,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_instance_subvariable(test)
+  call g:RubyDebugger.logger.put("4")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -1245,6 +1259,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_instance_subvariable(test)
+  call g:RubyDebugger.logger.put("5")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -1259,6 +1274,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_last_variable_in_list(test)
+  call g:RubyDebugger.logger.put("6")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 5G'
@@ -1272,4 +1288,17 @@ function! s:Tests.variables.test_should_open_last_variable_in_list(test)
 endfunction
 
 
+function! s:Tests.variables.test_should_open_childs_of_array(test)
+  call g:RubyDebugger.logger.put("7")
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 4G'
+
+  call s:window_variables_activate_node()
+  call g:TU.match(getline(4), '|\~array', '4-th line should be opened array', a:test)
+  call g:TU.match(getline(5), '| |-\[0\]', '5 line should be local subvariable', a:test)
+  call g:TU.match(getline(6), '| `+\[1\]', '6-th line should be array subvariable', a:test)
+
+  exe 'close'
+endfunction
 

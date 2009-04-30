@@ -23,6 +23,11 @@ function! s:mock_debugger(message)
     let cmd = cmd . '<variable name="hash_local" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a910" />'
     let cmd = cmd . '<variable name="hash_array" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a911" />'
     let cmd = cmd . '</variables>'
+  elseif a:message =~ 'var instance -0x2418a906'
+    let cmd = '<variables>'
+    let cmd = cmd . '<variable name="[0]" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a912" />'
+    let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
+    let cmd = cmd . '</variables>'
   endif
   if cmd != "" 
     call writefile([ cmd ], s:tmp_file)

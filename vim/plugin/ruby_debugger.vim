@@ -45,6 +45,7 @@ function! s:get_tags(cmd)
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
       call add(tags, tagmatch[0])
+      let tagmatch[0] = escape(tagmatch[0], '[]')
       let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
       let tagmatch = matchlist(inner_tags, pattern)
     endwhile
@@ -65,6 +66,7 @@ function! s:get_tag_attributes(cmd)
   let attrmatch = matchlist(cmd, pattern) 
   while empty(attrmatch) == 0
     let attributes[attrmatch[1]] = attrmatch[2]
+    let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
@@ -698,6 +700,9 @@ endfunction
 function! s:VarParent.close()
   let self.is_open = 0
   call s:variables_window.display()
+  if exists(g:RubyDebugger.current_variable)
+    unlet g:RubyDebugger.current_variable
+  endif
   return 0
 endfunction
 

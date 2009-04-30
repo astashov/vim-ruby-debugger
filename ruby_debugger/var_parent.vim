@@ -34,6 +34,9 @@ endfunction
 function! s:VarParent.close()
   let self.is_open = 0
   call s:variables_window.display()
+  if exists(g:RubyDebugger.current_variable)
+    unlet g:RubyDebugger.current_variable
+  endif
   return 0
 endfunction
 

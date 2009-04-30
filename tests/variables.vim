@@ -26,6 +26,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_init_variables_after_breakpoint(test)
+  call g:RubyDebugger.logger.put("1")
   let filename = s:Mock.mock_file()
   
   let cmd = '<breakpoint file="' . filename . '" line="1" />'
@@ -42,6 +43,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_variables_window(test)
+  call g:RubyDebugger.logger.put("2")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -58,6 +60,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_variables_window_after_opening(test)
+  call g:RubyDebugger.logger.put("3")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -67,6 +70,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_instance_subvariable(test)
+  call g:RubyDebugger.logger.put("4")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -83,6 +87,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_instance_subvariable(test)
+  call g:RubyDebugger.logger.put("5")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -97,6 +102,7 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_last_variable_in_list(test)
+  call g:RubyDebugger.logger.put("6")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 5G'
@@ -110,3 +116,16 @@ function! s:Tests.variables.test_should_open_last_variable_in_list(test)
 endfunction
 
 
+function! s:Tests.variables.test_should_open_childs_of_array(test)
+  call g:RubyDebugger.logger.put("7")
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 4G'
+
+  call s:window_variables_activate_node()
+  call g:TU.match(getline(4), '|\~array', '4-th line should be opened array', a:test)
+  call g:TU.match(getline(5), '| |-\[0\]', '5 line should be local subvariable', a:test)
+  call g:TU.match(getline(6), '| `+\[1\]', '6-th line should be array subvariable', a:test)
+
+  exe 'close'
+endfunction
