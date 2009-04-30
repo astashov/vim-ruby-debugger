@@ -22,7 +22,7 @@ endfunction
 function! s:Tests.breakpoint.test_should_set_breakpoint(test)
   exe "Rdebugger"
   let filename = s:Mock.mock_file()
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   call g:TU.equal(1, breakpoint.id, "Id of first breakpoint should == 1", a:test)
   call g:TU.equal(filename, breakpoint.file, "File should be set right", a:test)
@@ -42,11 +42,11 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
   exe "normal obla" 
   exe "normal gg"
   exe "write"
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
   exe "normal j"
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
   exe "normal j"
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
 
   " Lets suggest that some breakpoint was assigned to old server
   let g:RubyDebugger.breakpoints[1].rdebug_pid = 'bla'
@@ -71,6 +71,19 @@ function! s:Tests.breakpoint.test_jump_to_breakpoint_by_suspended(test)
 endfunction
 
 
+function! s:Tests.breakpoint.test_delete_breakpoint(test)
+  exe "Rdebugger"
+  let filename = s:Mock.mock_file()
+  call g:RubyDebugger.toggle_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
+
+  call g:TU.ok(empty(g:RubyDebugger.breakpoints), "Breakpoint should be removed", a:test)
+  call g:TU.equal(0, s:Mock.breakpoints, "0 breakpoints should be assigned", a:test)
+
+  call s:Mock.unmock_file(filename)
+endfunction
+
+
 function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
   let filename = s:Mock.mock_file()
   
@@ -91,4 +104,8 @@ function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
 
   call s:Mock.unmock_file(filename)
 endfunction
+
+
+
+
 

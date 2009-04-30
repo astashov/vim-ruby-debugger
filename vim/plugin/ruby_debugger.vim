@@ -1,4 +1,4 @@
-map <Leader>b  :call g:RubyDebugger.set_breakpoint()<CR>
+map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
 map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
@@ -168,12 +168,19 @@ function! RubyDebugger.open_variables() dict
 endfunction
 
 
-function! RubyDebugger.set_breakpoint() dict
+function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
-  let breakpoint = s:Breakpoint.new(file, line)
-  call add(g:RubyDebugger.breakpoints, breakpoint)
-  call breakpoint.send_to_debugger() 
+  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . file . '"')
+  if empty(existed_breakpoints)
+    let breakpoint = s:Breakpoint.new(file, line)
+    call add(g:RubyDebugger.breakpoints, breakpoint)
+    call breakpoint.send_to_debugger() 
+  else
+    let breakpoint = existed_breakpoints[0]
+    call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
+    call breakpoint.delete()
+  endif
 endfunction
 
 
@@ -792,6 +799,19 @@ function! s:Breakpoint._set_sign() dict
 endfunction
 
 
+function! s:Breakpoint._unset_sign() dict
+  if has("signs")
+    exe ":sign unplace " . self.id
+  endif
+endfunction
+
+
+function! s:Breakpoint.delete() dict
+  call self._unset_sign()
+  call self._send_delete_to_debugger()
+endfunction
+
+
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'break ' . self.file . ':' . self.line
@@ -803,6 +823,16 @@ endfunction
 function! s:Breakpoint._log(string) dict
   call g:RubyDebugger.logger.put(a:string)
 endfunction
+
+
+function! s:Breakpoint._send_delete_to_debugger() dict
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+    let message = 'delete ' . self.debugger_id
+    call g:RubyDebugger.send_command(message)
+  endif
+endfunction
+
+
 
 let s:Server = {}
 

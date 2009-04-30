@@ -52,12 +52,19 @@ function! RubyDebugger.open_variables() dict
 endfunction
 
 
-function! RubyDebugger.set_breakpoint() dict
+function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
-  let breakpoint = s:Breakpoint.new(file, line)
-  call add(g:RubyDebugger.breakpoints, breakpoint)
-  call breakpoint.send_to_debugger() 
+  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . file . '"')
+  if empty(existed_breakpoints)
+    let breakpoint = s:Breakpoint.new(file, line)
+    call add(g:RubyDebugger.breakpoints, breakpoint)
+    call breakpoint.send_to_debugger() 
+  else
+    let breakpoint = existed_breakpoints[0]
+    call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
+    call breakpoint.delete()
+  endif
 endfunction
 
 

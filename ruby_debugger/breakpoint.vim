@@ -20,6 +20,19 @@ function! s:Breakpoint._set_sign() dict
 endfunction
 
 
+function! s:Breakpoint._unset_sign() dict
+  if has("signs")
+    exe ":sign unplace " . self.id
+  endif
+endfunction
+
+
+function! s:Breakpoint.delete() dict
+  call self._unset_sign()
+  call self._send_delete_to_debugger()
+endfunction
+
+
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'break ' . self.file . ':' . self.line
@@ -31,3 +44,13 @@ endfunction
 function! s:Breakpoint._log(string) dict
   call g:RubyDebugger.logger.put(a:string)
 endfunction
+
+
+function! s:Breakpoint._send_delete_to_debugger() dict
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+    let message = 'delete ' . self.debugger_id
+    call g:RubyDebugger.send_command(message)
+  endif
+endfunction
+
+

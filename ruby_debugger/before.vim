@@ -1,4 +1,4 @@
-map <Leader>b  :call g:RubyDebugger.set_breakpoint()<CR>
+map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
 map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>

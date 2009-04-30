@@ -1,4 +1,4 @@
-map <Leader>b  :call g:RubyDebugger.set_breakpoint()<CR>
+map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
 map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
@@ -168,12 +168,19 @@ function! RubyDebugger.open_variables() dict
 endfunction
 
 
-function! RubyDebugger.set_breakpoint() dict
+function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
-  let breakpoint = s:Breakpoint.new(file, line)
-  call add(g:RubyDebugger.breakpoints, breakpoint)
-  call breakpoint.send_to_debugger() 
+  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . file . '"')
+  if empty(existed_breakpoints)
+    let breakpoint = s:Breakpoint.new(file, line)
+    call add(g:RubyDebugger.breakpoints, breakpoint)
+    call breakpoint.send_to_debugger() 
+  else
+    let breakpoint = existed_breakpoints[0]
+    call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
+    call breakpoint.delete()
+  endif
 endfunction
 
 
@@ -792,6 +799,19 @@ function! s:Breakpoint._set_sign() dict
 endfunction
 
 
+function! s:Breakpoint._unset_sign() dict
+  if has("signs")
+    exe ":sign unplace " . self.id
+  endif
+endfunction
+
+
+function! s:Breakpoint.delete() dict
+  call self._unset_sign()
+  call self._send_delete_to_debugger()
+endfunction
+
+
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'break ' . self.file . ':' . self.line
@@ -803,6 +823,16 @@ endfunction
 function! s:Breakpoint._log(string) dict
   call g:RubyDebugger.logger.put(a:string)
 endfunction
+
+
+function! s:Breakpoint._send_delete_to_debugger() dict
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+    let message = 'delete ' . self.debugger_id
+    call g:RubyDebugger.send_command(message)
+  endif
+endfunction
+
+
 
 let s:Server = {}
 
@@ -972,6 +1002,10 @@ function! s:mock_debugger(message)
     let matches = matchlist(a:message, 'break \(.*\):\(.*\)')
     let cmd = '<breakpointAdded no="1" location="' . matches[1] . ':' . matches[2] . '" />'
     let s:Mock.breakpoints += 1
+  elseif a:message =~ 'delete'
+    let matches = matchlist(a:message, 'delete \(.*\)')
+    let cmd = '<breakpointDeleted no="' . matches[1] . '" />'
+    let s:Mock.breakpoints -= 1
   elseif a:message =~ 'var local'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
@@ -1099,7 +1133,7 @@ endfunction
 function! s:Tests.breakpoint.test_should_set_breakpoint(test)
   exe "Rdebugger"
   let filename = s:Mock.mock_file()
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   call g:TU.equal(1, breakpoint.id, "Id of first breakpoint should == 1", a:test)
   call g:TU.equal(filename, breakpoint.file, "File should be set right", a:test)
@@ -1119,11 +1153,11 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
   exe "normal obla" 
   exe "normal gg"
   exe "write"
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
   exe "normal j"
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
   exe "normal j"
-  call g:RubyDebugger.set_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
 
   " Lets suggest that some breakpoint was assigned to old server
   let g:RubyDebugger.breakpoints[1].rdebug_pid = 'bla'
@@ -1148,6 +1182,19 @@ function! s:Tests.breakpoint.test_jump_to_breakpoint_by_suspended(test)
 endfunction
 
 
+function! s:Tests.breakpoint.test_delete_breakpoint(test)
+  exe "Rdebugger"
+  let filename = s:Mock.mock_file()
+  call g:RubyDebugger.toggle_breakpoint()
+  call g:RubyDebugger.toggle_breakpoint()
+
+  call g:TU.ok(empty(g:RubyDebugger.breakpoints), "Breakpoint should be removed", a:test)
+  call g:TU.equal(0, s:Mock.breakpoints, "0 breakpoints should be assigned", a:test)
+
+  call s:Mock.unmock_file(filename)
+endfunction
+
+
 function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
   let filename = s:Mock.mock_file()
   
@@ -1168,6 +1215,10 @@ function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
 
   call s:Mock.unmock_file(filename)
 endfunction
+
+
+
+
 
 
 let s:Tests.variables = {}
@@ -1198,7 +1249,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_init_variables_after_breakpoint(test)
-  call g:RubyDebugger.logger.put("1")
   let filename = s:Mock.mock_file()
   
   let cmd = '<breakpoint file="' . filename . '" line="1" />'
@@ -1215,7 +1265,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_variables_window(test)
-  call g:RubyDebugger.logger.put("2")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -1232,7 +1281,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_variables_window_after_opening(test)
-  call g:RubyDebugger.logger.put("3")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -1242,7 +1290,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_instance_subvariable(test)
-  call g:RubyDebugger.logger.put("4")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -1259,7 +1306,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_instance_subvariable(test)
-  call g:RubyDebugger.logger.put("5")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -1274,7 +1320,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_last_variable_in_list(test)
-  call g:RubyDebugger.logger.put("6")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 5G'
@@ -1289,7 +1334,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_childs_of_array(test)
-  call g:RubyDebugger.logger.put("7")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 4G'

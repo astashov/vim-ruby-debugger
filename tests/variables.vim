@@ -26,7 +26,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_init_variables_after_breakpoint(test)
-  call g:RubyDebugger.logger.put("1")
   let filename = s:Mock.mock_file()
   
   let cmd = '<breakpoint file="' . filename . '" line="1" />'
@@ -43,7 +42,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_variables_window(test)
-  call g:RubyDebugger.logger.put("2")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -60,7 +58,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_variables_window_after_opening(test)
-  call g:RubyDebugger.logger.put("3")
   call g:RubyDebugger.send_command('var local')
 
   call g:RubyDebugger.open_variables()
@@ -70,7 +67,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_instance_subvariable(test)
-  call g:RubyDebugger.logger.put("4")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -87,7 +83,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_close_instance_subvariable(test)
-  call g:RubyDebugger.logger.put("5")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 2G'
@@ -102,7 +97,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_last_variable_in_list(test)
-  call g:RubyDebugger.logger.put("6")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 5G'
@@ -117,7 +111,6 @@ endfunction
 
 
 function! s:Tests.variables.test_should_open_childs_of_array(test)
-  call g:RubyDebugger.logger.put("7")
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 4G'

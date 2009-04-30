@@ -6,6 +6,10 @@ function! s:mock_debugger(message)
     let matches = matchlist(a:message, 'break \(.*\):\(.*\)')
     let cmd = '<breakpointAdded no="1" location="' . matches[1] . ':' . matches[2] . '" />'
     let s:Mock.breakpoints += 1
+  elseif a:message =~ 'delete'
+    let matches = matchlist(a:message, 'delete \(.*\)')
+    let cmd = '<breakpointDeleted no="' . matches[1] . '" />'
+    let s:Mock.breakpoints -= 1
   elseif a:message =~ 'var local'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
