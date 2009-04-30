@@ -94,3 +94,19 @@ function! s:Tests.variables.test_should_close_instance_subvariable(test)
 
   exe 'close'
 endfunction
+
+
+function! s:Tests.variables.test_should_open_last_variable_in_list(test)
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 5G'
+
+  call s:window_variables_activate_node()
+  call g:TU.match(getline(5), '`\~hash', "5-th line should be opened hash", a:test)
+  call g:TU.match(getline(6), '  |-hash_local', "6 line should be local subvariable", a:test)
+  call g:TU.match(getline(7), '  `+hash_array', "7-th line should be array subvariable", a:test)
+
+  exe 'close'
+endfunction
+
+

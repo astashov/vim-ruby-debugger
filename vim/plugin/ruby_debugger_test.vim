@@ -530,7 +530,7 @@ endfunction
 
 function! s:Var.get_selected()
   let line = getline(".") 
-  let match = matchlist(line, '[| ]\+[+\-\~]\+\(.\{-}\)\s') 
+  let match = matchlist(line, '[| `]\+[+\-\~]\+\(.\{-}\)\s') 
   let name = get(match, 1)
   let variable = g:RubyDebugger.variables.find_variable({'name' : name})
   let g:RubyDebugger.current_variable = name
@@ -979,6 +979,11 @@ function! s:mock_debugger(message)
     let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
     let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
     let cmd = cmd . '</variables>'
+  elseif a:message =~ 'var instance -0x2418a907'
+    let cmd = '<variables>'
+    let cmd = cmd . '<variable name="hash_local" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a910" />'
+    let cmd = cmd . '<variable name="hash_array" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a911" />'
+    let cmd = cmd . '</variables>'
   endif
   if cmd != "" 
     call writefile([ cmd ], s:tmp_file)
@@ -1251,4 +1256,20 @@ function! s:Tests.variables.test_should_close_instance_subvariable(test)
 
   exe 'close'
 endfunction
+
+
+function! s:Tests.variables.test_should_open_last_variable_in_list(test)
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 5G'
+
+  call s:window_variables_activate_node()
+  call g:TU.match(getline(5), '`\~hash', "5-th line should be opened hash", a:test)
+  call g:TU.match(getline(6), '  |-hash_local', "6 line should be local subvariable", a:test)
+  call g:TU.match(getline(7), '  `+hash_array', "7-th line should be array subvariable", a:test)
+
+  exe 'close'
+endfunction
+
+
 
