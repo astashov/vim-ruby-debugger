@@ -24,7 +24,12 @@ endfunction
 
 
 function! s:window_breakpoints_delete_node()
-
+  let breakpoint = s:Breakpoint.get_selected()
+  if breakpoint != {}
+    call breakpoint.delete()
+    call filter(g:RubyDebugger.breakpoints, "v:val.id != " . breakpoint.id)
+    call s:breakpoints_window.open()
+  endif
 endfunction
 
 

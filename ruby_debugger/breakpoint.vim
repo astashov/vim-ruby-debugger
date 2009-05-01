@@ -41,6 +41,19 @@ function! s:Breakpoint.send_to_debugger() dict
 endfunction
 
 
+function! s:Breakpoint.get_selected() dict
+  let line = getline(".") 
+  let match = matchlist(line, '^\(\d\+\)') 
+  let id = get(match, 1)
+  let breakpoints = filter(copy(g:RubyDebugger.breakpoints), "v:val.id == " . id)
+  if !empty(breakpoints)
+    return breakpoints[0]
+  else
+    return {}
+  endif
+endfunction
+
+
 function! s:Breakpoint._log(string) dict
   call g:RubyDebugger.logger.put(a:string)
 endfunction

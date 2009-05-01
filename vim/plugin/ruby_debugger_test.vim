@@ -563,7 +563,12 @@ endfunction
 
 
 function! s:window_breakpoints_delete_node()
-
+  let breakpoint = s:Breakpoint.get_selected()
+  if breakpoint != {}
+    call breakpoint.delete()
+    call filter(g:RubyDebugger.breakpoints, "v:val.id != " . breakpoint.id)
+    call s:breakpoints_window.open()
+  endif
 endfunction
 
 
@@ -860,6 +865,19 @@ function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'break ' . self.file . ':' . self.line
     call g:RubyDebugger.send_command(message)
+  endif
+endfunction
+
+
+function! s:Breakpoint.get_selected() dict
+  let line = getline(".") 
+  let match = matchlist(line, '^\(\d\+\)') 
+  let id = get(match, 1)
+  let breakpoints = filter(copy(g:RubyDebugger.breakpoints), "v:val.id == " . id)
+  if !empty(breakpoints)
+    return breakpoints[0]
+  else
+    return {}
   endif
 endfunction
 
@@ -1297,6 +1315,24 @@ function! s:Tests.breakpoint.test_should_open_window_and_show_breakpoints(test)
 
   exe 'close'
 endfunction
+
+
+function! s:Tests.breakpoint.test_should_delete_breakpoint_from_breakpoints_window(test)
+  let filename = s:Mock.mock_file()
+  " Write 2 lines of text and set 2 breakpoints (on every line)
+  call g:RubyDebugger.toggle_breakpoint()
+  call s:Mock.unmock_file(filename)
+  call g:TU.ok(!empty(g:RubyDebugger.breakpoints), "Breakpoint should be set", a:test)
+
+  call g:RubyDebugger.open_breakpoints()
+  exe 'normal 2G'
+  call s:window_breakpoints_delete_node()
+  call g:TU.equal('', getline(2), "Breakpoint should not be shown", a:test)
+  call g:TU.ok(empty(g:RubyDebugger.breakpoints), "Breakpoint should be destroyed", a:test)
+
+  exe 'close'
+endfunction
+
 
 
 
