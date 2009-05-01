@@ -108,7 +108,35 @@ endfunction
 
 function! s:Tests.breakpoint.test_should_open_window_without_got_breakpoints(test)
   call g:RubyDebugger.open_breakpoints()
-  
+
+  call g:TU.ok(s:breakpoints_window.is_open(), "Breakpoints window should opened", a:test)
+  call g:TU.equal(bufwinnr("%"), s:breakpoints_window.get_number(), "Focus should be into the breakpoints window", a:test)
+  call g:TU.equal(getline(1), s:breakpoints_window.title, "First line should be name", a:test)
+
+  exe 'close'
+endfunction
+
+
+function! s:Tests.breakpoint.test_should_open_window_and_show_breakpoints(test)
+  let filename = s:Mock.mock_file()
+  " Write 2 lines of text and set 2 breakpoints (on every line)
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  exe "normal gg"
+  exe "write"
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal j"
+  call g:RubyDebugger.toggle_breakpoint()
+
+  call s:Mock.unmock_file(filename)
+
+  " Lets suggest that some breakpoint is assigned
+  let g:RubyDebugger.breakpoints[1].debugger_id = 4
+
+  call g:RubyDebugger.open_breakpoints()
+  call g:TU.match(getline(2), '1  ' . filename . ':1', "Should show first breakpoint", a:test)
+  call g:TU.match(getline(3), '2 4 ' . filename . ':2', "Should show second breakpoint", a:test)
+
   exe 'close'
 endfunction
 

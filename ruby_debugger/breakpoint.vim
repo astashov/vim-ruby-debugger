@@ -54,3 +54,7 @@ function! s:Breakpoint._send_delete_to_debugger() dict
 endfunction
 
 
+function! s:Breakpoint.render() dict
+  return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
+endfunction
+

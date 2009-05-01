@@ -8,7 +8,11 @@ endfunction
 
 
 function! s:WindowBreakpoints.render() dict
-
+  let breakpoints = ""
+  for breakpoint in g:RubyDebugger.breakpoints
+    let breakpoints .= breakpoint.render()
+  endfor
+  return breakpoints
 endfunction
 
 

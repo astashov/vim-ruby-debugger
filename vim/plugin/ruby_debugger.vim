@@ -547,7 +547,11 @@ endfunction
 
 
 function! s:WindowBreakpoints.render() dict
-
+  let breakpoints = ""
+  for breakpoint in g:RubyDebugger.breakpoints
+    let breakpoints .= breakpoint.render()
+  endfor
+  return breakpoints
 endfunction
 
 
@@ -872,6 +876,10 @@ function! s:Breakpoint._send_delete_to_debugger() dict
   endif
 endfunction
 
+
+function! s:Breakpoint.render() dict
+  return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
+endfunction
 
 
 let s:Server = {}
