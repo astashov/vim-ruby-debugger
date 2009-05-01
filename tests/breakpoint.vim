@@ -106,6 +106,10 @@ function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
 endfunction
 
 
-
+function! s:Tests.breakpoint.test_should_open_window_without_got_breakpoints(test)
+  call g:RubyDebugger.open_breakpoints()
+  
+  exe 'close'
+endfunction
 
 

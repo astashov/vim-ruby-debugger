@@ -52,6 +52,12 @@ function! RubyDebugger.open_variables() dict
 endfunction
 
 
+function! RubyDebugger.open_breakpoints() dict
+  call s:breakpoints_window.toggle()
+  call g:RubyDebugger.logger.put("Opened breakpoints window")
+endfunction
+
+
 function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()

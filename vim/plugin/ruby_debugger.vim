@@ -1,5 +1,6 @@
 map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
+map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
 map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
 map <Leader>c  :call g:RubyDebugger.continue()<CR>
@@ -165,6 +166,12 @@ function! RubyDebugger.open_variables() dict
     call s:variables_window.toggle()
     call g:RubyDebugger.logger.put("Opened variables window")
   endif
+endfunction
+
+
+function! RubyDebugger.open_breakpoints() dict
+  call s:breakpoints_window.toggle()
+  call g:RubyDebugger.logger.put("Opened breakpoints window")
 endfunction
 
 
@@ -455,7 +462,7 @@ endfunction
 
 function! s:Window._insert_data() dict
   let old_p = @p
-  let @p = self.data.render()
+  let @p = self.render()
   silent put p
   let @p = old_p
   call self._log("Inserted data to window with name: " . self.name)
@@ -500,12 +507,17 @@ endfunction
 
 
 
-" Inherits VarParent from VarChild
+" Inherits variables window from abstract window class
 let s:WindowVariables = copy(s:Window)
 
 function! s:WindowVariables.bind_mappings()
   nnoremap <buffer> <2-leftmouse> :call <SID>window_variables_activate_node()<cr>
   nnoremap <buffer> o :call <SID>window_variables_activate_node()<cr>"
+endfunction
+
+
+function! s:WindowVariables.render() dict
+  return self.data.render()
 endfunction
 
 
@@ -520,6 +532,34 @@ function! s:window_variables_activate_node()
       call variable.open()
     endif
   endif
+endfunction
+
+
+
+
+let s:WindowBreakpoints = copy(s:Window)
+
+function! s:WindowBreakpoints.bind_mappings()
+  nnoremap <buffer> <2-leftmouse> :call <SID>window_breakpoints_activate_node()<cr>
+  nnoremap <buffer> o :call <SID>window_breakpoints_activate_node()<cr>
+  nnoremap <buffer> d :call <SID>window_breakpoints_delete_node()<cr>
+endfunction
+
+
+function! s:WindowBreakpoints.render() dict
+
+endfunction
+
+
+" TODO: Is there some way to call s:WindowBreakpoints.activate_node from mapping
+" command?
+function! s:window_breakpoints_activate_node()
+
+endfunction
+
+
+function! s:window_breakpoints_delete_node()
+
 endfunction
 
 
@@ -914,10 +954,9 @@ endfunction
 
 
 let s:variables_window = s:WindowVariables.new("variables", "Variables_Window", g:RubyDebugger.variables)
-
-let RubyDebugger.settings.variables_win_position = 'botright'
-let RubyDebugger.settings.variables_win_size = 10
+let s:breakpoints_window = s:WindowBreakpoints.new("breakpoints", "Breakpoints_Window", g:RubyDebugger.breakpoints)
 
 let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
 let s:variables_window.logger = RubyDebugger.logger
+let s:breakpoints_window.logger = RubyDebugger.logger
 

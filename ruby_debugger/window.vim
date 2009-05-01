@@ -132,7 +132,7 @@ endfunction
 
 function! s:Window._insert_data() dict
   let old_p = @p
-  let @p = self.data.render()
+  let @p = self.render()
   silent put p
   let @p = old_p
   call self._log("Inserted data to window with name: " . self.name)

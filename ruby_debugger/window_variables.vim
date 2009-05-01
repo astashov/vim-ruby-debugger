@@ -1,9 +1,14 @@
-" Inherits VarParent from VarChild
+" Inherits variables window from abstract window class
 let s:WindowVariables = copy(s:Window)
 
 function! s:WindowVariables.bind_mappings()
   nnoremap <buffer> <2-leftmouse> :call <SID>window_variables_activate_node()<cr>
   nnoremap <buffer> o :call <SID>window_variables_activate_node()<cr>"
+endfunction
+
+
+function! s:WindowVariables.render() dict
+  return self.data.render()
 endfunction
 
 
