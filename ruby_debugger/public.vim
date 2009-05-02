@@ -71,6 +71,10 @@ function! RubyDebugger.toggle_breakpoint() dict
     call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
     call breakpoint.delete()
   endif
+  if s:breakpoints_window.is_open()
+    call s:breakpoints_window.open()
+    exe "wincmd p"
+  endif
 endfunction
 
 
