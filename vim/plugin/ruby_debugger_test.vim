@@ -113,7 +113,63 @@ function! s:jump_to_file(file, line)
 endfunction
 
 
+function! s:is_window_usable(winnumber)
+    "gotta split if theres only one window (i.e. the NERD tree)
+    if winnr("$") ==# 1
+        return 0
+    endif
 
+    let oldwinnr = winnr()
+    exe a:winnumber . "wincmd p"
+    let specialWindow = getbufvar("%", '&buftype') != '' || getwinvar('%', '&previewwindow')
+    let modified = &modified
+    exe oldwinnr . "wincmd p"
+
+    "if its a special window e.g. quickfix or another explorer plugin then we
+    "have to split
+    if specialWindow
+      return 0
+    endif
+
+    if &hidden
+      return 1
+    endif
+
+    return !modified || s:buf_in_windows(winbufnr(a:winnumber)) >= 2
+endfunction
+
+
+function! s:buf_in_windows(bnum)
+    let cnt = 0
+    let winnum = 1
+    while 1
+        let bufnum = winbufnr(winnum)
+        if bufnum < 0
+            break
+        endif
+        if bufnum ==# a:bnum
+            let cnt = cnt + 1
+        endif
+        let winnum = winnum + 1
+    endwhile
+
+    return cnt
+endfunction 
+
+
+function! s:first_normal_window()
+    let i = 1
+    while i <= winnr("$")
+        let bnum = winbufnr(i)
+        if bnum != -1 && getbufvar(bnum, '&buftype') ==# ''
+                    \ && !getwinvar(i, '&previewwindow')
+            return i
+        endif
+
+        let i += 1
+    endwhile
+    return -1
+endfunction
 
 " *** Public interface ***
 
@@ -558,7 +614,10 @@ endfunction
 " TODO: Is there some way to call s:WindowBreakpoints.activate_node from mapping
 " command?
 function! s:window_breakpoints_activate_node()
-
+  let breakpoint = s:Breakpoint.get_selected()
+  if breakpoint != {}
+    call breakpoint.open()
+  endif
 endfunction
 
 
@@ -897,6 +956,23 @@ endfunction
 
 function! s:Breakpoint.render() dict
   return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
+endfunction
+
+
+function! s:Breakpoint.open() dict
+  "if the file is already open in this tab then just stick the cursor in it
+  let winnr = bufwinnr('^' . self.file . '$')
+  if winnr != -1
+    exe winnr . "wincmd w"
+  else
+    if !s:is_window_usable(winnr("#"))
+      exe s:first_normal_window() . "wincmd w"
+    else
+      exe 'wincmd p'
+    endif
+    exe "edit " . self.file
+  endif
+  exe "normal " . self.line . "G"
 endfunction
 
 
@@ -1319,7 +1395,6 @@ endfunction
 
 function! s:Tests.breakpoint.test_should_delete_breakpoint_from_breakpoints_window(test)
   let filename = s:Mock.mock_file()
-  " Write 2 lines of text and set 2 breakpoints (on every line)
   call g:RubyDebugger.toggle_breakpoint()
   call s:Mock.unmock_file(filename)
   call g:TU.ok(!empty(g:RubyDebugger.breakpoints), "Breakpoint should be set", a:test)
@@ -1334,6 +1409,25 @@ function! s:Tests.breakpoint.test_should_delete_breakpoint_from_breakpoints_wind
 endfunction
 
 
+function! s:Tests.breakpoint.test_should_open_selected_breakpoint_from_breakpoints_window(test)
+  let filename = s:Mock.mock_file()
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal gg"
+  exe "write"
+  exe "wincmd w"
+
+  call g:TU.ok(expand("%") != filename, "It should not be within the file with breakpoint", a:test)
+  call g:RubyDebugger.open_breakpoints()
+  exe 'normal 2G'
+  call s:window_breakpoints_activate_node()
+  call g:TU.equal(filename, expand("%"), "It should open file with breakpoint", a:test)
+  call g:TU.equal(2, line("."), "It should jump to line with breakpoint", a:test)
+  call g:RubyDebugger.open_breakpoints()
+
+  call s:Mock.unmock_file(filename)
+endfunction
 
 
 let s:Tests.variables = {}

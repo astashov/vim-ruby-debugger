@@ -143,7 +143,6 @@ endfunction
 
 function! s:Tests.breakpoint.test_should_delete_breakpoint_from_breakpoints_window(test)
   let filename = s:Mock.mock_file()
-  " Write 2 lines of text and set 2 breakpoints (on every line)
   call g:RubyDebugger.toggle_breakpoint()
   call s:Mock.unmock_file(filename)
   call g:TU.ok(!empty(g:RubyDebugger.breakpoints), "Breakpoint should be set", a:test)
@@ -158,4 +157,23 @@ function! s:Tests.breakpoint.test_should_delete_breakpoint_from_breakpoints_wind
 endfunction
 
 
+function! s:Tests.breakpoint.test_should_open_selected_breakpoint_from_breakpoints_window(test)
+  let filename = s:Mock.mock_file()
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal gg"
+  exe "write"
+  exe "wincmd w"
+
+  call g:TU.ok(expand("%") != filename, "It should not be within the file with breakpoint", a:test)
+  call g:RubyDebugger.open_breakpoints()
+  exe 'normal 2G'
+  call s:window_breakpoints_activate_node()
+  call g:TU.equal(filename, expand("%"), "It should open file with breakpoint", a:test)
+  call g:TU.equal(2, line("."), "It should jump to line with breakpoint", a:test)
+  call g:RubyDebugger.open_breakpoints()
+
+  call s:Mock.unmock_file(filename)
+endfunction
 

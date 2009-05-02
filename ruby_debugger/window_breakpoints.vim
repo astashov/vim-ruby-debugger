@@ -19,7 +19,10 @@ endfunction
 " TODO: Is there some way to call s:WindowBreakpoints.activate_node from mapping
 " command?
 function! s:window_breakpoints_activate_node()
-
+  let breakpoint = s:Breakpoint.get_selected()
+  if breakpoint != {}
+    call breakpoint.open()
+  endif
 endfunction
 
 

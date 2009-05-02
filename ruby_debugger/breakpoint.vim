@@ -71,3 +71,20 @@ function! s:Breakpoint.render() dict
   return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
 endfunction
 
+
+function! s:Breakpoint.open() dict
+  "if the file is already open in this tab then just stick the cursor in it
+  let winnr = bufwinnr('^' . self.file . '$')
+  if winnr != -1
+    exe winnr . "wincmd w"
+  else
+    if !s:is_window_usable(winnr("#"))
+      exe s:first_normal_window() . "wincmd w"
+    else
+      exe 'wincmd p'
+    endif
+    exe "edit " . self.file
+  endif
+  exe "normal " . self.line . "G"
+endfunction
+

@@ -75,4 +75,60 @@ function! s:jump_to_file(file, line)
 endfunction
 
 
+function! s:is_window_usable(winnumber)
+    "gotta split if theres only one window (i.e. the NERD tree)
+    if winnr("$") ==# 1
+        return 0
+    endif
 
+    let oldwinnr = winnr()
+    exe a:winnumber . "wincmd p"
+    let specialWindow = getbufvar("%", '&buftype') != '' || getwinvar('%', '&previewwindow')
+    let modified = &modified
+    exe oldwinnr . "wincmd p"
+
+    "if its a special window e.g. quickfix or another explorer plugin then we
+    "have to split
+    if specialWindow
+      return 0
+    endif
+
+    if &hidden
+      return 1
+    endif
+
+    return !modified || s:buf_in_windows(winbufnr(a:winnumber)) >= 2
+endfunction
+
+
+function! s:buf_in_windows(bnum)
+    let cnt = 0
+    let winnum = 1
+    while 1
+        let bufnum = winbufnr(winnum)
+        if bufnum < 0
+            break
+        endif
+        if bufnum ==# a:bnum
+            let cnt = cnt + 1
+        endif
+        let winnum = winnum + 1
+    endwhile
+
+    return cnt
+endfunction 
+
+
+function! s:first_normal_window()
+    let i = 1
+    while i <= winnr("$")
+        let bnum = winbufnr(i)
+        if bnum != -1 && getbufvar(bnum, '&buftype') ==# ''
+                    \ && !getwinvar(i, '&previewwindow')
+            return i
+        endif
+
+        let i += 1
+    endwhile
+    return -1
+endfunction
