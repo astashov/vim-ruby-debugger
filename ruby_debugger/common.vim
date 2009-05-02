@@ -47,6 +47,13 @@ function! s:send_message_to_debugger(message)
 endfunction
 
 
+function! s:unplace_current_line_sign()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
+endfunction
+
+
 function! s:jump_to_file(file, line)
   " If no buffer with this file has been loaded, create new one
   if !bufexists(bufname(a:file))

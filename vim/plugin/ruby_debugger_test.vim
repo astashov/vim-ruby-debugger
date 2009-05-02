@@ -21,6 +21,7 @@ let s:rdebug_port = 39767
 let s:debugger_port = 39768
 let s:runtime_dir = split(&runtimepath, ',')[0]
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
+let s:current_line_sign_id = 120
 
 if &t_Co < '16'
   let s:breakpoint_ctermbg = 1
@@ -82,6 +83,13 @@ endfunction
 
 function! s:send_message_to_debugger(message)
   call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
+endfunction
+
+
+function! s:unplace_current_line_sign()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
 endfunction
 
 
@@ -253,24 +261,28 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
+  call s:unplace_current_line_sign()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
+  call s:unplace_current_line_sign()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
+  call s:unplace_current_line_sign()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
 
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.send_command("exit")
+  call s:unplace_current_line_sign()
 endfunction
 
 " *** End of public interface
@@ -290,8 +302,7 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
 
 
   if has("signs")
-    exe ":sign unplace 120"
-    exe ":sign place 120 line=" . attrs.line . " name=current_line file=" . attrs.file
+    exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 
   call g:RubyDebugger.send_command('var local')

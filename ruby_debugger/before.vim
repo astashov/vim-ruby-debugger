@@ -21,6 +21,7 @@ let s:rdebug_port = 39767
 let s:debugger_port = 39768
 let s:runtime_dir = split(&runtimepath, ',')[0]
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
+let s:current_line_sign_id = 120
 
 if &t_Co < '16'
   let s:breakpoint_ctermbg = 1

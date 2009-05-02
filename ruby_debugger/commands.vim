@@ -10,8 +10,7 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
 
 
   if has("signs")
-    exe ":sign unplace 120"
-    exe ":sign place 120 line=" . attrs.line . " name=current_line file=" . attrs.file
+    exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 
   call g:RubyDebugger.send_command('var local')

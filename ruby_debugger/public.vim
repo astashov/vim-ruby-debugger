@@ -80,24 +80,28 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
+  call s:unplace_current_line_sign()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
+  call s:unplace_current_line_sign()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
+  call s:unplace_current_line_sign()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
 
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.send_command("exit")
+  call s:unplace_current_line_sign()
 endfunction
 
 " *** End of public interface
