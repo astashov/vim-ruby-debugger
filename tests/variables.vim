@@ -18,10 +18,12 @@ function! s:Tests.variables.before()
 endfunction
 
 
-function! s:Tests.variables.test_should_not_open_window_without_got_variables(test)
+function! s:Tests.variables.test_should_open_window_without_got_variables(test)
   call g:RubyDebugger.open_variables()
-  " It should not be opened
-  call g:TU.ok(!s:variables_window.is_open(), "Variables window should not be opened", a:test)
+  call g:TU.ok(s:variables_window.is_open(), "Variables window should be opened", a:test)
+  call g:TU.equal(bufwinnr("%"), s:variables_window.get_number(), "Focus should be into the variables window", a:test)
+  call g:TU.equal(getline(1), s:variables_window.title, "First line should be name", a:test)
+  exe 'close'
 endfunction
 
 
@@ -122,3 +124,24 @@ function! s:Tests.variables.test_should_open_childs_of_array(test)
 
   exe 'close'
 endfunction
+
+
+function! s:Tests.variables.test_should_clear_variables_after_movement_command(test)
+  let g:RubyDebugger.variables = { 'bla' : 'bla' }
+  call g:RubyDebugger.next()
+  call g:TU.equal({}, g:RubyDebugger.variables, "Variables should be cleaned", a:test)
+
+  let g:RubyDebugger.variables = { 'bla' : 'bla' }
+  call g:RubyDebugger.step()
+  call g:TU.equal({}, g:RubyDebugger.variables, "Variables should be cleaned", a:test)
+
+  let g:RubyDebugger.variables = { 'bla' : 'bla' }
+  call g:RubyDebugger.continue()
+  call g:TU.equal({}, g:RubyDebugger.variables, "Variables should be cleaned", a:test)
+
+  let g:RubyDebugger.variables = { 'bla' : 'bla' }
+  call g:RubyDebugger.exit()
+  call g:TU.equal({}, g:RubyDebugger.variables, "Variables should be cleaned", a:test)
+endfunction
+
+

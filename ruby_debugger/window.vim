@@ -6,11 +6,10 @@ let s:Window['position'] = 'botright'
 let s:Window['size'] = 10
 
 
-function! s:Window.new(name, title, data) dict
+function! s:Window.new(name, title) dict
   let new_variable = copy(self)
   let new_variable.name = a:name
   let new_variable.title = a:title
-  let new_variable.data = a:data
   return new_variable
 endfunction
 

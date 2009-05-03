@@ -8,7 +8,6 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   call s:jump_to_file(attrs.file, attrs.line)
   call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
 
-
   if has("signs")
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
@@ -65,7 +64,6 @@ function! RubyDebugger.commands.set_variables(cmd)
     if variable != {}
       call g:RubyDebugger.logger.put("Found variable: " . variable_name)
       call variable.add_childs(list_of_variables)
-      let s:variables_window.data = g:RubyDebugger.variables
       call g:RubyDebugger.logger.put("Opening child variable: " . variable_name)
       call s:variables_window.open()
     else
@@ -74,8 +72,10 @@ function! RubyDebugger.commands.set_variables(cmd)
   else
     if g:RubyDebugger.variables.children == []
       call g:RubyDebugger.variables.add_childs(list_of_variables)
-      let s:variables_window.data = g:RubyDebugger.variables
       call g:RubyDebugger.logger.put("Initializing local variables")
+      if s:variables_window.is_open()
+        call s:variables_window.open()
+      endif
     endif
   endif
 endfunction

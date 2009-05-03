@@ -86,9 +86,13 @@ function! s:send_message_to_debugger(message)
 endfunction
 
 
-function! s:unplace_current_line_sign()
+function! s:clear_current_state()
   if has("signs")
     exe ":sign unplace " . s:current_line_sign_id
+  endif
+  let g:RubyDebugger.variables = {}
+  if s:variables_window.is_open()
+    call s:variables_window.open()
   endif
 endfunction
 
@@ -224,12 +228,8 @@ let RubyDebugger.send_command = function("s:send_message_to_debugger")
 
 
 function! RubyDebugger.open_variables() dict
-  if g:RubyDebugger.variables == {}
-    echo "You are not in the running program"
-  else
-    call s:variables_window.toggle()
-    call g:RubyDebugger.logger.put("Opened variables window")
-  endif
+  call s:variables_window.toggle()
+  call g:RubyDebugger.logger.put("Opened variables window")
 endfunction
 
 
@@ -261,29 +261,31 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
-  call s:unplace_current_line_sign()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
-  call s:unplace_current_line_sign()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
-  call s:unplace_current_line_sign()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
 
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.send_command("exit")
-  call s:unplace_current_line_sign()
+  call s:clear_current_state()
 endfunction
+
+
 
 " *** End of public interface
 
@@ -299,7 +301,6 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
   call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
-
 
   if has("signs")
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
@@ -357,7 +358,6 @@ function! RubyDebugger.commands.set_variables(cmd)
     if variable != {}
       call g:RubyDebugger.logger.put("Found variable: " . variable_name)
       call variable.add_childs(list_of_variables)
-      let s:variables_window.data = g:RubyDebugger.variables
       call g:RubyDebugger.logger.put("Opening child variable: " . variable_name)
       call s:variables_window.open()
     else
@@ -366,8 +366,10 @@ function! RubyDebugger.commands.set_variables(cmd)
   else
     if g:RubyDebugger.variables.children == []
       call g:RubyDebugger.variables.add_childs(list_of_variables)
-      let s:variables_window.data = g:RubyDebugger.variables
       call g:RubyDebugger.logger.put("Initializing local variables")
+      if s:variables_window.is_open()
+        call s:variables_window.open()
+      endif
     endif
   endif
 endfunction
@@ -407,11 +409,10 @@ let s:Window['position'] = 'botright'
 let s:Window['size'] = 10
 
 
-function! s:Window.new(name, title, data) dict
+function! s:Window.new(name, title) dict
   let new_variable = copy(self)
   let new_variable.name = a:name
   let new_variable.title = a:title
-  let new_variable.data = a:data
   return new_variable
 endfunction
 
@@ -588,7 +589,7 @@ endfunction
 
 
 function! s:WindowVariables.render() dict
-  return self.data.render()
+  return g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render()
 endfunction
 
 
@@ -1070,8 +1071,8 @@ endfunction
 
 
 
-let s:variables_window = s:WindowVariables.new("variables", "Variables_Window", g:RubyDebugger.variables)
-let s:breakpoints_window = s:WindowBreakpoints.new("breakpoints", "Breakpoints_Window", g:RubyDebugger.breakpoints)
+let s:variables_window = s:WindowVariables.new("variables", "Variables_Window")
+let s:breakpoints_window = s:WindowBreakpoints.new("breakpoints", "Breakpoints_Window")
 
 let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
 let s:variables_window.logger = RubyDebugger.logger

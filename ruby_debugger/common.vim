@@ -47,9 +47,13 @@ function! s:send_message_to_debugger(message)
 endfunction
 
 
-function! s:unplace_current_line_sign()
+function! s:clear_current_state()
   if has("signs")
     exe ":sign unplace " . s:current_line_sign_id
+  endif
+  let g:RubyDebugger.variables = {}
+  if s:variables_window.is_open()
+    call s:variables_window.open()
   endif
 endfunction
 

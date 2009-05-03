@@ -8,7 +8,7 @@ endfunction
 
 
 function! s:WindowVariables.render() dict
-  return self.data.render()
+  return g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render()
 endfunction
 
 
