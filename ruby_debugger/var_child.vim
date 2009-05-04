@@ -97,7 +97,7 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . ' ' . get(self.attributes, "type", "undefined") . ' ' . get(self.attributes, "value", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined")
 endfunction
 
 

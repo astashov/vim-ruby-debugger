@@ -508,6 +508,11 @@ function! s:Window.open() dict
       setfiletype ruby_debugger_window
       call self._log("Opened window with name: " . self.name)
     endif
+
+    if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
+      call self.setup_syntax_highlighting()
+    endif
+
     call self.display()
 endfunction
 
@@ -607,6 +612,35 @@ function! s:window_variables_activate_node()
 endfunction
 
 
+function! s:WindowVariables.setup_syntax_highlighting()
+    execute "syn match rdebugTitle #Variables_Window#"
+
+    syn match rdebugPart #[| `]\+#
+    syn match rdebugPartFile #[| `]\+-# contains=rdebugPart nextgroup=rdebugChild contained
+    syn match rdebugChild #.\{-}\t# nextgroup=rdebugType contained
+
+    syn match rdebugClosable #[| `]\+\~# contains=rdebugPart nextgroup=rdebugParent contained
+    syn match rdebugOpenable #[| `]\++# contains=rdebugPart nextgroup=rdebugParent contained
+    syn match rdebugParent #.\{-}\t# nextgroup=rdebugType contained
+
+    syn match rdebugType #.\{-}\t# nextgroup=rdebugValue contained
+    syn match rdebugValue #.*# contained
+
+    syn match rdebugParentLine '[| `]\+[+\~].*' contains=rdebugClosable,rdebugOpenable transparent
+    syn match rdebugChildLine '[| `]\+-.*' contains=rdebugPartFile transparent
+
+    hi def link rdebugTitle Identifier
+    hi def link rdebugClosable Type
+    hi def link rdebugOpenable Title
+    hi def link rdebugPart Special
+    hi def link rdebugPartFile Type
+    hi def link rdebugChild Normal
+    hi def link rdebugParent Directory
+    hi def link rdebugType Type
+    hi def link rdebugValue Special
+    hi def link rdebugParentLine Normal
+    hi def link rdebugChildLine Normal
+endfunction
 
 
 let s:WindowBreakpoints = copy(s:Window)
@@ -646,6 +680,11 @@ function! s:window_breakpoints_delete_node()
   endif
 endfunction
 
+
+
+function! s:WindowBreakpoints.setup_syntax_highlighting() dict
+
+endfunction
 
 
 
@@ -770,7 +809,7 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . ' ' . get(self.attributes, "type", "undefined") . ' ' . get(self.attributes, "value", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined")
 endfunction
 
 

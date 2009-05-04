@@ -37,3 +37,8 @@ endfunction
 
 
 
+function! s:WindowBreakpoints.setup_syntax_highlighting() dict
+
+endfunction
+
+

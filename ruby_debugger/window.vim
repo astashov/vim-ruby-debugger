@@ -105,6 +105,11 @@ function! s:Window.open() dict
       setfiletype ruby_debugger_window
       call self._log("Opened window with name: " . self.name)
     endif
+
+    if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
+      call self.setup_syntax_highlighting()
+    endif
+
     call self.display()
 endfunction
 
