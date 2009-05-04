@@ -27,7 +27,7 @@ endfunction
 
 
 function! s:WindowVariables.setup_syntax_highlighting()
-    execute "syn match rdebugTitle #Variables_Window#"
+    execute "syn match rdebugTitle #" . self.title . "#"
 
     syn match rdebugPart #[| `]\+#
     syn match rdebugPartFile #[| `]\+-# contains=rdebugPart nextgroup=rdebugChild contained
@@ -52,7 +52,5 @@ function! s:WindowVariables.setup_syntax_highlighting()
     hi def link rdebugParent Directory
     hi def link rdebugType Type
     hi def link rdebugValue Special
-    hi def link rdebugParentLine Normal
-    hi def link rdebugChildLine Normal
 endfunction
 

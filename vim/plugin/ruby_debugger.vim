@@ -613,7 +613,7 @@ endfunction
 
 
 function! s:WindowVariables.setup_syntax_highlighting()
-    execute "syn match rdebugTitle #Variables_Window#"
+    execute "syn match rdebugTitle #" . self.title . "#"
 
     syn match rdebugPart #[| `]\+#
     syn match rdebugPartFile #[| `]\+-# contains=rdebugPart nextgroup=rdebugChild contained
@@ -638,8 +638,6 @@ function! s:WindowVariables.setup_syntax_highlighting()
     hi def link rdebugParent Directory
     hi def link rdebugType Type
     hi def link rdebugValue Special
-    hi def link rdebugParentLine Normal
-    hi def link rdebugChildLine Normal
 endfunction
 
 
@@ -683,7 +681,19 @@ endfunction
 
 
 function! s:WindowBreakpoints.setup_syntax_highlighting() dict
+    execute "syn match rdebugTitle #" . self.title . "#"
 
+    syn match rdebugId "^\d\+\s" contained nextgroup=rdebugDebuggerId
+    syn match rdebugDebuggerId "\d*\s" contained nextgroup=rdebugFile
+    syn match rdebugFile ".*:" contained nextgroup=rdebugLine
+    syn match rdebugLine "\d\+" contained
+
+    syn match rdebugWrapper "^\d\+.*" contains=rdebugId transparent
+
+    hi def link rdebugId Directory
+    hi def link rdebugDebuggerId Type
+    hi def link rdebugFile Normal
+    hi def link rdebugLine Special
 endfunction
 
 

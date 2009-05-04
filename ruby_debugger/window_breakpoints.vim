@@ -38,7 +38,19 @@ endfunction
 
 
 function! s:WindowBreakpoints.setup_syntax_highlighting() dict
+    execute "syn match rdebugTitle #" . self.title . "#"
 
+    syn match rdebugId "^\d\+\s" contained nextgroup=rdebugDebuggerId
+    syn match rdebugDebuggerId "\d*\s" contained nextgroup=rdebugFile
+    syn match rdebugFile ".*:" contained nextgroup=rdebugLine
+    syn match rdebugLine "\d\+" contained
+
+    syn match rdebugWrapper "^\d\+.*" contains=rdebugId transparent
+
+    hi def link rdebugId Directory
+    hi def link rdebugDebuggerId Type
+    hi def link rdebugFile Normal
+    hi def link rdebugLine Special
 endfunction
 
 
