@@ -3,3 +3,4 @@ tests/mock.vim
 tests/server.vim
 tests/breakpoint.vim
 tests/variables.vim
+tests/command.vim

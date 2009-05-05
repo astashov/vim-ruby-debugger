@@ -1,4 +1,4 @@
-let s:Mock = { 'breakpoints': 0 }
+let s:Mock = { 'breakpoints': 0, 'evals': 0 }
 
 function! s:mock_debugger(message)
   let cmd = ""
@@ -32,6 +32,10 @@ function! s:mock_debugger(message)
     let cmd = cmd . '<variable name="[0]" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a912" />'
     let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
     let cmd = cmd . '</variables>'
+  elseif a:message =~ '^p '
+    let p = matchlist(a:message, "^p \\(.*\\)")[1]
+    let s:Mock.evals += 1
+    let cmd = '<eval expression="' . p . '" value=""all users"" />'
   endif
   if cmd != "" 
     call writefile([ cmd ], s:tmp_file)

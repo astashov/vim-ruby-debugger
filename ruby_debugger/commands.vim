@@ -81,6 +81,15 @@ function! RubyDebugger.commands.set_variables(cmd)
 endfunction
 
 
+" <eval expression="User.all" value="[#User ... ]" />
+function! RubyDebugger.commands.eval(cmd)
+  " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
+  " use usual attribute extractor here...
+  let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\" \\/>")
+  echo "Evaluated expression:\n" . match[1] ."\nResulted value is:\n" . match[2] . "\n"
+endfunction
+
+
 " <error>Error</error>
 function! RubyDebugger.commands.error(cmd)
   let error_match = s:get_inner_tags(a:cmd) 

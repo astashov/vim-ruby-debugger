@@ -28,13 +28,23 @@ function! s:get_tag_attributes(cmd)
   let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
   let attrmatch = matchlist(cmd, pattern) 
   while empty(attrmatch) == 0
-    let attributes[attrmatch[1]] = attrmatch[2]
+    let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
     let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
   return attributes
 endfunction
+
+
+function! s:unescape_html(html)
+  let result = substitute(a:html, "&amp;", "\\&", "")
+  let result = substitute(result, "&quot;", "\"", "")
+  let result = substitute(result, "&lt;", "<", "")
+  let result = substitute(result, "&gt;", ">", "")
+  return result
+endfunction
+
 
 
 function! s:get_filename()

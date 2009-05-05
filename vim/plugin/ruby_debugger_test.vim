@@ -7,6 +7,7 @@ map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
 
 command! Rdebugger :call g:RubyDebugger.start() 
+command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 " if exists("g:loaded_ruby_debugger")
 "     finish
@@ -67,13 +68,23 @@ function! s:get_tag_attributes(cmd)
   let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
   let attrmatch = matchlist(cmd, pattern) 
   while empty(attrmatch) == 0
-    let attributes[attrmatch[1]] = attrmatch[2]
+    let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
     let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
   return attributes
 endfunction
+
+
+function! s:unescape_html(html)
+  let result = substitute(a:html, "&amp;", "\\&", "")
+  let result = substitute(result, "&quot;", "\"", "")
+  let result = substitute(result, "&lt;", "<", "")
+  let result = substitute(result, "&gt;", ">", "")
+  return result
+endfunction
+
 
 
 function! s:get_filename()
@@ -219,6 +230,8 @@ function! RubyDebugger.receive_command() dict
       call g:RubyDebugger.commands.error(cmd)
     elseif match(cmd, '<message>') != -1
       call g:RubyDebugger.commands.message(cmd)
+    elseif match(cmd, '<eval ') != -1
+      call g:RubyDebugger.commands.eval(cmd)
     endif
   endif
 endfunction
@@ -372,6 +385,15 @@ function! RubyDebugger.commands.set_variables(cmd)
       endif
     endif
   endif
+endfunction
+
+
+" <eval expression="User.all" value="[#User ... ]" />
+function! RubyDebugger.commands.eval(cmd)
+  " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
+  " use usual attribute extractor here...
+  let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\" \\/>")
+  echo "Evaluated expression:\n" . match[1] ."\nResulted value is:\n" . match[2] . "\n"
 endfunction
 
 
@@ -1200,7 +1222,7 @@ endfunction
 
 let s:Tests = {}
 
-let s:Mock = { 'breakpoints': 0 }
+let s:Mock = { 'breakpoints': 0, 'evals': 0 }
 
 function! s:mock_debugger(message)
   let cmd = ""
@@ -1234,6 +1256,10 @@ function! s:mock_debugger(message)
     let cmd = cmd . '<variable name="[0]" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a912" />'
     let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
     let cmd = cmd . '</variables>'
+  elseif a:message =~ '^p '
+    let p = matchlist(a:message, "^p \\(.*\\)")[1]
+    let s:Mock.evals += 1
+    let cmd = '<eval expression="' . p . '" value=""all users"" />'
   endif
   if cmd != "" 
     call writefile([ cmd ], s:tmp_file)
@@ -1639,6 +1665,25 @@ function! s:Tests.variables.test_should_clear_variables_after_movement_command(t
   let g:RubyDebugger.variables = { 'bla' : 'bla' }
   call g:RubyDebugger.exit()
   call g:TU.equal({}, g:RubyDebugger.variables, "Variables should be cleaned", a:test)
+endfunction
+
+
+
+let s:Tests.command = {}
+
+function! s:Tests.command.before_all()
+  call s:Mock.mock_debugger()
+endfunction
+
+
+function! s:Tests.command.after_all()
+    call s:Mock.unmock_debugger()
+endfunction
+
+
+function! s:Tests.command.test_some_user_command(test)
+  RdbCommand p \"all users\"
+  call g:TU.equal(1, s:Mock.evals, "It should return eval command", a:test)
 endfunction
 
 

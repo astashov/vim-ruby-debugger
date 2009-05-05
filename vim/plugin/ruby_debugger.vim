@@ -7,6 +7,7 @@ map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
 
 command! Rdebugger :call g:RubyDebugger.start() 
+command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 " if exists("g:loaded_ruby_debugger")
 "     finish
@@ -67,13 +68,23 @@ function! s:get_tag_attributes(cmd)
   let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
   let attrmatch = matchlist(cmd, pattern) 
   while empty(attrmatch) == 0
-    let attributes[attrmatch[1]] = attrmatch[2]
+    let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
     let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
   return attributes
 endfunction
+
+
+function! s:unescape_html(html)
+  let result = substitute(a:html, "&amp;", "\\&", "")
+  let result = substitute(result, "&quot;", "\"", "")
+  let result = substitute(result, "&lt;", "<", "")
+  let result = substitute(result, "&gt;", ">", "")
+  return result
+endfunction
+
 
 
 function! s:get_filename()
@@ -219,6 +230,8 @@ function! RubyDebugger.receive_command() dict
       call g:RubyDebugger.commands.error(cmd)
     elseif match(cmd, '<message>') != -1
       call g:RubyDebugger.commands.message(cmd)
+    elseif match(cmd, '<eval ') != -1
+      call g:RubyDebugger.commands.eval(cmd)
     endif
   endif
 endfunction
@@ -372,6 +385,15 @@ function! RubyDebugger.commands.set_variables(cmd)
       endif
     endif
   endif
+endfunction
+
+
+" <eval expression="User.all" value="[#User ... ]" />
+function! RubyDebugger.commands.eval(cmd)
+  " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
+  " use usual attribute extractor here...
+  let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\" \\/>")
+  echo "Evaluated expression:\n" . match[1] ."\nResulted value is:\n" . match[2] . "\n"
 endfunction
 
 

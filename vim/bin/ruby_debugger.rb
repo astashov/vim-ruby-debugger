@@ -37,8 +37,8 @@ t2 = Thread.new do
     # Recursively read socket with interval 0.01 seconds. If there will no message in next 0.01 seconds, stop read.
     # This is need for reading whole message, because sometimes select/recv reads not all available data
     output = read_socket(response, debugger)
-    puts output
-    File.open(ARGV[4], 'w') { |f| f.puts(CGI::unescapeHTML(output)) }
+    output.gsub!(/&quot;/, "\"")
+    File.open(ARGV[4], 'w') { |f| f.puts(output) }
     command = ":call RubyDebugger.receive_command()"
     system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"<C-\\\\><C-N>#{command}<CR>\"");
  end

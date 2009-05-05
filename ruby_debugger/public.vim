@@ -34,6 +34,8 @@ function! RubyDebugger.receive_command() dict
       call g:RubyDebugger.commands.error(cmd)
     elseif match(cmd, '<message>') != -1
       call g:RubyDebugger.commands.message(cmd)
+    elseif match(cmd, '<eval ') != -1
+      call g:RubyDebugger.commands.eval(cmd)
     endif
   endif
 endfunction

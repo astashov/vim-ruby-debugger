@@ -7,6 +7,7 @@ map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
 
 command! Rdebugger :call g:RubyDebugger.start() 
+command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 " if exists("g:loaded_ruby_debugger")
 "     finish
