@@ -21,7 +21,6 @@ end
 
 server = TCPServer.new('localhost', ARGV[1])
 debugger = TCPSocket.open('localhost', ARGV[0])
-debugger.puts('start')
 create_directory(ARGV[4])
 
 t1 = Thread.new do

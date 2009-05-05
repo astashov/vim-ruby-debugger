@@ -36,6 +36,8 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   let not_assigned_breakpoint = get(not_assigned_breakpoints, 0)
   if type(not_assigned_breakpoint) == type({})
     call not_assigned_breakpoint.send_to_debugger()
+  else
+    call g:RubyDebugger.send_command('start')
   endif
 endfunction
 

@@ -6,7 +6,7 @@ map <Leader>n  :call g:RubyDebugger.next()<CR>
 map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
 
-command! Rdebugger :call g:RubyDebugger.start() 
+command! -nargs=? Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 " if exists("g:loaded_ruby_debugger")
@@ -198,9 +198,10 @@ endfunction
 
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
 
-function! RubyDebugger.start() dict
+function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
-  call g:RubyDebugger.server.start()
+  let script = a:0 && !empty(a:1) ? a:1 : 'script/server'
+  call g:RubyDebugger.server.start(script)
 
   " Send only first breakpoint to the debugger. All other breakpoints will be
   " sent by 'set_breakpoint' command
@@ -343,6 +344,8 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   let not_assigned_breakpoint = get(not_assigned_breakpoints, 0)
   if type(not_assigned_breakpoint) == type({})
     call not_assigned_breakpoint.send_to_debugger()
+  else
+    call g:RubyDebugger.send_command('start')
   endif
 endfunction
 
@@ -1075,10 +1078,10 @@ function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
 endfunction
 
 
-function! s:Server.start() dict
+function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- script/server &'
+  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
   let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
   call system(rdebug)
   exe 'sleep 2'

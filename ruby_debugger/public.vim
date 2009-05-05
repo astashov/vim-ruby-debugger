@@ -2,9 +2,10 @@
 
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
 
-function! RubyDebugger.start() dict
+function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
-  call g:RubyDebugger.server.start()
+  let script = a:0 && !empty(a:1) ? a:1 : 'script/server'
+  call g:RubyDebugger.server.start(script)
 
   " Send only first breakpoint to the debugger. All other breakpoints will be
   " sent by 'set_breakpoint' command

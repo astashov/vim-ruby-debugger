@@ -10,10 +10,10 @@ function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
 endfunction
 
 
-function! s:Server.start() dict
+function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- script/server &'
+  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
   let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
   call system(rdebug)
   exe 'sleep 2'
