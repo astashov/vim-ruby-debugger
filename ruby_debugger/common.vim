@@ -25,9 +25,12 @@ endfunction
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
-  let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
+  " Find type of used quotes (" or ')
+  let quote_match = matchlist(cmd, "\\w\\+=\\(.\\)")
+  let quote = empty(quote_match) ? "\"" : escape(quote_match[1], "'\"")
+  let pattern = "\\(\\w\\+\\)=" . quote . "\\(.\\{-}\\)" . quote
   let attrmatch = matchlist(cmd, pattern) 
-  while empty(attrmatch) == 0
+  while !empty(attrmatch)
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
     let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')

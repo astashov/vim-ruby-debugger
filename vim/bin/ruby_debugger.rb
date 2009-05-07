@@ -7,12 +7,6 @@ def create_directory(file)
   dir
 end
 
-ARGV[0] ||= 39767
-ARGV[1] ||= 39768
-ARGV[2] ||= "gvim"
-ARGV[3] ||= "GVIM"
-ARGV[4] ||= "/home/anton/.vim/tmp/ruby_debugger"
-
 def read_socket(response, debugger)
   output = ""
   if response && response[0] && response[0][0]
@@ -43,9 +37,8 @@ end
 t2 = Thread.new do
   loop do 
     response = select([debugger], nil, nil)
-    puts "Received"
     output = read_socket(response, debugger)
-    puts "Handled"
+    next if output.strip.blank?
     File.open(ARGV[4], 'w') { |f| f.puts(output) }
     command = ":call RubyDebugger.receive_command()"
     system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"<C-\\\\><C-N>#{command}<CR>\"");

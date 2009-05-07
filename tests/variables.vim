@@ -35,8 +35,8 @@ function! s:Tests.variables.test_should_init_variables_after_breakpoint(test)
   call g:RubyDebugger.receive_command()
 
   call g:TU.equal("VarParent", g:RubyDebugger.variables.type, "Root variable should be initialized", a:test)
-  call g:TU.equal(4, len(g:RubyDebugger.variables.children), "4 variables should be initialized", a:test)
-  call g:TU.equal(3, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarParent"')), "3 Parent variables should be initialized", a:test)
+  call g:TU.equal(5, len(g:RubyDebugger.variables.children), "4 variables should be initialized", a:test)
+  call g:TU.equal(4, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarParent"')), "3 Parent variables should be initialized", a:test)
   call g:TU.equal(1, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarChild"')), "1 Child variable should be initialized", a:test)
 
   call s:Mock.unmock_file(filename)
@@ -53,7 +53,8 @@ function! s:Tests.variables.test_should_open_variables_window(test)
   call g:TU.match(getline(2), '|+self', "Second line should be 'self' variable", a:test)
   call g:TU.match(getline(3), '|-some_local', "Third line should be a local variable", a:test)
   call g:TU.match(getline(4), '|+array', "4-th line should be an array", a:test)
-  call g:TU.match(getline(5), '`+hash', "5-th line should be a hash", a:test)
+  call g:TU.match(getline(5), '|+quoted_hash', "5-th line should be a hash", a:test)
+  call g:TU.match(getline(6), '`+hash', "6-th line should be a hash", a:test)
 
   exe 'close'
 endfunction
@@ -84,6 +85,20 @@ function! s:Tests.variables.test_should_open_instance_subvariable(test)
 endfunction
 
 
+function! s:Tests.variables.test_should_open_instance_subvariable_with_quotes(test)
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 5G'
+
+  call s:window_variables_activate_node()
+  call g:TU.ok(s:variables_window.is_open(), "Variables window should opened", a:test)
+  call g:TU.match(getline(5), '|\~quoted_hash', "5-th line should be hash variable", a:test)
+  call g:TU.match(getline(6), "| `-'quoted'", "6-th line should be quoted variable", a:test)
+
+  exe 'close'
+endfunction
+
+
 function! s:Tests.variables.test_should_close_instance_subvariable(test)
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
@@ -101,12 +116,12 @@ endfunction
 function! s:Tests.variables.test_should_open_last_variable_in_list(test)
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
-  exe 'normal 5G'
+  exe 'normal 6G'
 
   call s:window_variables_activate_node()
-  call g:TU.match(getline(5), '`\~hash', "5-th line should be opened hash", a:test)
-  call g:TU.match(getline(6), '  |-hash_local', "6 line should be local subvariable", a:test)
-  call g:TU.match(getline(7), '  `+hash_array', "7-th line should be array subvariable", a:test)
+  call g:TU.match(getline(6), '`\~hash', "5-th line should be opened hash", a:test)
+  call g:TU.match(getline(7), '  |-hash_local', "6 line should be local subvariable", a:test)
+  call g:TU.match(getline(8), '  `+hash_array', "7-th line should be array subvariable", a:test)
 
   exe 'close'
 endfunction

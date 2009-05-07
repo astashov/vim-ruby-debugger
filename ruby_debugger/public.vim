@@ -12,6 +12,8 @@ function! RubyDebugger.start(...) dict
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   if type(breakpoint) == type({})
     call breakpoint.send_to_debugger()
+  else
+    call g:RubyDebugger.send_command('start')
   endif
   echo "Debugger started"
 endfunction

@@ -65,9 +65,12 @@ endfunction
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
-  let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
+  " Find type of used quotes (" or ')
+  let quote_match = matchlist(cmd, "\\w\\+=\\(.\\)")
+  let quote = empty(quote_match) ? "\"" : escape(quote_match[1], "'\"")
+  let pattern = "\\(\\w\\+\\)=" . quote . "\\(.\\{-}\\)" . quote
   let attrmatch = matchlist(cmd, pattern) 
-  while empty(attrmatch) == 0
+  while !empty(attrmatch)
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
     let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')
@@ -208,6 +211,8 @@ function! RubyDebugger.start(...) dict
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   if type(breakpoint) == type({})
     call breakpoint.send_to_debugger()
+  else
+    call g:RubyDebugger.send_command('start')
   endif
   echo "Debugger started"
 endfunction
@@ -1084,7 +1089,7 @@ function! s:Server.start(script) dict
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
   let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
   call system(rdebug)
-  exe 'sleep 2'
+  exe 'sleep 1'
   call system(debugger)
 
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
@@ -1242,6 +1247,7 @@ function! s:mock_debugger(message)
     let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
     let cmd = cmd . '<variable name="some_local" kind="local" value="bla" type="String" hasChildren="false" objectId="-0x2418a905" />'
     let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a906" />'
+    let cmd = cmd . '<variable name="quoted_hash" kind="local" value="Hash (1 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a914" />'
     let cmd = cmd . '<variable name="hash" kind="local" value="Hash (2 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a907" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a904'
@@ -1258,6 +1264,10 @@ function! s:mock_debugger(message)
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="[0]" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a912" />'
     let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
+    let cmd = cmd . '</variables>'
+  elseif a:message =~ 'var instance -0x2418a914'
+    let cmd = '<variables>'
+    let cmd = cmd . "<variable name=\"'quoted'\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a915\" />"
     let cmd = cmd . '</variables>'
   elseif a:message =~ '^p '
     let p = matchlist(a:message, "^p \\(.*\\)")[1]
@@ -1561,8 +1571,8 @@ function! s:Tests.variables.test_should_init_variables_after_breakpoint(test)
   call g:RubyDebugger.receive_command()
 
   call g:TU.equal("VarParent", g:RubyDebugger.variables.type, "Root variable should be initialized", a:test)
-  call g:TU.equal(4, len(g:RubyDebugger.variables.children), "4 variables should be initialized", a:test)
-  call g:TU.equal(3, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarParent"')), "3 Parent variables should be initialized", a:test)
+  call g:TU.equal(5, len(g:RubyDebugger.variables.children), "4 variables should be initialized", a:test)
+  call g:TU.equal(4, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarParent"')), "3 Parent variables should be initialized", a:test)
   call g:TU.equal(1, len(filter(copy(g:RubyDebugger.variables.children), 'v:val.type == "VarChild"')), "1 Child variable should be initialized", a:test)
 
   call s:Mock.unmock_file(filename)
@@ -1579,7 +1589,8 @@ function! s:Tests.variables.test_should_open_variables_window(test)
   call g:TU.match(getline(2), '|+self', "Second line should be 'self' variable", a:test)
   call g:TU.match(getline(3), '|-some_local', "Third line should be a local variable", a:test)
   call g:TU.match(getline(4), '|+array', "4-th line should be an array", a:test)
-  call g:TU.match(getline(5), '`+hash', "5-th line should be a hash", a:test)
+  call g:TU.match(getline(5), '|+quoted_hash', "5-th line should be a hash", a:test)
+  call g:TU.match(getline(6), '`+hash', "6-th line should be a hash", a:test)
 
   exe 'close'
 endfunction
@@ -1610,6 +1621,20 @@ function! s:Tests.variables.test_should_open_instance_subvariable(test)
 endfunction
 
 
+function! s:Tests.variables.test_should_open_instance_subvariable_with_quotes(test)
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 5G'
+
+  call s:window_variables_activate_node()
+  call g:TU.ok(s:variables_window.is_open(), "Variables window should opened", a:test)
+  call g:TU.match(getline(5), '|\~quoted_hash', "5-th line should be hash variable", a:test)
+  call g:TU.match(getline(6), "| `-'quoted'", "6-th line should be quoted variable", a:test)
+
+  exe 'close'
+endfunction
+
+
 function! s:Tests.variables.test_should_close_instance_subvariable(test)
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
@@ -1627,12 +1652,12 @@ endfunction
 function! s:Tests.variables.test_should_open_last_variable_in_list(test)
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
-  exe 'normal 5G'
+  exe 'normal 6G'
 
   call s:window_variables_activate_node()
-  call g:TU.match(getline(5), '`\~hash', "5-th line should be opened hash", a:test)
-  call g:TU.match(getline(6), '  |-hash_local', "6 line should be local subvariable", a:test)
-  call g:TU.match(getline(7), '  `+hash_array', "7-th line should be array subvariable", a:test)
+  call g:TU.match(getline(6), '`\~hash', "5-th line should be opened hash", a:test)
+  call g:TU.match(getline(7), '  |-hash_local', "6 line should be local subvariable", a:test)
+  call g:TU.match(getline(8), '  `+hash_array', "7-th line should be array subvariable", a:test)
 
   exe 'close'
 endfunction

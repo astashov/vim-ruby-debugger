@@ -65,9 +65,12 @@ endfunction
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
-  let pattern = "\\(\\w\\+\\)=[\"']\\(.\\{-}\\)[\"']"
+  " Find type of used quotes (" or ')
+  let quote_match = matchlist(cmd, "\\w\\+=\\(.\\)")
+  let quote = empty(quote_match) ? "\"" : escape(quote_match[1], "'\"")
+  let pattern = "\\(\\w\\+\\)=" . quote . "\\(.\\{-}\\)" . quote
   let attrmatch = matchlist(cmd, pattern) 
-  while empty(attrmatch) == 0
+  while !empty(attrmatch)
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
     let attrmatch[0] = escape(attrmatch[0], '[]')
     let cmd = substitute(cmd, attrmatch[0], '', '')
@@ -208,6 +211,8 @@ function! RubyDebugger.start(...) dict
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   if type(breakpoint) == type({})
     call breakpoint.send_to_debugger()
+  else
+    call g:RubyDebugger.send_command('start')
   endif
   echo "Debugger started"
 endfunction
@@ -1084,7 +1089,7 @@ function! s:Server.start(script) dict
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
   let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
   call system(rdebug)
-  exe 'sleep 2'
+  exe 'sleep 1'
   call system(debugger)
 
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)

@@ -16,7 +16,7 @@ function! s:Server.start(script) dict
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
   let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
   call system(rdebug)
-  exe 'sleep 2'
+  exe 'sleep 1'
   call system(debugger)
 
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
