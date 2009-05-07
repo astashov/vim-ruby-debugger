@@ -6,7 +6,7 @@ Features:
 
 2. The debugger looks like in the Netbeans - you can go through the code, watch variables, breakpoints in separate window, set and remove breakpoints.
 
-3. It supports command-line rdebug commands. E.g., you can you can execute ':RdbCommand p User.all' in command line of VIM and it will display result like usual echo VIM command.
+3. It supports command-line rdebug commands. E.g., you can execute ':RdbCommand p User.all' in command line of VIM and it will display result like usual echo VIM command.
 
 
 = Requirements
