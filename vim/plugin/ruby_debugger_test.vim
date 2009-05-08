@@ -203,7 +203,7 @@ let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoin
 
 function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
-  let script = a:0 && !empty(a:1) ? a:1 : 'script/server'
+  let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
   call g:RubyDebugger.server.start(script)
 
   " Send only first breakpoint to the debugger. All other breakpoints will be
