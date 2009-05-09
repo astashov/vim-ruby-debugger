@@ -48,7 +48,7 @@ function! s:get_tags(cmd)
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
       call add(tags, tagmatch[0])
-      let tagmatch[0] = escape(tagmatch[0], '[]')
+      let tagmatch[0] = escape(tagmatch[0], '[]\')
       let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
       let tagmatch = matchlist(inner_tags, pattern)
     endwhile
@@ -72,7 +72,7 @@ function! s:get_tag_attributes(cmd)
   let attrmatch = matchlist(cmd, pattern) 
   while !empty(attrmatch)
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
-    let attrmatch[0] = escape(attrmatch[0], '[]')
+    let attrmatch[0] = escape(attrmatch[0], '[]\')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
@@ -1284,7 +1284,7 @@ function! s:mock_debugger(message)
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a906'
     let cmd = '<variables>'
-    let cmd = cmd . '<variable name="[0]" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a912" />'
+    let cmd = cmd . '<variable name="[0]" kind="instance" value="[\.^bla$]" type="String" hasChildren="false" objectId="-0x2418a912" />'
     let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a914'

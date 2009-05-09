@@ -48,7 +48,7 @@ function! s:get_tags(cmd)
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
       call add(tags, tagmatch[0])
-      let tagmatch[0] = escape(tagmatch[0], '[]')
+      let tagmatch[0] = escape(tagmatch[0], '[]\')
       let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
       let tagmatch = matchlist(inner_tags, pattern)
     endwhile
@@ -72,7 +72,7 @@ function! s:get_tag_attributes(cmd)
   let attrmatch = matchlist(cmd, pattern) 
   while !empty(attrmatch)
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
-    let attrmatch[0] = escape(attrmatch[0], '[]')
+    let attrmatch[0] = escape(attrmatch[0], '[]\')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
