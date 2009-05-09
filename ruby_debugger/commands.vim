@@ -59,18 +59,15 @@ function! RubyDebugger.commands.set_variables(cmd)
     let g:RubyDebugger.variables.children = []
   endif
   if has_key(g:RubyDebugger, 'current_variable')
-    let variable_name = g:RubyDebugger.current_variable
-    call g:RubyDebugger.logger.put("Trying to find variable: " . variable_name)
-    let variable = g:RubyDebugger.variables.find_variable({'name': variable_name})
-    unlet g:RubyDebugger.current_variable
+    let variable = g:RubyDebugger.current_variable
     if variable != {}
-      call g:RubyDebugger.logger.put("Found variable: " . variable_name)
       call variable.add_childs(list_of_variables)
-      call g:RubyDebugger.logger.put("Opening child variable: " . variable_name)
+      call g:RubyDebugger.logger.put("Opening child variable: " . variable.attributes.objectId)
       call s:variables_window.open()
     else
-      call g:RubyDebugger.logger.put("Can't found variable with name: " . variable_name)
+      call g:RubyDebugger.logger.put("Can't found variable")
     endif
+    unlet g:RubyDebugger.current_variable
   else
     if g:RubyDebugger.variables.children == []
       call g:RubyDebugger.variables.add_childs(list_of_variables)

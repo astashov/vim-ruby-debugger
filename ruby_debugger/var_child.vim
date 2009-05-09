@@ -97,24 +97,31 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined")
 endfunction
 
 
-function! s:VarChild.find_variable(attrs)
-  if self._match_attributes(a:attrs)
+function! s:VarChild.find_variable(...)
+  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
+  if match_attributes
     return self
   else
     return {}
   endif
 endfunction
 
-
-function! s:VarChild._match_attributes(attrs)
+" First argument is attributes of variable, second argument is attributes of
+" parent variable 
+function! s:VarChild._match_attributes(...)
   let conditions = 1
-  for attr in keys(a:attrs)
-    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:attrs[attr]) 
+  for attr in keys(a:1)
+    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:1[attr]) 
   endfor
+  if a:0 > 1
+    for attr in keys(a:2)
+      let conditions = conditions && (has_key(self.parent.attributes, attr) && self.parent.attributes[attr] == a:2[attr])
+    endfor
+  endif
   
   return conditions
 endfunction

@@ -22,6 +22,7 @@ function! s:mock_debugger(message)
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
     let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
+    let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a916" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a907'
     let cmd = '<variables>'
@@ -36,6 +37,10 @@ function! s:mock_debugger(message)
   elseif a:message =~ 'var instance -0x2418a914'
     let cmd = '<variables>'
     let cmd = cmd . "<variable name=\"'quoted'\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a915\" />"
+    let cmd = cmd . '</variables>'
+  elseif a:message =~ 'var instance -0x2418a916'
+    let cmd = '<variables>'
+    let cmd = cmd . "<variable name=\"[0]\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a917\" />"
     let cmd = cmd . '</variables>'
   elseif a:message =~ '^p '
     let p = matchlist(a:message, "^p \\(.*\\)")[1]

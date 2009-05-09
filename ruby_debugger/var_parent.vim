@@ -34,7 +34,7 @@ endfunction
 function! s:VarParent.close()
   let self.is_open = 0
   call s:variables_window.display()
-  if exists(g:RubyDebugger.current_variable)
+  if has_key(g:RubyDebugger, "current_variable")
     unlet g:RubyDebugger.current_variable
   endif
   return 0
@@ -49,8 +49,8 @@ function! s:VarParent._init_children()
     return 0
   endif
 
-  let g:RubyDebugger.current_variable = self.attributes.name
   if has_key(self.attributes, 'objectId')
+    let g:RubyDebugger.current_variable = self
     call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
   endif
 
@@ -70,12 +70,13 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
-function! s:VarParent.find_variable(attrs)
-  if self._match_attributes(a:attrs)
+function! s:VarParent.find_variable(...)
+  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
+  if match_attributes
     return self
   else
     for child in self.children
-      let result = child.find_variable(a:attrs)
+      let result = a:0 > 1 ? child.find_variable(a:1, a:2) : child.find_variable(a:1)
       if result != {}
         return result
       endif

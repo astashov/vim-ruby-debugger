@@ -78,8 +78,9 @@ function! s:Tests.variables.test_should_open_instance_subvariable(test)
   call g:TU.ok(s:variables_window.is_open(), "Variables window should opened", a:test)
   call g:TU.match(getline(2), '|\~self', "Second line should be opened 'self' variable", a:test)
   call g:TU.match(getline(3), '| |+self_array', "Third line should be closed array subvariable", a:test)
-  call g:TU.match(getline(4), '| `-self_local', "4-th line should be local subvariable", a:test)
-  call g:TU.match(getline(5), '|-some_local', "5-th line should be array variable", a:test)
+  call g:TU.match(getline(4), '| |-self_local', "4-th line should be local subvariable", a:test)
+  call g:TU.match(getline(5), '| `+array', "5-th line should be array", a:test)
+  call g:TU.match(getline(6), '|-some_local', "6-th line should be local variable", a:test)
 
   exe 'close'
 endfunction
@@ -131,7 +132,6 @@ function! s:Tests.variables.test_should_open_childs_of_array(test)
   call g:RubyDebugger.send_command('var local')
   call g:RubyDebugger.open_variables()
   exe 'normal 4G'
-
   call s:window_variables_activate_node()
   call g:TU.match(getline(4), '|\~array', '4-th line should be opened array', a:test)
   call g:TU.match(getline(5), '| |-\[0\]', '5 line should be local subvariable', a:test)
@@ -160,3 +160,19 @@ function! s:Tests.variables.test_should_clear_variables_after_movement_command(t
 endfunction
 
 
+function! s:Tests.variables.test_should_open_correct_variable_if_variable_has_repeated_name(test)
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 2G'
+  call s:window_variables_activate_node()
+  exe 'normal 7G'
+  call s:window_variables_activate_node()
+
+  call g:TU.match(getline(5), '| `+array', "5-th line should be closed array", a:test)
+  call g:TU.match(getline(6), '|-some_local', "6-th line should be local variable", a:test)
+  call g:TU.match(getline(7), '|\~array', '7-th line should be opened array', a:test)
+  call g:TU.match(getline(8), '| |-\[0\]', '8 line should be local subvariable', a:test)
+  call g:TU.match(getline(9), '| `+\[1\]', '9-th line should be array subvariable', a:test)
+
+  exe 'close'
+endfunction

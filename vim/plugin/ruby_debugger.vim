@@ -372,18 +372,15 @@ function! RubyDebugger.commands.set_variables(cmd)
     let g:RubyDebugger.variables.children = []
   endif
   if has_key(g:RubyDebugger, 'current_variable')
-    let variable_name = g:RubyDebugger.current_variable
-    call g:RubyDebugger.logger.put("Trying to find variable: " . variable_name)
-    let variable = g:RubyDebugger.variables.find_variable({'name': variable_name})
-    unlet g:RubyDebugger.current_variable
+    let variable = g:RubyDebugger.current_variable
     if variable != {}
-      call g:RubyDebugger.logger.put("Found variable: " . variable_name)
       call variable.add_childs(list_of_variables)
-      call g:RubyDebugger.logger.put("Opening child variable: " . variable_name)
+      call g:RubyDebugger.logger.put("Opening child variable: " . variable.attributes.objectId)
       call s:variables_window.open()
     else
-      call g:RubyDebugger.logger.put("Can't found variable with name: " . variable_name)
+      call g:RubyDebugger.logger.put("Can't found variable")
     endif
+    unlet g:RubyDebugger.current_variable
   else
     if g:RubyDebugger.variables.children == []
       call g:RubyDebugger.variables.add_childs(list_of_variables)
@@ -742,11 +739,27 @@ endfunction
 
 function! s:Var.get_selected()
   let line = getline(".") 
-  let match = matchlist(line, '[| `]\+[+\-\~]\+\(.\{-}\)\s') 
-  let name = get(match, 1)
-  let variable = g:RubyDebugger.variables.find_variable({'name' : name})
-  let g:RubyDebugger.current_variable = name
-  return variable
+  let match = matchlist(line, '.*\t\(.*\)$') 
+  let id = get(match, 1)
+  if id
+    let tree_part = matchlist(line, '[| ]\+')[0]
+    if len(tree_part) > 1
+      let line_number = line(".")
+      let tree_part = strpart(tree_part, 2)
+      while match(getline(line_number), '^' . tree_part . '\~') == -1
+        let line_number -= 1
+      endwhile
+      let line = getline(line_number) 
+      let match = matchlist(line, '.*\t\(.*\)$') 
+      let parent_id = get(match, 1)
+      let variable = g:RubyDebugger.variables.find_variable({'objectId' : id}, {'objectId' : parent_id})
+    else
+      let variable = g:RubyDebugger.variables.find_variable({'objectId' : id})
+    endif
+    return variable
+  else
+    return {}
+  endif
 endfunction
 
 
@@ -849,24 +862,31 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined")
 endfunction
 
 
-function! s:VarChild.find_variable(attrs)
-  if self._match_attributes(a:attrs)
+function! s:VarChild.find_variable(...)
+  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
+  if match_attributes
     return self
   else
     return {}
   endif
 endfunction
 
-
-function! s:VarChild._match_attributes(attrs)
+" First argument is attributes of variable, second argument is attributes of
+" parent variable 
+function! s:VarChild._match_attributes(...)
   let conditions = 1
-  for attr in keys(a:attrs)
-    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:attrs[attr]) 
+  for attr in keys(a:1)
+    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:1[attr]) 
   endfor
+  if a:0 > 1
+    for attr in keys(a:2)
+      let conditions = conditions && (has_key(self.parent.attributes, attr) && self.parent.attributes[attr] == a:2[attr])
+    endfor
+  endif
   
   return conditions
 endfunction
@@ -910,7 +930,7 @@ endfunction
 function! s:VarParent.close()
   let self.is_open = 0
   call s:variables_window.display()
-  if exists(g:RubyDebugger.current_variable)
+  if has_key(g:RubyDebugger, "current_variable")
     unlet g:RubyDebugger.current_variable
   endif
   return 0
@@ -925,8 +945,8 @@ function! s:VarParent._init_children()
     return 0
   endif
 
-  let g:RubyDebugger.current_variable = self.attributes.name
   if has_key(self.attributes, 'objectId')
+    let g:RubyDebugger.current_variable = self
     call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
   endif
 
@@ -946,12 +966,13 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
-function! s:VarParent.find_variable(attrs)
-  if self._match_attributes(a:attrs)
+function! s:VarParent.find_variable(...)
+  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
+  if match_attributes
     return self
   else
     for child in self.children
-      let result = child.find_variable(a:attrs)
+      let result = a:0 > 1 ? child.find_variable(a:1, a:2) : child.find_variable(a:1)
       if result != {}
         return result
       endif

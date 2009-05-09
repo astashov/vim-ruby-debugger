@@ -33,7 +33,7 @@ end
 t2 = Thread.new do
   loop do 
     response = select([debugger], nil, nil)
-    # Recursively read socket with interval 0.01 seconds. If there will no message in next 0.01 seconds, stop read.
+    # Recursively read socket with interval 0.01 seconds. If there will be no message in next 0.01 seconds, stop read.
     # This is need for reading whole message, because sometimes select/recv reads not all available data
     output = read_socket(response, debugger)
     File.open(ARGV[4], 'w') { |f| f.puts(output) }
