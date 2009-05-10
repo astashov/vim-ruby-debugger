@@ -38,7 +38,8 @@ function! s:WindowVariables.setup_syntax_highlighting()
     syn match rdebugParent #.\{-}\t# nextgroup=rdebugType contained
 
     syn match rdebugType #.\{-}\t# nextgroup=rdebugValue contained
-    syn match rdebugValue #.*# contained
+    syn match rdebugValue #.*\t#he=e-1 nextgroup=rdebugId contained
+    syn match rdebugId #.*# contained
 
     syn match rdebugParentLine '[| `]\+[+\~].*' contains=rdebugClosable,rdebugOpenable transparent
     syn match rdebugChildLine '[| `]\+-.*' contains=rdebugPartFile transparent
@@ -52,5 +53,6 @@ function! s:WindowVariables.setup_syntax_highlighting()
     hi def link rdebugParent Directory
     hi def link rdebugType Type
     hi def link rdebugValue Special
+    hi def link rdebugId Ignore
 endfunction
 

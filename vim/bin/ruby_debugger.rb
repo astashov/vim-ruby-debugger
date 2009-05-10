@@ -1,5 +1,4 @@
 require 'socket'
-require 'cgi'
 
 def create_directory(file)
   dir = File.dirname(file)

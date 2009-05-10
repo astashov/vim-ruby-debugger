@@ -20,6 +20,8 @@ function! s:VarParent.new(attrs)
   let new_variable.is_open = 0
   let new_variable.children = []
   let new_variable.type = "VarParent"
+  let s:Var.id += 1
+  let new_variable.attributes.id = s:Var.id
   return new_variable
 endfunction
 
