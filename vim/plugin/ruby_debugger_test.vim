@@ -111,6 +111,17 @@ function! s:clear_current_state()
 endfunction
 
 
+function! s:save_current_state()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
+  let g:RubyDebugger.variables = {}
+  if s:variables_window.is_open()
+    call s:variables_window.open()
+  endif
+endfunction
+
+
 function! s:jump_to_file(file, line)
   " If no buffer with this file has been loaded, create new one
   if !bufexists(bufname(a:file))
@@ -280,21 +291,21 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
@@ -361,16 +372,19 @@ endfunction
 function! RubyDebugger.commands.set_variables(cmd)
   let tags = s:get_tags(a:cmd)
   let list_of_variables = []
+
   for tag in tags
     let attrs = s:get_tag_attributes(tag)
     let variable = s:Var.new(attrs)
     call add(list_of_variables, variable)
   endfor
+
   if g:RubyDebugger.variables == {}
     let g:RubyDebugger.variables = s:VarParent.new({'hasChildren': 'true'})
     let g:RubyDebugger.variables.is_open = 1
     let g:RubyDebugger.variables.children = []
   endif
+
   if has_key(g:RubyDebugger, 'current_variable')
     let variable = g:RubyDebugger.current_variable
     if variable != {}
@@ -390,6 +404,7 @@ function! RubyDebugger.commands.set_variables(cmd)
       endif
     endif
   endif
+
 endfunction
 
 
@@ -772,6 +787,7 @@ function! s:VarChild.new(attrs)
   let new_variable = copy(self)
   let new_variable.attributes = a:attrs
   let new_variable.parent = {}
+  let new_variable.level = 0
   let new_variable.type = "VarChild"
   return new_variable
 endfunction
@@ -862,7 +878,7 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined") . "\t" . get(self, "level", "undefined")
 endfunction
 
 
@@ -914,6 +930,7 @@ function! s:VarParent.new(attrs)
   let new_variable.attributes = a:attrs
   let new_variable.parent = {}
   let new_variable.is_open = 0
+  let new_variable.level = 0
   let new_variable.children = []
   let new_variable.type = "VarParent"
   return new_variable
@@ -941,9 +958,6 @@ endfunction
 function! s:VarParent._init_children()
   "remove all the current child nodes
   let self.children = []
-  if !has_key(self.attributes, "name")
-    return 0
-  endif
 
   if has_key(self.attributes, 'objectId')
     let g:RubyDebugger.current_variable = self
@@ -957,10 +971,12 @@ function! s:VarParent.add_childs(childs)
   if type(a:childs) == type([])
     for child in a:childs
       let child.parent = self
+      let child.level = self.level + 1
     endfor
     call extend(self.children, a:childs)
   else
     let a:childs.parent = self
+    let child.level = self.level + 1
     call add(self.children, a:childs)
   end
 endfunction
@@ -1107,11 +1123,18 @@ endfunction
 function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
-  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
-  call system(rdebug)
-  exe 'sleep 1'
-  call system(debugger)
+  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
+  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
+
+  if has("win32") || has("win64")
+    call system('start ' . rdebug . ' \B')
+    sleep 1
+    call system('start ' . debugger. ' \B')
+  else
+    call system(rdebug . ' &')
+    sleep 1
+    call system(debugger. ' &')
+  endif
 
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
   let self.debugger_pid = self._get_pid('localhost', self.debugger_port)
@@ -1263,6 +1286,10 @@ function! s:mock_debugger(message)
     let matches = matchlist(a:message, 'delete \(.*\)')
     let cmd = '<breakpointDeleted no="' . matches[1] . '" />'
     let s:Mock.breakpoints -= 1
+  elseif a:message =~ 'next'
+    let s:Mock.next = 1
+    let file = s:Mock.mock_file()
+    let cmd = '<breakpoint file="' . file . '" line="1" />'
   elseif a:message =~ 'var local'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
@@ -1274,7 +1301,11 @@ function! s:mock_debugger(message)
   elseif a:message =~ 'var instance -0x2418a904'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
-    let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
+    if has_key(s:Mock, "next")
+      let cmd = cmd . '<variable name="self_updated" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
+    else
+      let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
+    endif
     let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a916" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a907'
@@ -1285,7 +1316,9 @@ function! s:mock_debugger(message)
   elseif a:message =~ 'var instance -0x2418a906'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="[0]" kind="instance" value="[\.^bla$]" type="String" hasChildren="false" objectId="-0x2418a912" />'
-    let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
+    if !has_key(s:Mock, "next")
+      let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
+    endif
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a914'
     let cmd = '<variables>'
@@ -1319,6 +1352,7 @@ endfunction
 
 function! s:Mock.mock_file()
   let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
+  let s:Mock.file = filename
   exe "new " . filename
   exe "write"
   return filename
@@ -1737,6 +1771,34 @@ function! s:Tests.variables.test_should_open_correct_variable_if_variable_has_re
   call g:TU.match(getline(9), '| `+\[1\]', '9-th line should be array subvariable', a:test)
 
   exe 'close'
+endfunction
+
+
+function! s:Tests.variables.test_should_update_opened_variables_on_next_suspend(test)
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 2G'
+  call s:window_variables_activate_node()
+  exe 'normal 7G'
+  call s:window_variables_activate_node()
+  call g:RubyDebugger.next()
+  call g:RubyDebugger.open_variables()
+  call g:RubyDebugger.open_variables()
+
+  call g:TU.equal(7, line("."), "Current line should = 7", a:test)
+  call g:TU.match(getline(2), '|\~self', "Second line should be opened 'self' variable", a:test)
+  call g:TU.match(getline(3), '| |+self_array', "Third line should be closed array subvariable", a:test)
+  call g:TU.match(getline(4), '| |-self_updated', "4-th line should be local subvariable", a:test)
+  call g:TU.match(getline(5), '| `+array', "5-th line should be closed array", a:test)
+  call g:TU.match(getline(6), '|-some_local', "6-th line should be local variable", a:test)
+  call g:TU.match(getline(7), '|\~array', '7-th line should be opened array', a:test)
+  call g:TU.match(getline(8), '| `+\[0\]', '9-th line should be array subvariable', a:test)
+  call g:TU.match(getline(9), '|+quoted_hash', '9-th line should be array subvariable', a:test)
+
+  call g:RubyDebugger.open_variables()
+  unlet s:Mock.next
+  call s:Mock.unmock_file(s:Mock.file)
+
 endfunction
 
 let s:Tests.command = {}

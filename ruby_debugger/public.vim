@@ -81,21 +81,21 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 

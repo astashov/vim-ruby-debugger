@@ -111,6 +111,17 @@ function! s:clear_current_state()
 endfunction
 
 
+function! s:save_current_state()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
+  let g:RubyDebugger.variables = {}
+  if s:variables_window.is_open()
+    call s:variables_window.open()
+  endif
+endfunction
+
+
 function! s:jump_to_file(file, line)
   " If no buffer with this file has been loaded, create new one
   if !bufexists(bufname(a:file))
@@ -280,21 +291,21 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
-  call s:clear_current_state()
+  call s:save_current_state()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
@@ -361,16 +372,19 @@ endfunction
 function! RubyDebugger.commands.set_variables(cmd)
   let tags = s:get_tags(a:cmd)
   let list_of_variables = []
+
   for tag in tags
     let attrs = s:get_tag_attributes(tag)
     let variable = s:Var.new(attrs)
     call add(list_of_variables, variable)
   endfor
+
   if g:RubyDebugger.variables == {}
     let g:RubyDebugger.variables = s:VarParent.new({'hasChildren': 'true'})
     let g:RubyDebugger.variables.is_open = 1
     let g:RubyDebugger.variables.children = []
   endif
+
   if has_key(g:RubyDebugger, 'current_variable')
     let variable = g:RubyDebugger.current_variable
     if variable != {}
@@ -390,6 +404,7 @@ function! RubyDebugger.commands.set_variables(cmd)
       endif
     endif
   endif
+
 endfunction
 
 
@@ -772,6 +787,7 @@ function! s:VarChild.new(attrs)
   let new_variable = copy(self)
   let new_variable.attributes = a:attrs
   let new_variable.parent = {}
+  let new_variable.level = 0
   let new_variable.type = "VarChild"
   return new_variable
 endfunction
@@ -862,7 +878,7 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined") . "\t" . get(self, "level", "undefined")
 endfunction
 
 
@@ -914,6 +930,7 @@ function! s:VarParent.new(attrs)
   let new_variable.attributes = a:attrs
   let new_variable.parent = {}
   let new_variable.is_open = 0
+  let new_variable.level = 0
   let new_variable.children = []
   let new_variable.type = "VarParent"
   return new_variable
@@ -941,9 +958,6 @@ endfunction
 function! s:VarParent._init_children()
   "remove all the current child nodes
   let self.children = []
-  if !has_key(self.attributes, "name")
-    return 0
-  endif
 
   if has_key(self.attributes, 'objectId')
     let g:RubyDebugger.current_variable = self
@@ -957,10 +971,12 @@ function! s:VarParent.add_childs(childs)
   if type(a:childs) == type([])
     for child in a:childs
       let child.parent = self
+      let child.level = self.level + 1
     endfor
     call extend(self.children, a:childs)
   else
     let a:childs.parent = self
+    let child.level = self.level + 1
     call add(self.children, a:childs)
   end
 endfunction
@@ -1107,11 +1123,18 @@ endfunction
 function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
-  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
-  call system(rdebug)
-  exe 'sleep 1'
-  call system(debugger)
+  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
+  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
+
+  if has("win32") || has("win64")
+    call system('start ' . rdebug . ' \B')
+    sleep 1
+    call system('start ' . debugger. ' \B')
+  else
+    call system(rdebug . ' &')
+    sleep 1
+    call system(debugger. ' &')
+  endif
 
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
   let self.debugger_pid = self._get_pid('localhost', self.debugger_port)

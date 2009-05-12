@@ -7,6 +7,7 @@ function! s:VarChild.new(attrs)
   let new_variable = copy(self)
   let new_variable.attributes = a:attrs
   let new_variable.parent = {}
+  let new_variable.level = 0
   let new_variable.type = "VarChild"
   return new_variable
 endfunction
@@ -97,7 +98,7 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined") . "\t" . get(self, "level", "undefined")
 endfunction
 
 

@@ -176,3 +176,31 @@ function! s:Tests.variables.test_should_open_correct_variable_if_variable_has_re
 
   exe 'close'
 endfunction
+
+
+function! s:Tests.variables.test_should_update_opened_variables_on_next_suspend(test)
+  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.open_variables()
+  exe 'normal 2G'
+  call s:window_variables_activate_node()
+  exe 'normal 7G'
+  call s:window_variables_activate_node()
+  call g:RubyDebugger.next()
+  call g:RubyDebugger.open_variables()
+  call g:RubyDebugger.open_variables()
+
+  call g:TU.equal(7, line("."), "Current line should = 7", a:test)
+  call g:TU.match(getline(2), '|\~self', "Second line should be opened 'self' variable", a:test)
+  call g:TU.match(getline(3), '| |+self_array', "Third line should be closed array subvariable", a:test)
+  call g:TU.match(getline(4), '| |-self_updated', "4-th line should be local subvariable", a:test)
+  call g:TU.match(getline(5), '| `+array', "5-th line should be closed array", a:test)
+  call g:TU.match(getline(6), '|-some_local', "6-th line should be local variable", a:test)
+  call g:TU.match(getline(7), '|\~array', '7-th line should be opened array', a:test)
+  call g:TU.match(getline(8), '| `+\[0\]', '9-th line should be array subvariable', a:test)
+  call g:TU.match(getline(9), '|+quoted_hash', '9-th line should be array subvariable', a:test)
+
+  call g:RubyDebugger.open_variables()
+  unlet s:Mock.next
+  call s:Mock.unmock_file(s:Mock.file)
+
+endfunction

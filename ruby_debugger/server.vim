@@ -13,11 +13,18 @@ endfunction
 function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script . ' &'
-  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" &'
-  call system(rdebug)
-  exe 'sleep 1'
-  call system(debugger)
+  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
+  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
+
+  if has("win32") || has("win64")
+    call system('start ' . rdebug . ' \B')
+    sleep 1
+    call system('start ' . debugger. ' \B')
+  else
+    call system(rdebug . ' &')
+    sleep 1
+    call system(debugger. ' &')
+  endif
 
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
   let self.debugger_pid = self._get_pid('localhost', self.debugger_port)

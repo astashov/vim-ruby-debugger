@@ -71,6 +71,17 @@ function! s:clear_current_state()
 endfunction
 
 
+function! s:save_current_state()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
+  let g:RubyDebugger.variables = {}
+  if s:variables_window.is_open()
+    call s:variables_window.open()
+  endif
+endfunction
+
+
 function! s:jump_to_file(file, line)
   " If no buffer with this file has been loaded, create new one
   if !bufexists(bufname(a:file))

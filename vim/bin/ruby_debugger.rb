@@ -23,10 +23,13 @@ server = TCPServer.new('localhost', ARGV[1])
 debugger = TCPSocket.open('localhost', ARGV[0])
 create_directory(ARGV[4])
 
+storage = []
+
+
 t1 = Thread.new do
   while(session = server.accept)
     input = session.gets
-    break if input.chop == 'stop'
+    
     debugger.puts(input)
   end
 end

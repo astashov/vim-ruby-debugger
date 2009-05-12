@@ -48,16 +48,19 @@ endfunction
 function! RubyDebugger.commands.set_variables(cmd)
   let tags = s:get_tags(a:cmd)
   let list_of_variables = []
+
   for tag in tags
     let attrs = s:get_tag_attributes(tag)
     let variable = s:Var.new(attrs)
     call add(list_of_variables, variable)
   endfor
+
   if g:RubyDebugger.variables == {}
     let g:RubyDebugger.variables = s:VarParent.new({'hasChildren': 'true'})
     let g:RubyDebugger.variables.is_open = 1
     let g:RubyDebugger.variables.children = []
   endif
+
   if has_key(g:RubyDebugger, 'current_variable')
     let variable = g:RubyDebugger.current_variable
     if variable != {}
@@ -77,6 +80,7 @@ function! RubyDebugger.commands.set_variables(cmd)
       endif
     endif
   endif
+
 endfunction
 
 

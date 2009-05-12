@@ -18,6 +18,7 @@ function! s:VarParent.new(attrs)
   let new_variable.attributes = a:attrs
   let new_variable.parent = {}
   let new_variable.is_open = 0
+  let new_variable.level = 0
   let new_variable.children = []
   let new_variable.type = "VarParent"
   return new_variable
@@ -45,9 +46,6 @@ endfunction
 function! s:VarParent._init_children()
   "remove all the current child nodes
   let self.children = []
-  if !has_key(self.attributes, "name")
-    return 0
-  endif
 
   if has_key(self.attributes, 'objectId')
     let g:RubyDebugger.current_variable = self
@@ -61,10 +59,12 @@ function! s:VarParent.add_childs(childs)
   if type(a:childs) == type([])
     for child in a:childs
       let child.parent = self
+      let child.level = self.level + 1
     endfor
     call extend(self.children, a:childs)
   else
     let a:childs.parent = self
+    let child.level = self.level + 1
     call add(self.children, a:childs)
   end
 endfunction
