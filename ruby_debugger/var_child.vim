@@ -10,7 +10,7 @@ function! s:VarChild.new(attrs)
   let new_variable.level = 0
   let new_variable.type = "VarChild"
   let s:Var.id += 1
-  let new_variable.attributes.id = s:Var.id
+  let new_variable.id = s:Var.id
   return new_variable
 endfunction
 
@@ -100,31 +100,42 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "id", "0")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self, "id", "0")
 endfunction
 
 
-function! s:VarChild.find_variable(...)
-  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
-  if match_attributes
+function! s:VarChild.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     return {}
   endif
 endfunction
 
+
+function! s:VarChild.find_variables(attrs)
+  let variables = []
+  if self._match_attributes(a:attrs)
+    call add(variables, self)
+  endif
+  return variables
+endfunction
+
+
 " First argument is attributes of variable, second argument is attributes of
 " parent variable 
-function! s:VarChild._match_attributes(...)
+function! s:VarChild._match_attributes(attrs)
   let conditions = 1
-  for attr in keys(a:1)
-    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:1[attr]) 
+  for attr in keys(a:attrs)
+    if has_key(self.attributes, attr)
+      let conditions = conditions && self.attributes[attr] == a:attrs[attr] 
+    elseif has_key(self, attr)
+      let conditions = conditions && self[attr] == a:attrs[attr]
+    else
+      let conditions = 0
+      break
+    endif
   endfor
-  if a:0 > 1
-    for attr in keys(a:2)
-      let conditions = conditions && (has_key(self.parent.attributes, attr) && self.parent.attributes[attr] == a:2[attr])
-    endfor
-  endif
   return conditions
 endfunction
 

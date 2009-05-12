@@ -49,7 +49,6 @@ function! s:unescape_html(html)
 endfunction
 
 
-
 function! s:get_filename()
   return expand("%:p")
 endfunction
@@ -60,26 +59,21 @@ function! s:send_message_to_debugger(message)
 endfunction
 
 
+function! s:unplace_signs()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
+endfunction
+
+
 function! s:clear_current_state()
-  if has("signs")
-    exe ":sign unplace " . s:current_line_sign_id
-  endif
+  call s:unplace_signs()
   let g:RubyDebugger.variables = {}
   if s:variables_window.is_open()
     call s:variables_window.open()
   endif
 endfunction
 
-
-function! s:save_current_state()
-  if has("signs")
-    exe ":sign unplace " . s:current_line_sign_id
-  endif
-  let g:RubyDebugger.variables = {}
-  if s:variables_window.is_open()
-    call s:variables_window.open()
-  endif
-endfunction
 
 
 function! s:jump_to_file(file, line)

@@ -2,6 +2,7 @@ let TU = { 'output': '', 'errors': '', 'success': ''}
 
 
 function! TU.run(...)
+  call g:TU.init()
   for key in keys(s:Tests)
     " Run tests only if function was called without arguments, of argument ==
     " current tests group.
@@ -28,6 +29,51 @@ function! TU.run(...)
     endif
   endfor
   call g:TU.show_output()
+  call g:TU.restore()
+endfunction
+
+
+function! TU.init()
+  let g:TU.breakpoint_id = s:Breakpoint.id 
+  let s:Breakpoint.id = 0
+
+  let g:TU.variables = g:RubyDebugger.variables 
+  let g:RubyDebugger.variables = {}
+
+  let g:TU.breakpoints = g:RubyDebugger.breakpoints 
+  let g:RubyDebugger.breakpoints = []
+
+  let g:TU.var_id = s:Var.id
+  let s:Var.id = 0
+
+  let s:Mock.breakpoints = 0
+  let s:Mock.evals = 0
+
+  if s:variables_window.is_open()
+    call s:variables_window.close()
+  endif
+  if s:breakpoints_window.is_open()
+    call s:breakpoints_window.close()
+  endif
+
+  let g:TU.output = ""
+  let g:TU.success = ""
+  let g:TU.errors = ""
+endfunction
+
+
+function! TU.restore()
+  let s:Breakpoint.id = g:TU.breakpoint_id
+  unlet g:TU.breakpoint_id
+
+  let g:RubyDebugger.variables = g:TU.variables 
+  unlet g:TU.variables 
+
+  let g:RubyDebugger.breakpoints = g:TU.breakpoints  
+  unlet g:TU.breakpoints
+
+  let s:Var.id = g:TU.var_id 
+  unlet g:TU.var_id 
 endfunction
 
 

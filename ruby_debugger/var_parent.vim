@@ -22,7 +22,7 @@ function! s:VarParent.new(attrs)
   let new_variable.children = []
   let new_variable.type = "VarParent"
   let s:Var.id += 1
-  let new_variable.attributes.id = s:Var.id
+  let new_variable.id = s:Var.id
   return new_variable
 endfunction
 
@@ -72,13 +72,12 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
-function! s:VarParent.find_variable(...)
-  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
-  if match_attributes
+function! s:VarParent.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     for child in self.children
-      let result = a:0 > 1 ? child.find_variable(a:1, a:2) : child.find_variable(a:1)
+      let result = child.find_variable(a:attrs)
       if result != {}
         return result
       endif
@@ -86,4 +85,17 @@ function! s:VarParent.find_variable(...)
   endif
   return {}
 endfunction
+
+
+function! s:VarParent.find_variables(attrs)
+  let variables = []
+  if self._match_attributes(a:attrs)
+    call add(variables, self)
+  endif
+  for child in self.children
+    call extend(variables, child.find_variables(a:attrs))
+  endfor
+  return variables
+endfunction
+
 

@@ -89,7 +89,6 @@ function! s:unescape_html(html)
 endfunction
 
 
-
 function! s:get_filename()
   return expand("%:p")
 endfunction
@@ -100,26 +99,21 @@ function! s:send_message_to_debugger(message)
 endfunction
 
 
+function! s:unplace_signs()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
+endfunction
+
+
 function! s:clear_current_state()
-  if has("signs")
-    exe ":sign unplace " . s:current_line_sign_id
-  endif
+  call s:unplace_signs()
   let g:RubyDebugger.variables = {}
   if s:variables_window.is_open()
     call s:variables_window.open()
   endif
 endfunction
 
-
-function! s:save_current_state()
-  if has("signs")
-    exe ":sign unplace " . s:current_line_sign_id
-  endif
-  let g:RubyDebugger.variables = {}
-  if s:variables_window.is_open()
-    call s:variables_window.open()
-  endif
-endfunction
 
 
 function! s:jump_to_file(file, line)
@@ -291,21 +285,21 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
-  call s:save_current_state()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
-  call s:save_current_state()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
-  call s:save_current_state()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
@@ -779,7 +773,7 @@ function! s:VarChild.new(attrs)
   let new_variable.level = 0
   let new_variable.type = "VarChild"
   let s:Var.id += 1
-  let new_variable.attributes.id = s:Var.id
+  let new_variable.id = s:Var.id
   return new_variable
 endfunction
 
@@ -869,31 +863,42 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "id", "0")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self, "id", "0")
 endfunction
 
 
-function! s:VarChild.find_variable(...)
-  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
-  if match_attributes
+function! s:VarChild.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     return {}
   endif
 endfunction
 
+
+function! s:VarChild.find_variables(attrs)
+  let variables = []
+  if self._match_attributes(a:attrs)
+    call add(variables, self)
+  endif
+  return variables
+endfunction
+
+
 " First argument is attributes of variable, second argument is attributes of
 " parent variable 
-function! s:VarChild._match_attributes(...)
+function! s:VarChild._match_attributes(attrs)
   let conditions = 1
-  for attr in keys(a:1)
-    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:1[attr]) 
+  for attr in keys(a:attrs)
+    if has_key(self.attributes, attr)
+      let conditions = conditions && self.attributes[attr] == a:attrs[attr] 
+    elseif has_key(self, attr)
+      let conditions = conditions && self[attr] == a:attrs[attr]
+    else
+      let conditions = 0
+      break
+    endif
   endfor
-  if a:0 > 1
-    for attr in keys(a:2)
-      let conditions = conditions && (has_key(self.parent.attributes, attr) && self.parent.attributes[attr] == a:2[attr])
-    endfor
-  endif
   return conditions
 endfunction
 
@@ -924,7 +929,7 @@ function! s:VarParent.new(attrs)
   let new_variable.children = []
   let new_variable.type = "VarParent"
   let s:Var.id += 1
-  let new_variable.attributes.id = s:Var.id
+  let new_variable.id = s:Var.id
   return new_variable
 endfunction
 
@@ -974,13 +979,12 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
-function! s:VarParent.find_variable(...)
-  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
-  if match_attributes
+function! s:VarParent.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     for child in self.children
-      let result = a:0 > 1 ? child.find_variable(a:1, a:2) : child.find_variable(a:1)
+      let result = child.find_variable(a:attrs)
       if result != {}
         return result
       endif
@@ -988,6 +992,19 @@ function! s:VarParent.find_variable(...)
   endif
   return {}
 endfunction
+
+
+function! s:VarParent.find_variables(attrs)
+  let variables = []
+  if self._match_attributes(a:attrs)
+    call add(variables, self)
+  endif
+  for child in self.children
+    call extend(variables, child.find_variables(a:attrs))
+  endfor
+  return variables
+endfunction
+
 
 
 let s:Logger = {} 

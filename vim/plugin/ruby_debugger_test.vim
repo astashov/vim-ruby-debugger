@@ -89,7 +89,6 @@ function! s:unescape_html(html)
 endfunction
 
 
-
 function! s:get_filename()
   return expand("%:p")
 endfunction
@@ -100,26 +99,21 @@ function! s:send_message_to_debugger(message)
 endfunction
 
 
+function! s:unplace_signs()
+  if has("signs")
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
+endfunction
+
+
 function! s:clear_current_state()
-  if has("signs")
-    exe ":sign unplace " . s:current_line_sign_id
-  endif
+  call s:unplace_signs()
   let g:RubyDebugger.variables = {}
   if s:variables_window.is_open()
     call s:variables_window.open()
   endif
 endfunction
 
-
-function! s:save_current_state()
-  if has("signs")
-    exe ":sign unplace " . s:current_line_sign_id
-  endif
-  let g:RubyDebugger.variables = {}
-  if s:variables_window.is_open()
-    call s:variables_window.open()
-  endif
-endfunction
 
 
 function! s:jump_to_file(file, line)
@@ -291,21 +285,21 @@ endfunction
 
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
-  call s:save_current_state()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step over")
 endfunction
 
 
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
-  call s:save_current_state()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step into")
 endfunction
 
 
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
-  call s:save_current_state()
+  call s:clear_current_state()
   call g:RubyDebugger.logger.put("Continue")
 endfunction
 
@@ -779,7 +773,7 @@ function! s:VarChild.new(attrs)
   let new_variable.level = 0
   let new_variable.type = "VarChild"
   let s:Var.id += 1
-  let new_variable.attributes.id = s:Var.id
+  let new_variable.id = s:Var.id
   return new_variable
 endfunction
 
@@ -869,31 +863,42 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "id", "0")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self, "id", "0")
 endfunction
 
 
-function! s:VarChild.find_variable(...)
-  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
-  if match_attributes
+function! s:VarChild.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     return {}
   endif
 endfunction
 
+
+function! s:VarChild.find_variables(attrs)
+  let variables = []
+  if self._match_attributes(a:attrs)
+    call add(variables, self)
+  endif
+  return variables
+endfunction
+
+
 " First argument is attributes of variable, second argument is attributes of
 " parent variable 
-function! s:VarChild._match_attributes(...)
+function! s:VarChild._match_attributes(attrs)
   let conditions = 1
-  for attr in keys(a:1)
-    let conditions = conditions && (has_key(self.attributes, attr) && self.attributes[attr] == a:1[attr]) 
+  for attr in keys(a:attrs)
+    if has_key(self.attributes, attr)
+      let conditions = conditions && self.attributes[attr] == a:attrs[attr] 
+    elseif has_key(self, attr)
+      let conditions = conditions && self[attr] == a:attrs[attr]
+    else
+      let conditions = 0
+      break
+    endif
   endfor
-  if a:0 > 1
-    for attr in keys(a:2)
-      let conditions = conditions && (has_key(self.parent.attributes, attr) && self.parent.attributes[attr] == a:2[attr])
-    endfor
-  endif
   return conditions
 endfunction
 
@@ -924,7 +929,7 @@ function! s:VarParent.new(attrs)
   let new_variable.children = []
   let new_variable.type = "VarParent"
   let s:Var.id += 1
-  let new_variable.attributes.id = s:Var.id
+  let new_variable.id = s:Var.id
   return new_variable
 endfunction
 
@@ -974,13 +979,12 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
-function! s:VarParent.find_variable(...)
-  let match_attributes = a:0 > 1 ? self._match_attributes(a:1, a:2) : self._match_attributes(a:1)
-  if match_attributes
+function! s:VarParent.find_variable(attrs)
+  if self._match_attributes(a:attrs)
     return self
   else
     for child in self.children
-      let result = a:0 > 1 ? child.find_variable(a:1, a:2) : child.find_variable(a:1)
+      let result = child.find_variable(a:attrs)
       if result != {}
         return result
       endif
@@ -988,6 +992,19 @@ function! s:VarParent.find_variable(...)
   endif
   return {}
 endfunction
+
+
+function! s:VarParent.find_variables(attrs)
+  let variables = []
+  if self._match_attributes(a:attrs)
+    call add(variables, self)
+  endif
+  for child in self.children
+    call extend(variables, child.find_variables(a:attrs))
+  endfor
+  return variables
+endfunction
+
 
 
 let s:Logger = {} 
@@ -1197,6 +1214,7 @@ let TU = { 'output': '', 'errors': '', 'success': ''}
 
 
 function! TU.run(...)
+  call g:TU.init()
   for key in keys(s:Tests)
     " Run tests only if function was called without arguments, of argument ==
     " current tests group.
@@ -1223,6 +1241,51 @@ function! TU.run(...)
     endif
   endfor
   call g:TU.show_output()
+  call g:TU.restore()
+endfunction
+
+
+function! TU.init()
+  let g:TU.breakpoint_id = s:Breakpoint.id 
+  let s:Breakpoint.id = 0
+
+  let g:TU.variables = g:RubyDebugger.variables 
+  let g:RubyDebugger.variables = {}
+
+  let g:TU.breakpoints = g:RubyDebugger.breakpoints 
+  let g:RubyDebugger.breakpoints = []
+
+  let g:TU.var_id = s:Var.id
+  let s:Var.id = 0
+
+  let s:Mock.breakpoints = 0
+  let s:Mock.evals = 0
+
+  if s:variables_window.is_open()
+    call s:variables_window.close()
+  endif
+  if s:breakpoints_window.is_open()
+    call s:breakpoints_window.close()
+  endif
+
+  let g:TU.output = ""
+  let g:TU.success = ""
+  let g:TU.errors = ""
+endfunction
+
+
+function! TU.restore()
+  let s:Breakpoint.id = g:TU.breakpoint_id
+  unlet g:TU.breakpoint_id
+
+  let g:RubyDebugger.variables = g:TU.variables 
+  unlet g:TU.variables 
+
+  let g:RubyDebugger.breakpoints = g:TU.breakpoints  
+  unlet g:TU.breakpoints
+
+  let s:Var.id = g:TU.var_id 
+  unlet g:TU.var_id 
 endfunction
 
 
@@ -1278,10 +1341,6 @@ function! s:mock_debugger(message)
     let matches = matchlist(a:message, 'delete \(.*\)')
     let cmd = '<breakpointDeleted no="' . matches[1] . '" />'
     let s:Mock.breakpoints -= 1
-  elseif a:message =~ 'next'
-    let s:Mock.next = 1
-    let file = s:Mock.mock_file()
-    let cmd = '<breakpoint file="' . file . '" line="1" />'
   elseif a:message =~ 'var local'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
@@ -1293,11 +1352,7 @@ function! s:mock_debugger(message)
   elseif a:message =~ 'var instance -0x2418a904'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
-    if has_key(s:Mock, "next")
-      let cmd = cmd . '<variable name="self_updated" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
-    else
-      let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
-    endif
+    let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
     let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a916" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a907'
@@ -1308,9 +1363,7 @@ function! s:mock_debugger(message)
   elseif a:message =~ 'var instance -0x2418a906'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="[0]" kind="instance" value="[\.^bla$]" type="String" hasChildren="false" objectId="-0x2418a912" />'
-    if !has_key(s:Mock, "next")
-      let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
-    endif
+    let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a914'
     let cmd = '<variables>'
@@ -1344,7 +1397,6 @@ endfunction
 
 function! s:Mock.mock_file()
   let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
-  let s:Mock.file = filename
   exe "new " . filename
   exe "write"
   return filename
@@ -1765,33 +1817,33 @@ function! s:Tests.variables.test_should_open_correct_variable_if_variable_has_re
   exe 'close'
 endfunction
 
-
-function! s:Tests.variables.test_should_update_opened_variables_on_next_suspend(test)
-  call g:RubyDebugger.send_command('var local')
-  call g:RubyDebugger.open_variables()
-  exe 'normal 2G'
-  call s:window_variables_activate_node()
-  exe 'normal 7G'
-  call s:window_variables_activate_node()
-  call g:RubyDebugger.next()
-  call g:RubyDebugger.open_variables()
-  call g:RubyDebugger.open_variables()
-
-  call g:TU.equal(7, line("."), "Current line should = 7", a:test)
-  call g:TU.match(getline(2), '|\~self', "Second line should be opened 'self' variable", a:test)
-  call g:TU.match(getline(3), '| |+self_array', "Third line should be closed array subvariable", a:test)
-  call g:TU.match(getline(4), '| |-self_updated', "4-th line should be local subvariable", a:test)
-  call g:TU.match(getline(5), '| `+array', "5-th line should be closed array", a:test)
-  call g:TU.match(getline(6), '|-some_local', "6-th line should be local variable", a:test)
-  call g:TU.match(getline(7), '|\~array', '7-th line should be opened array', a:test)
-  call g:TU.match(getline(8), '| `+\[0\]', '9-th line should be array subvariable', a:test)
-  call g:TU.match(getline(9), '|+quoted_hash', '9-th line should be array subvariable', a:test)
-
-  call g:RubyDebugger.open_variables()
-  unlet s:Mock.next
-  call s:Mock.unmock_file(s:Mock.file)
-
-endfunction
+" Test for issue #6
+"function! s:Tests.variables.test_should_update_opened_variables_on_next_suspend(test)
+"  call g:RubyDebugger.send_command('var local')
+"  call g:RubyDebugger.open_variables()
+"  exe 'normal 2G'
+"  call s:window_variables_activate_node()
+"  exe 'normal 7G'
+"  call s:window_variables_activate_node()
+"  call g:RubyDebugger.next()
+"  call g:RubyDebugger.open_variables()
+"  call g:RubyDebugger.open_variables()
+"
+"  call g:TU.equal(7, line("."), "Current line should = 7", a:test)
+"  call g:TU.match(getline(2), '|\~self', "Second line should be opened 'self' variable", a:test)
+"  call g:TU.match(getline(3), '| |+self_array', "Third line should be closed array subvariable", a:test)
+"  call g:TU.match(getline(4), '| |-self_updated', "4-th line should be local subvariable", a:test)
+"  call g:TU.match(getline(5), '| `+array', "5-th line should be closed array", a:test)
+"  call g:TU.match(getline(6), '|-some_local', "6-th line should be local variable", a:test)
+"  call g:TU.match(getline(7), '|\~array', '7-th line should be opened array', a:test)
+"  call g:TU.match(getline(8), '| `+\[0\]', '9-th line should be array subvariable', a:test)
+"  call g:TU.match(getline(9), '|+quoted_hash', '9-th line should be array subvariable', a:test)
+"
+"  call g:RubyDebugger.open_variables()
+"  unlet s:Mock.next
+"  call s:Mock.unmock_file(s:Mock.file)
+"
+"endfunction
 
 let s:Tests.command = {}
 

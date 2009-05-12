@@ -10,10 +10,6 @@ function! s:mock_debugger(message)
     let matches = matchlist(a:message, 'delete \(.*\)')
     let cmd = '<breakpointDeleted no="' . matches[1] . '" />'
     let s:Mock.breakpoints -= 1
-  elseif a:message =~ 'next'
-    let s:Mock.next = 1
-    let file = s:Mock.mock_file()
-    let cmd = '<breakpoint file="' . file . '" line="1" />'
   elseif a:message =~ 'var local'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
@@ -25,11 +21,7 @@ function! s:mock_debugger(message)
   elseif a:message =~ 'var instance -0x2418a904'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
-    if has_key(s:Mock, "next")
-      let cmd = cmd . '<variable name="self_updated" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
-    else
-      let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
-    endif
+    let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
     let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a916" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a907'
@@ -40,9 +32,7 @@ function! s:mock_debugger(message)
   elseif a:message =~ 'var instance -0x2418a906'
     let cmd = '<variables>'
     let cmd = cmd . '<variable name="[0]" kind="instance" value="[\.^bla$]" type="String" hasChildren="false" objectId="-0x2418a912" />'
-    if !has_key(s:Mock, "next")
-      let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
-    endif
+    let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
     let cmd = cmd . '</variables>'
   elseif a:message =~ 'var instance -0x2418a914'
     let cmd = '<variables>'
@@ -76,7 +66,6 @@ endfunction
 
 function! s:Mock.mock_file()
   let filename = s:runtime_dir . "/tmp/ruby_debugger_test_file"
-  let s:Mock.file = filename
   exe "new " . filename
   exe "write"
   return filename
