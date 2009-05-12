@@ -24,19 +24,16 @@ let s:runtime_dir = split(&runtimepath, ',')[0]
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 let s:current_line_sign_id = 120
 
-if &t_Co < '16'
-  let s:breakpoint_ctermbg = 1
-else
-  let s:breakpoint_ctermbg = 4
-endif
-
 " Init breakpoing signs
-exe "hi Breakpoint term=NONE ctermbg=" . s:breakpoint_ctermbg . " guifg=#E6E1DC guibg=#7E1111"
+hi def link Breakpoint Error
 sign define breakpoint linehl=Breakpoint  text=xx
 
 " Init current line signs
-hi CurrentLine term=NONE ctermbg=2 guifg=#E6E1DC guibg=#144212 term=NONE
+hi def link CurrentLine DiffAdd 
 sign define current_line linehl=CurrentLine text=>>
+
+
+
 
 function! s:get_tags(cmd)
   let tags = []
@@ -1209,6 +1206,7 @@ let s:breakpoints_window = s:WindowBreakpoints.new("breakpoints", "Breakpoints_W
 let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
 let s:variables_window.logger = RubyDebugger.logger
 let s:breakpoints_window.logger = RubyDebugger.logger
+
 
 let TU = { 'output': '', 'errors': '', 'success': ''}
 
