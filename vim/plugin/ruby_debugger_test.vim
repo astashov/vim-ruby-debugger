@@ -869,11 +869,7 @@ endfunction
 
 
 function! s:VarChild.to_s()
-<<<<<<< HEAD:vim/plugin/ruby_debugger_test.vim
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined") . "\t" . get(self, "level", "undefined")
-=======
   return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "id", "0")
->>>>>>> 07e3e091067f039725eae4ef598d0e80eb20eeae:vim/plugin/ruby_debugger_test.vim
 endfunction
 
 
