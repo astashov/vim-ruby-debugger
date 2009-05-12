@@ -48,7 +48,7 @@ function! s:get_tags(cmd)
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
       call add(tags, tagmatch[0])
-      let tagmatch[0] = escape(tagmatch[0], '[]\')
+      let tagmatch[0] = escape(tagmatch[0], '[]~*\')
       let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
       let tagmatch = matchlist(inner_tags, pattern)
     endwhile
@@ -72,7 +72,7 @@ function! s:get_tag_attributes(cmd)
   let attrmatch = matchlist(cmd, pattern) 
   while !empty(attrmatch)
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
-    let attrmatch[0] = escape(attrmatch[0], '[]\')
+    let attrmatch[0] = escape(attrmatch[0], '[]~*\')
     let cmd = substitute(cmd, attrmatch[0], '', '')
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
@@ -666,7 +666,8 @@ function! s:WindowVariables.setup_syntax_highlighting()
     syn match rdebugParent #.\{-}\t# nextgroup=rdebugType contained
 
     syn match rdebugType #.\{-}\t# nextgroup=rdebugValue contained
-    syn match rdebugValue #.*# contained
+    syn match rdebugValue #.*\t#he=e-1 nextgroup=rdebugId contained
+    syn match rdebugId #.*# contained
 
     syn match rdebugParentLine '[| `]\+[+\~].*' contains=rdebugClosable,rdebugOpenable transparent
     syn match rdebugChildLine '[| `]\+-.*' contains=rdebugPartFile transparent
@@ -680,6 +681,7 @@ function! s:WindowVariables.setup_syntax_highlighting()
     hi def link rdebugParent Directory
     hi def link rdebugType Type
     hi def link rdebugValue Special
+    hi def link rdebugId Ignore
 endfunction
 
 
@@ -740,7 +742,7 @@ endfunction
 
 
 
-let s:Var = {}
+let s:Var = { 'id' : 0 }
 
 " This is a proxy method for creating new variable
 function! s:Var.new(attrs)
@@ -754,23 +756,10 @@ endfunction
 
 function! s:Var.get_selected()
   let line = getline(".") 
-  let match = matchlist(line, '.*\t\(.*\)$') 
+  let match = matchlist(line, '.*\t\(\d\+\)$') 
   let id = get(match, 1)
   if id
-    let tree_part = matchlist(line, '[| ]\+')[0]
-    if len(tree_part) > 1
-      let line_number = line(".")
-      let tree_part = strpart(tree_part, 2)
-      while match(getline(line_number), '^' . tree_part . '\~') == -1
-        let line_number -= 1
-      endwhile
-      let line = getline(line_number) 
-      let match = matchlist(line, '.*\t\(.*\)$') 
-      let parent_id = get(match, 1)
-      let variable = g:RubyDebugger.variables.find_variable({'objectId' : id}, {'objectId' : parent_id})
-    else
-      let variable = g:RubyDebugger.variables.find_variable({'objectId' : id})
-    endif
+    let variable = g:RubyDebugger.variables.find_variable({'id' : id})
     return variable
   else
     return {}
@@ -789,6 +778,8 @@ function! s:VarChild.new(attrs)
   let new_variable.parent = {}
   let new_variable.level = 0
   let new_variable.type = "VarChild"
+  let s:Var.id += 1
+  let new_variable.attributes.id = s:Var.id
   return new_variable
 endfunction
 
@@ -878,7 +869,11 @@ endfunction
 
 
 function! s:VarChild.to_s()
+<<<<<<< HEAD:vim/plugin/ruby_debugger.vim
   return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined") . "\t" . get(self, "level", "undefined")
+=======
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "id", "0")
+>>>>>>> 07e3e091067f039725eae4ef598d0e80eb20eeae:vim/plugin/ruby_debugger.vim
 endfunction
 
 
@@ -903,7 +898,6 @@ function! s:VarChild._match_attributes(...)
       let conditions = conditions && (has_key(self.parent.attributes, attr) && self.parent.attributes[attr] == a:2[attr])
     endfor
   endif
-  
   return conditions
 endfunction
 
@@ -933,6 +927,8 @@ function! s:VarParent.new(attrs)
   let new_variable.level = 0
   let new_variable.children = []
   let new_variable.type = "VarParent"
+  let s:Var.id += 1
+  let new_variable.attributes.id = s:Var.id
   return new_variable
 endfunction
 

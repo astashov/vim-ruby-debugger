@@ -9,6 +9,8 @@ function! s:VarChild.new(attrs)
   let new_variable.parent = {}
   let new_variable.level = 0
   let new_variable.type = "VarChild"
+  let s:Var.id += 1
+  let new_variable.attributes.id = s:Var.id
   return new_variable
 endfunction
 
@@ -98,7 +100,7 @@ endfunction
 
 
 function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self.attributes, "objectId", "undefined") . "\t" . get(self, "level", "undefined")
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self, "level", "undefined") . "\t" . get(self.attributes, "id", "0")
 endfunction
 
 
@@ -123,7 +125,6 @@ function! s:VarChild._match_attributes(...)
       let conditions = conditions && (has_key(self.parent.attributes, attr) && self.parent.attributes[attr] == a:2[attr])
     endfor
   endif
-  
   return conditions
 endfunction
 
