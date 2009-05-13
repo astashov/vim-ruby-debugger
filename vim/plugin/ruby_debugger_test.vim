@@ -114,30 +114,19 @@ endfunction
 
 
 function! s:jump_to_file(file, line)
-  " If no buffer with this file has been loaded, create new one
-  if !bufexists(bufname(a:file))
-     exe ":e! " . a:file
+  "if the file is already open in this tab then just stick the cursor in it
+  let winnr = bufwinnr('^' . a:file . '$')
+  if winnr != -1
+    exe winnr . "wincmd w"
+  else
+    if !s:is_window_usable(winnr("#"))
+      exe s:first_normal_window() . "wincmd w"
+    else
+      exe 'wincmd p'
+    endif
+    exe "edit " . a:file
   endif
-
-  let window_number = bufwinnr(bufnr(a:file))
-  if window_number != -1
-     exe window_number . "wincmd w"
-  endif
-
-  " open buffer of a:file
-  if bufname(a:file) != bufname("%")
-     exe ":buffer " . bufnr(a:file)
-  endif
-
-  " jump to line
-  exe ":" . a:line
-  normal z.
-  if foldlevel(a:line) != 0
-     normal zo
-  endif
-
-  return bufname(a:file)
-
+  exe "normal " . a:line . "G"
 endfunction
 
 
@@ -1098,19 +1087,7 @@ endfunction
 
 
 function! s:Breakpoint.open() dict
-  "if the file is already open in this tab then just stick the cursor in it
-  let winnr = bufwinnr('^' . self.file . '$')
-  if winnr != -1
-    exe winnr . "wincmd w"
-  else
-    if !s:is_window_usable(winnr("#"))
-      exe s:first_normal_window() . "wincmd w"
-    else
-      exe 'wincmd p'
-    endif
-    exe "edit " . self.file
-  endif
-  exe "normal " . self.line . "G"
+  call s:jump_to_file(self.file, self.line)
 endfunction
 
 

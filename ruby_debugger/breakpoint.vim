@@ -73,18 +73,6 @@ endfunction
 
 
 function! s:Breakpoint.open() dict
-  "if the file is already open in this tab then just stick the cursor in it
-  let winnr = bufwinnr('^' . self.file . '$')
-  if winnr != -1
-    exe winnr . "wincmd w"
-  else
-    if !s:is_window_usable(winnr("#"))
-      exe s:first_normal_window() . "wincmd w"
-    else
-      exe 'wincmd p'
-    endif
-    exe "edit " . self.file
-  endif
-  exe "normal " . self.line . "G"
+  call s:jump_to_file(self.file, self.line)
 endfunction
 
