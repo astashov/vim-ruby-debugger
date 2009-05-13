@@ -1,15 +1,26 @@
+" *** Common (global) functions
+
+" Split string of tags to List. E.g., 
+" <variables><variable name="a" value="b" /><variable name="c" value="d" /></variables>
+" will be splitted to 
+" [ '<variable name="a" value="b" />', '<variable name="c" value="d" />' ]
 function! s:get_tags(cmd)
   let tags = []
   let cmd = a:cmd
+  " Remove wrap tags
   let inner_tags_match = s:get_inner_tags(cmd)
   if !empty(inner_tags_match)
+    " Then find every tag and remove it from source string
     let pattern = '<.\{-}\/>' 
     let inner_tags = inner_tags_match[1]
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
       call add(tags, tagmatch[0])
+      " These symbols are interpretated as special, we need to escape them
       let tagmatch[0] = escape(tagmatch[0], '[]~*\')
+      " Remove it from source string
       let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
+      " Find next tag
       let tagmatch = matchlist(inner_tags, pattern)
     endwhile
   endif
@@ -17,11 +28,16 @@ function! s:get_tags(cmd)
 endfunction
 
 
+" Return match of inner tags without wrap tags. E.g.:
+" <variables><variable name="a" value="b" /></variables> mathes only <variable /> 
 function! s:get_inner_tags(cmd)
   return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
 endfunction 
 
 
+" Return Dict of attributes.
+" E.g., from <variable name="a" value="b" /> it returns
+" {'name' : 'a', 'value' : 'b'}
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
@@ -29,17 +45,23 @@ function! s:get_tag_attributes(cmd)
   let quote_match = matchlist(cmd, "\\w\\+=\\(.\\)")
   let quote = empty(quote_match) ? "\"" : escape(quote_match[1], "'\"")
   let pattern = "\\(\\w\\+\\)=" . quote . "\\(.\\{-}\\)" . quote
+  " Find every attribute and remove it from source string
   let attrmatch = matchlist(cmd, pattern) 
   while !empty(attrmatch)
+    " Values of attributes can be escaped by HTML entities, unescape them
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
+    " These symbols are interpretated as special, we need to escape them
     let attrmatch[0] = escape(attrmatch[0], '[]~*\')
+    " Remove it from source string
     let cmd = substitute(cmd, attrmatch[0], '', '')
+    " Find next attribute
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
   return attributes
 endfunction
 
 
+" Unescape HTML entities
 function! s:unescape_html(html)
   let result = substitute(a:html, "&amp;", "\\&", "")
   let result = substitute(result, "&quot;", "\"", "")
@@ -49,42 +71,53 @@ function! s:unescape_html(html)
 endfunction
 
 
+" Get filename of current buffer
 function! s:get_filename()
   return expand("%:p")
 endfunction
 
 
+" TODO: Find way to improve its performance
+" Send message to debugger. This function should never be used explicitly,
+" only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
 endfunction
 
 
-function! s:unplace_signs()
+function! s:unplace_sign_of_current_line()
   if has("signs")
     exe ":sign unplace " . s:current_line_sign_id
   endif
 endfunction
 
 
+" Remove all variables of current line, remove current line sign. Usually it
+" is needed before next/step/cont commands
 function! s:clear_current_state()
-  call s:unplace_signs()
+  call s:unplace_sign_of_current_line()
   let g:RubyDebugger.variables = {}
+  " Clear variables window (just show our empty variables Dict)
   if s:variables_window.is_open()
     call s:variables_window.open()
   endif
 endfunction
 
 
-
+" Open given file and jump to given line
+" (stolen from NERDTree)
 function! s:jump_to_file(file, line)
   "if the file is already open in this tab then just stick the cursor in it
-  let winnr = bufwinnr('^' . a:file . '$')
-  if winnr != -1
-    exe winnr . "wincmd w"
+  let window_number = bufwinnr('^' . a:file . '$')
+  if window_number != -1
+    exe window_number . "wincmd w"
   else
+    " Check if last accessed window is usable to use it
+    " Usable window - not quickfix, explorer, modified, etc 
     if !s:is_window_usable(winnr("#"))
       exe s:first_normal_window() . "wincmd w"
     else
+      " If it is usable, jump to it
       exe 'wincmd p'
     endif
     exe "edit " . a:file
@@ -93,60 +126,67 @@ function! s:jump_to_file(file, line)
 endfunction
 
 
+" Return 1 if window is usable (not quickfix, explorer, modified, only one 
+" window, ...) 
 function! s:is_window_usable(winnumber)
-    "gotta split if there is only one window
-    if winnr("$") ==# 1
-        return 0
-    endif
+  "If there is only one window (winnr("$") - windows count)
+  if winnr("$") ==# 1
+    return 0
+  endif
 
-    let oldwinnr = winnr()
-    exe a:winnumber . "wincmd p"
-    let specialWindow = getbufvar("%", '&buftype') != '' || getwinvar('%', '&previewwindow')
-    let modified = &modified
-    exe oldwinnr . "wincmd p"
+  " Current window number
+  let oldwinnr = winnr()
 
-    "if it is a special window, e.g. quickfix or another explorer plugin, then we
-    " have to split
-    if specialWindow
-      return 0
-    endif
+  " Switch to given window and check it
+  exe a:winnumber . "wincmd p"
+  let specialWindow = getbufvar("%", '&buftype') != '' || getwinvar('%', '&previewwindow')
+  let modified = &modified
 
-    if &hidden
-      return 1
-    endif
+  exe oldwinnr . "wincmd p"
 
-    return !modified || s:buf_in_windows(winbufnr(a:winnumber)) >= 2
+  "if it is a special window, e.g. quickfix or another explorer plugin    
+  if specialWindow
+    return 0
+  endif
+
+  if &hidden
+    return 1
+  endif
+
+  " If this window is modified, but there is another opened window with
+  " current file, return 1. Otherwise - 0
+  return !modified || s:buf_in_windows(winbufnr(a:winnumber)) >= 2
 endfunction
 
 
-function! s:buf_in_windows(bnum)
-    let cnt = 0
-    let winnum = 1
-    while 1
-        let bufnum = winbufnr(winnum)
-        if bufnum < 0
-            break
-        endif
-        if bufnum ==# a:bnum
-            let cnt = cnt + 1
-        endif
-        let winnum = winnum + 1
-    endwhile
+" Determine the number of windows open to this buffer number.
+function! s:buf_in_windows(buffer_number)
+  let count = 0
+  let window_number = 1
+  while 1
+    let buffer_number = winbufnr(window_number)
+    if buffer_number < 0
+      break
+    endif
+    if buffer_number ==# a:buffer_number
+      let count = count + 1
+    endif
+    let window_number = window_number + 1
+  endwhile
 
-    return cnt
+  return count
 endfunction 
 
 
+" Find first 'normal' window (not quickfix, explorer, etc)
 function! s:first_normal_window()
-    let i = 1
-    while i <= winnr("$")
-        let bnum = winbufnr(i)
-        if bnum != -1 && getbufvar(bnum, '&buftype') ==# ''
-                    \ && !getwinvar(i, '&previewwindow')
-            return i
-        endif
-
-        let i += 1
-    endwhile
-    return -1
+  let i = 1
+  while i <= winnr("$")
+    let bnum = winbufnr(i)
+    if bnum != -1 && getbufvar(bnum, '&buftype') ==# '' && !getwinvar(i, '&previewwindow')
+      return i
+    endif
+    let i += 1
+  endwhile
+  return -1
 endfunction

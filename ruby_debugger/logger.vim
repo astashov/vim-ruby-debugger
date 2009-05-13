@@ -1,3 +1,6 @@
+" *** Logger class (start)
+
+
 let s:Logger = {} 
 
 function! s:Logger.new(file)
@@ -7,6 +10,8 @@ function! s:Logger.new(file)
   return new_variable
 endfunction
 
+
+" Log datetime and then message
 function! s:Logger.put(string)
   let file = readfile(self.file)
   let string = strftime("%Y/%m/%d %H:%M:%S") . ' ' . a:string
@@ -15,4 +20,5 @@ function! s:Logger.put(string)
 endfunction
 
 
+" *** Logger class (end)
 

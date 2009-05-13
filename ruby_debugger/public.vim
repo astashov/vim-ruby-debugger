@@ -1,7 +1,10 @@
-" *** Public interface ***
+" *** Public interface (start)
 
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
 
+
+" Run debugger server. It takes one optional argument with path to debugged
+" ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
   let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
@@ -13,13 +16,19 @@ function! RubyDebugger.start(...) dict
   if type(breakpoint) == type({})
     call breakpoint.send_to_debugger()
   else
+    " if there are no breakpoints, just run the script
     call g:RubyDebugger.send_command('start')
   endif
   echo "Debugger started"
 endfunction
 
 
-
+" This function receives commands from the debugger. When ruby_debugger.rb
+" gets output from rdebug-ide, it writes it to the special file and 'kick'
+" the plugin by remotely calling RubyDebugger.receive_command(), e.g.:
+" vim --servername VIM --remote-send 'call RubyDebugger.receive_command()'
+" That's why +clientserver is required
+" This function analyzes the special file and gives handling to right command
 function! RubyDebugger.receive_command() dict
   let cmd = join(readfile(s:tmp_file), "")
   call g:RubyDebugger.logger.put("Received command: " . cmd)
@@ -44,25 +53,32 @@ function! RubyDebugger.receive_command() dict
 endfunction
 
 
+" We set function this way, because we want have possibility to mock it by
+" other function in tests
 let RubyDebugger.send_command = function("s:send_message_to_debugger")
 
 
+" Open variables window
 function! RubyDebugger.open_variables() dict
   call s:variables_window.toggle()
   call g:RubyDebugger.logger.put("Opened variables window")
 endfunction
 
 
+" Open breakpoints window
 function! RubyDebugger.open_breakpoints() dict
   call s:breakpoints_window.toggle()
   call g:RubyDebugger.logger.put("Opened breakpoints window")
 endfunction
 
 
+" Set/remove breakpoint at current position
 function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
   let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . file . '"')
+  " If breakpoint with current file/line doesn't exist, create it. Otherwise -
+  " remove it
   if empty(existed_breakpoints)
     let breakpoint = s:Breakpoint.new(file, line)
     call add(g:RubyDebugger.breakpoints, breakpoint)
@@ -72,6 +88,7 @@ function! RubyDebugger.toggle_breakpoint() dict
     call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
     call breakpoint.delete()
   endif
+  " Update info in Breakpoints window
   if s:breakpoints_window.is_open()
     call s:breakpoints_window.open()
     exe "wincmd p"
@@ -79,6 +96,7 @@ function! RubyDebugger.toggle_breakpoint() dict
 endfunction
 
 
+" Next
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
   call s:clear_current_state()
@@ -86,6 +104,7 @@ function! RubyDebugger.next() dict
 endfunction
 
 
+" Step
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
   call s:clear_current_state()
@@ -93,6 +112,7 @@ function! RubyDebugger.step() dict
 endfunction
 
 
+" Continue
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
   call s:clear_current_state()
@@ -100,14 +120,14 @@ function! RubyDebugger.continue() dict
 endfunction
 
 
+" Exit
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.send_command("exit")
   call s:clear_current_state()
 endfunction
 
 
-
-" *** End of public interface
+" *** Public interface (end)
 
 
 

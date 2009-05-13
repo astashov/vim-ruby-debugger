@@ -1,3 +1,5 @@
+" Init section - set mappings, default values, highlight colors
+
 map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
 map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
@@ -9,20 +11,31 @@ map <Leader>e  :call g:RubyDebugger.exit()<CR>
 command! -nargs=? Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
-" if exists("g:loaded_ruby_debugger")
-"     finish
-" endif
-" if v:version < 700
-"     echoerr "RubyDebugger: This plugin requires Vim >= 7."
-"     finish
-" endif
-" let g:loaded_ruby_debugger = 1
+
+if exists("g:loaded_ruby_debugger")
+  finish
+endif
+if v:version < 700
+  echoerr "RubyDebugger: This plugin requires Vim >= 7."
+  finish
+endif
+if !has("clientserver")
+  echoerr "RubyDebugger: This plugin requires +clientserver option"
+  finish
+endif
+let g:loaded_ruby_debugger = 1
+
 
 let s:rdebug_port = 39767
 let s:debugger_port = 39768
+" ~/.vim for Linux, vimfiles for Windows
 let s:runtime_dir = split(&runtimepath, ',')[0]
+" File for communicating between intermediate Ruby script ruby_debugger.rb and
+" this plugin
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
+" Default id for sign of current line
 let s:current_line_sign_id = 120
+
 
 " Init breakpoing signs
 hi def link Breakpoint Error
@@ -33,20 +46,32 @@ hi def link CurrentLine DiffAdd
 sign define current_line linehl=CurrentLine text=>>
 
 
+" End of init section
 
 
+" *** Common (global) functions
+
+" Split string of tags to List. E.g., 
+" <variables><variable name="a" value="b" /><variable name="c" value="d" /></variables>
+" will be splitted to 
+" [ '<variable name="a" value="b" />', '<variable name="c" value="d" />' ]
 function! s:get_tags(cmd)
   let tags = []
   let cmd = a:cmd
+  " Remove wrap tags
   let inner_tags_match = s:get_inner_tags(cmd)
   if !empty(inner_tags_match)
+    " Then find every tag and remove it from source string
     let pattern = '<.\{-}\/>' 
     let inner_tags = inner_tags_match[1]
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
       call add(tags, tagmatch[0])
+      " These symbols are interpretated as special, we need to escape them
       let tagmatch[0] = escape(tagmatch[0], '[]~*\')
+      " Remove it from source string
       let inner_tags = substitute(inner_tags, tagmatch[0], '', '')
+      " Find next tag
       let tagmatch = matchlist(inner_tags, pattern)
     endwhile
   endif
@@ -54,11 +79,16 @@ function! s:get_tags(cmd)
 endfunction
 
 
+" Return match of inner tags without wrap tags. E.g.:
+" <variables><variable name="a" value="b" /></variables> mathes only <variable /> 
 function! s:get_inner_tags(cmd)
   return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
 endfunction 
 
 
+" Return Dict of attributes.
+" E.g., from <variable name="a" value="b" /> it returns
+" {'name' : 'a', 'value' : 'b'}
 function! s:get_tag_attributes(cmd)
   let attributes = {}
   let cmd = a:cmd
@@ -66,17 +96,23 @@ function! s:get_tag_attributes(cmd)
   let quote_match = matchlist(cmd, "\\w\\+=\\(.\\)")
   let quote = empty(quote_match) ? "\"" : escape(quote_match[1], "'\"")
   let pattern = "\\(\\w\\+\\)=" . quote . "\\(.\\{-}\\)" . quote
+  " Find every attribute and remove it from source string
   let attrmatch = matchlist(cmd, pattern) 
   while !empty(attrmatch)
+    " Values of attributes can be escaped by HTML entities, unescape them
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
+    " These symbols are interpretated as special, we need to escape them
     let attrmatch[0] = escape(attrmatch[0], '[]~*\')
+    " Remove it from source string
     let cmd = substitute(cmd, attrmatch[0], '', '')
+    " Find next attribute
     let attrmatch = matchlist(cmd, pattern) 
   endwhile
   return attributes
 endfunction
 
 
+" Unescape HTML entities
 function! s:unescape_html(html)
   let result = substitute(a:html, "&amp;", "\\&", "")
   let result = substitute(result, "&quot;", "\"", "")
@@ -86,42 +122,53 @@ function! s:unescape_html(html)
 endfunction
 
 
+" Get filename of current buffer
 function! s:get_filename()
   return expand("%:p")
 endfunction
 
 
+" TODO: Find way to improve its performance
+" Send message to debugger. This function should never be used explicitly,
+" only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
 endfunction
 
 
-function! s:unplace_signs()
+function! s:unplace_sign_of_current_line()
   if has("signs")
     exe ":sign unplace " . s:current_line_sign_id
   endif
 endfunction
 
 
+" Remove all variables of current line, remove current line sign. Usually it
+" is needed before next/step/cont commands
 function! s:clear_current_state()
-  call s:unplace_signs()
+  call s:unplace_sign_of_current_line()
   let g:RubyDebugger.variables = {}
+  " Clear variables window (just show our empty variables Dict)
   if s:variables_window.is_open()
     call s:variables_window.open()
   endif
 endfunction
 
 
-
+" Open given file and jump to given line
+" (stolen from NERDTree)
 function! s:jump_to_file(file, line)
   "if the file is already open in this tab then just stick the cursor in it
-  let winnr = bufwinnr('^' . a:file . '$')
-  if winnr != -1
-    exe winnr . "wincmd w"
+  let window_number = bufwinnr('^' . a:file . '$')
+  if window_number != -1
+    exe window_number . "wincmd w"
   else
+    " Check if last accessed window is usable to use it
+    " Usable window - not quickfix, explorer, modified, etc 
     if !s:is_window_usable(winnr("#"))
       exe s:first_normal_window() . "wincmd w"
     else
+      " If it is usable, jump to it
       exe 'wincmd p'
     endif
     exe "edit " . a:file
@@ -130,68 +177,78 @@ function! s:jump_to_file(file, line)
 endfunction
 
 
+" Return 1 if window is usable (not quickfix, explorer, modified, only one 
+" window, ...) 
 function! s:is_window_usable(winnumber)
-    "gotta split if there is only one window
-    if winnr("$") ==# 1
-        return 0
-    endif
+  "If there is only one window (winnr("$") - windows count)
+  if winnr("$") ==# 1
+    return 0
+  endif
 
-    let oldwinnr = winnr()
-    exe a:winnumber . "wincmd p"
-    let specialWindow = getbufvar("%", '&buftype') != '' || getwinvar('%', '&previewwindow')
-    let modified = &modified
-    exe oldwinnr . "wincmd p"
+  " Current window number
+  let oldwinnr = winnr()
 
-    "if it is a special window, e.g. quickfix or another explorer plugin, then we
-    " have to split
-    if specialWindow
-      return 0
-    endif
+  " Switch to given window and check it
+  exe a:winnumber . "wincmd p"
+  let specialWindow = getbufvar("%", '&buftype') != '' || getwinvar('%', '&previewwindow')
+  let modified = &modified
 
-    if &hidden
-      return 1
-    endif
+  exe oldwinnr . "wincmd p"
 
-    return !modified || s:buf_in_windows(winbufnr(a:winnumber)) >= 2
+  "if it is a special window, e.g. quickfix or another explorer plugin    
+  if specialWindow
+    return 0
+  endif
+
+  if &hidden
+    return 1
+  endif
+
+  " If this window is modified, but there is another opened window with
+  " current file, return 1. Otherwise - 0
+  return !modified || s:buf_in_windows(winbufnr(a:winnumber)) >= 2
 endfunction
 
 
-function! s:buf_in_windows(bnum)
-    let cnt = 0
-    let winnum = 1
-    while 1
-        let bufnum = winbufnr(winnum)
-        if bufnum < 0
-            break
-        endif
-        if bufnum ==# a:bnum
-            let cnt = cnt + 1
-        endif
-        let winnum = winnum + 1
-    endwhile
+" Determine the number of windows open to this buffer number.
+function! s:buf_in_windows(buffer_number)
+  let count = 0
+  let window_number = 1
+  while 1
+    let buffer_number = winbufnr(window_number)
+    if buffer_number < 0
+      break
+    endif
+    if buffer_number ==# a:buffer_number
+      let count = count + 1
+    endif
+    let window_number = window_number + 1
+  endwhile
 
-    return cnt
+  return count
 endfunction 
 
 
+" Find first 'normal' window (not quickfix, explorer, etc)
 function! s:first_normal_window()
-    let i = 1
-    while i <= winnr("$")
-        let bnum = winbufnr(i)
-        if bnum != -1 && getbufvar(bnum, '&buftype') ==# ''
-                    \ && !getwinvar(i, '&previewwindow')
-            return i
-        endif
-
-        let i += 1
-    endwhile
-    return -1
+  let i = 1
+  while i <= winnr("$")
+    let bnum = winbufnr(i)
+    if bnum != -1 && getbufvar(bnum, '&buftype') ==# '' && !getwinvar(i, '&previewwindow')
+      return i
+    endif
+    let i += 1
+  endwhile
+  return -1
 endfunction
 
-" *** Public interface ***
+" *** Public interface (start)
 
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
 
+
+" Run debugger server. It takes one optional argument with path to debugged
+" ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
   let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
@@ -203,13 +260,19 @@ function! RubyDebugger.start(...) dict
   if type(breakpoint) == type({})
     call breakpoint.send_to_debugger()
   else
+    " if there are no breakpoints, just run the script
     call g:RubyDebugger.send_command('start')
   endif
   echo "Debugger started"
 endfunction
 
 
-
+" This function receives commands from the debugger. When ruby_debugger.rb
+" gets output from rdebug-ide, it writes it to the special file and 'kick'
+" the plugin by remotely calling RubyDebugger.receive_command(), e.g.:
+" vim --servername VIM --remote-send 'call RubyDebugger.receive_command()'
+" That's why +clientserver is required
+" This function analyzes the special file and gives handling to right command
 function! RubyDebugger.receive_command() dict
   let cmd = join(readfile(s:tmp_file), "")
   call g:RubyDebugger.logger.put("Received command: " . cmd)
@@ -234,25 +297,32 @@ function! RubyDebugger.receive_command() dict
 endfunction
 
 
+" We set function this way, because we want have possibility to mock it by
+" other function in tests
 let RubyDebugger.send_command = function("s:send_message_to_debugger")
 
 
+" Open variables window
 function! RubyDebugger.open_variables() dict
   call s:variables_window.toggle()
   call g:RubyDebugger.logger.put("Opened variables window")
 endfunction
 
 
+" Open breakpoints window
 function! RubyDebugger.open_breakpoints() dict
   call s:breakpoints_window.toggle()
   call g:RubyDebugger.logger.put("Opened breakpoints window")
 endfunction
 
 
+" Set/remove breakpoint at current position
 function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
   let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . file . '"')
+  " If breakpoint with current file/line doesn't exist, create it. Otherwise -
+  " remove it
   if empty(existed_breakpoints)
     let breakpoint = s:Breakpoint.new(file, line)
     call add(g:RubyDebugger.breakpoints, breakpoint)
@@ -262,6 +332,7 @@ function! RubyDebugger.toggle_breakpoint() dict
     call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
     call breakpoint.delete()
   endif
+  " Update info in Breakpoints window
   if s:breakpoints_window.is_open()
     call s:breakpoints_window.open()
     exe "wincmd p"
@@ -269,6 +340,7 @@ function! RubyDebugger.toggle_breakpoint() dict
 endfunction
 
 
+" Next
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")
   call s:clear_current_state()
@@ -276,6 +348,7 @@ function! RubyDebugger.next() dict
 endfunction
 
 
+" Step
 function! RubyDebugger.step() dict
   call g:RubyDebugger.send_command("step")
   call s:clear_current_state()
@@ -283,6 +356,7 @@ function! RubyDebugger.step() dict
 endfunction
 
 
+" Continue
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.send_command("cont")
   call s:clear_current_state()
@@ -290,23 +364,24 @@ function! RubyDebugger.continue() dict
 endfunction
 
 
+" Exit
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.send_command("exit")
   call s:clear_current_state()
 endfunction
 
 
-
-" *** End of public interface
-
+" *** Public interface (end)
 
 
 
-" *** RubyDebugger Commands *** 
+
+" *** RubyDebugger Commands (what debugger returns)
 
 
 " <breakpoint file="test.rb" line="1" threadId="1" />
 " <suspended file='test.rb' line='1' threadId='1' />
+" Jump to file/line where execution was suspended, set current line sign and get local variables
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
@@ -321,12 +396,16 @@ endfunction
 
 
 " <breakpointAdded no="1" location="test.rb:2" />
+" Add debugger info to breakpoints (pid of debugger, debugger breakpoint's id)
+" Assign rest breakpoints to debugger recursively, if there are breakpoints
+" from old server runnings or not assigned breakpoints (e.g., if you at first
+" set some breakpoints, and then run the debugger by :Rdebugger)
 function! RubyDebugger.commands.set_breakpoint(cmd)
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
-  " Set pid of current debugger to current breakpoint
   let pid = g:RubyDebugger.server.rdebug_pid
 
+  " Find added breakpoint in array and assign debugger's info to it
   for breakpoint in g:RubyDebugger.breakpoints
     if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
       let breakpoint.debugger_id = attrs.no
@@ -336,11 +415,14 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
 
   call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
 
+  " If there are not assigned breakpoints, assign them!
   let not_assigned_breakpoints = filter(copy(g:RubyDebugger.breakpoints), '!has_key(v:val, "rdebug_pid") || v:val["rdebug_pid"] != ' . pid)
   let not_assigned_breakpoint = get(not_assigned_breakpoints, 0)
   if type(not_assigned_breakpoint) == type({})
     call not_assigned_breakpoint.send_to_debugger()
   else
+    " If the debugger is started, start command does nothing. If the debugger is not
+    " started, it starts the debugger *after* assigning breakpoints.
     call g:RubyDebugger.send_command('start')
   endif
 endfunction
@@ -349,37 +431,46 @@ endfunction
 " <variables>
 "   <variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a904"/>
 " </variables>
+" Assign list of got variables to parent variable and (optionally) show them
 function! RubyDebugger.commands.set_variables(cmd)
   let tags = s:get_tags(a:cmd)
   let list_of_variables = []
 
+  " Create hash from list of tags
   for tag in tags
     let attrs = s:get_tag_attributes(tag)
     let variable = s:Var.new(attrs)
     call add(list_of_variables, variable)
   endfor
 
+  " If there is no variables, create unnamed root variable. Local variables
+  " will be chilren of this variable
   if g:RubyDebugger.variables == {}
     let g:RubyDebugger.variables = s:VarParent.new({'hasChildren': 'true'})
     let g:RubyDebugger.variables.is_open = 1
     let g:RubyDebugger.variables.children = []
   endif
 
+  " If g:RubyDebugger.current_variable exists, then it contains parent
+  " variable of got subvariables. Assign them to it.
   if has_key(g:RubyDebugger, 'current_variable')
     let variable = g:RubyDebugger.current_variable
     if variable != {}
       call variable.add_childs(list_of_variables)
       call g:RubyDebugger.logger.put("Opening child variable: " . variable.attributes.objectId)
+      " Variables Window is always open if we got subvariables
       call s:variables_window.open()
     else
       call g:RubyDebugger.logger.put("Can't found variable")
     endif
     unlet g:RubyDebugger.current_variable
   else
+    " Otherwise, assign them to unnamed root variable
     if g:RubyDebugger.variables.children == []
       call g:RubyDebugger.variables.add_childs(list_of_variables)
       call g:RubyDebugger.logger.put("Initializing local variables")
       if s:variables_window.is_open()
+        " show variables only if Variables Window is open
         call s:variables_window.open()
       endif
     endif
@@ -389,6 +480,7 @@ endfunction
 
 
 " <eval expression="User.all" value="[#User ... ]" />
+" Just show result of evaluation
 function! RubyDebugger.commands.eval(cmd)
   " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
   " use usual attribute extractor here...
@@ -398,6 +490,7 @@ endfunction
 
 
 " <error>Error</error>
+" Just show error
 function! RubyDebugger.commands.error(cmd)
   let error_match = s:get_inner_tags(a:cmd) 
   if !empty(error_match)
@@ -409,6 +502,7 @@ endfunction
 
 
 " <message>Message</message>
+" Just show message
 function! RubyDebugger.commands.message(cmd)
   let message_match = s:get_inner_tags(a:cmd) 
   if !empty(message_match)
@@ -418,19 +512,22 @@ function! RubyDebugger.commands.message(cmd)
   endif
 endfunction
 
-" *** End of debugger Commands ***
+
+" *** End of debugger Commands 
 
 
 
-
-" *** Abstract Class for creating window. Should be inherited. ***
+" *** Window class (start). Abstract Class for creating window. 
+"     Must be inherited. Mostly, stolen from the NERDTree.
 
 let s:Window = {} 
 let s:Window['next_buffer_number'] = 1 
 let s:Window['position'] = 'botright'
 let s:Window['size'] = 10
 
+" ** Public methods
 
+" Constructs new window
 function! s:Window.new(name, title) dict
   let new_variable = copy(self)
   let new_variable.name = a:name
@@ -439,11 +536,13 @@ function! s:Window.new(name, title) dict
 endfunction
 
 
+" Clear all data from window
 function! s:Window.clear() dict
   silent 1,$delete _
 endfunction
 
 
+" Close window
 function! s:Window.close() dict
   if !self.is_open()
     throw "RubyDebug: Window " . self.name . " is not open"
@@ -454,12 +553,14 @@ function! s:Window.close() dict
     close
     exe "wincmd p"
   else
+    " If this is only one window, just quit
     :q
   endif
   call self._log("Closed window with name: " . self.name)
 endfunction
 
 
+" Get window number
 function! s:Window.get_number() dict
   if self._exist_for_tab()
     return bufwinnr(self._buf_name())
@@ -469,6 +570,7 @@ function! s:Window.get_number() dict
 endfunction
 
 
+" Display data to the window
 function! s:Window.display()
   call self._log("Start displaying data in window with name: " . self.name)
   call self.focus()
@@ -480,6 +582,7 @@ function! s:Window.display()
 
   call self.clear()
 
+  " Write title
   call setline(top_line, self.title)
   call cursor(top_line + 1, current_column)
 
@@ -491,29 +594,34 @@ function! s:Window.display()
 endfunction
 
 
+" Put cursor to the window
 function! s:Window.focus() dict
   exe self.get_number() . " wincmd w"
   call self._log("Set focus to window with name: " . self.name)
 endfunction
 
 
+" Return 1 if window is opened
 function! s:Window.is_open() dict
     return self.get_number() != -1
 endfunction
 
 
+" Open window and display data (stolen from NERDTree)
 function! s:Window.open() dict
     if !self.is_open()
       " create the window
       silent exec self.position . ' ' . self.size . ' new'
 
       if !self._exist_for_tab()
+        " If the window is not opened/exists, create new
         call self._set_buf_name(self._next_buffer_name())
         silent! exec "edit " . self._buf_name()
         " This function does not exist in Window class and should be declared in
-        " childrens
+        " descendants
         call self.bind_mappings()
       else
+        " Or just jump to opened buffer
         silent! exec "buffer " . self._buf_name()
       endif
 
@@ -539,6 +647,7 @@ function! s:Window.open() dict
 endfunction
 
 
+" Open/close window
 function! s:Window.toggle() dict
   call self._log("Toggling window with name: " . self.name)
   if self._exist_for_tab() && self.is_open()
@@ -549,18 +658,25 @@ function! s:Window.toggle() dict
 endfunction
 
 
+" ** Private methods
+
+
+" Return buffer name, that is stored in tab variable
 function! s:Window._buf_name() dict
   return t:window_{self.name}_buf_name
 endfunction
 
 
+" Return 1 if the window exists in current tab
 function! s:Window._exist_for_tab() dict
   return exists("t:window_" . self.name . "_buf_name") 
 endfunction
 
 
+" Insert data to the window
 function! s:Window._insert_data() dict
   let old_p = @p
+  " Put data to the register and then show it by 'put' command
   let @p = self.render()
   silent put p
   let @p = old_p
@@ -575,6 +691,7 @@ function! s:Window._log(string) dict
 endfunction
 
 
+" Calculate correct name for the window
 function! s:Window._next_buffer_name() dict
   let name = self.name . s:Window.next_buffer_number
   let s:Window.next_buffer_number += 1
@@ -582,8 +699,8 @@ function! s:Window._next_buffer_name() dict
 endfunction
 
 
+" Restore the view
 function! s:Window._restore_view(top_line, current_line, current_column) dict
- "restore the view
   let old_scrolloff=&scrolloff
   let &scrolloff=0
   call cursor(a:top_line, 1)
@@ -599,15 +716,16 @@ function! s:Window._set_buf_name(name) dict
 endfunction
 
 
+" *** Window class (end)
 
 
 
-
-
-
+" *** WindowVariables class (start)
 
 " Inherits variables window from abstract window class
 let s:WindowVariables = copy(s:Window)
+
+" ** Public methods
 
 function! s:WindowVariables.bind_mappings()
   nnoremap <buffer> <2-leftmouse> :call <SID>window_variables_activate_node()<cr>
@@ -615,6 +733,7 @@ function! s:WindowVariables.bind_mappings()
 endfunction
 
 
+" Returns string that contains all variables (for Window.display())
 function! s:WindowVariables.render() dict
   return g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render()
 endfunction
@@ -622,6 +741,7 @@ endfunction
 
 " TODO: Is there some way to call s:WindowVariables.activate_node from mapping
 " command?
+" Expand/collapse variable under cursor
 function! s:window_variables_activate_node()
   let variable = s:Var.get_selected()
   if variable != {} && variable.type == "VarParent"
@@ -634,6 +754,7 @@ function! s:window_variables_activate_node()
 endfunction
 
 
+" Add syntax highlighting
 function! s:WindowVariables.setup_syntax_highlighting()
     execute "syn match rdebugTitle #" . self.title . "#"
 
@@ -665,7 +786,16 @@ function! s:WindowVariables.setup_syntax_highlighting()
 endfunction
 
 
+" *** WindowVariables class (end)
+
+
+
+" *** WindowBreakpoints class (start)
+
+" Inherits WindowBreakpoints from Window
 let s:WindowBreakpoints = copy(s:Window)
+
+" ** Public methods
 
 function! s:WindowBreakpoints.bind_mappings()
   nnoremap <buffer> <2-leftmouse> :call <SID>window_breakpoints_activate_node()<cr>
@@ -674,6 +804,7 @@ function! s:WindowBreakpoints.bind_mappings()
 endfunction
 
 
+" Returns string that contains all breakpoints (for Window.display())
 function! s:WindowBreakpoints.render() dict
   let breakpoints = ""
   for breakpoint in g:RubyDebugger.breakpoints
@@ -685,6 +816,7 @@ endfunction
 
 " TODO: Is there some way to call s:WindowBreakpoints.activate_node from mapping
 " command?
+" Open breakpoint under cursor
 function! s:window_breakpoints_activate_node()
   let breakpoint = s:Breakpoint.get_selected()
   if breakpoint != {}
@@ -693,6 +825,7 @@ function! s:window_breakpoints_activate_node()
 endfunction
 
 
+" Delete breakpoint under cursor
 function! s:window_breakpoints_delete_node()
   let breakpoint = s:Breakpoint.get_selected()
   if breakpoint != {}
@@ -703,7 +836,7 @@ function! s:window_breakpoints_delete_node()
 endfunction
 
 
-
+" Add syntax highlighting
 function! s:WindowBreakpoints.setup_syntax_highlighting() dict
     execute "syn match rdebugTitle #" . self.title . "#"
 
@@ -721,8 +854,15 @@ function! s:WindowBreakpoints.setup_syntax_highlighting() dict
 endfunction
 
 
+" *** WindowBreakpoints class (end)
+
+
+
+" *** Var proxy class (start)
 
 let s:Var = { 'id' : 0 }
+
+" ** Public methods
 
 " This is a proxy method for creating new variable
 function! s:Var.new(attrs)
@@ -734,8 +874,10 @@ function! s:Var.new(attrs)
 endfunction
 
 
+" Get variable under cursor
 function! s:Var.get_selected()
   let line = getline(".") 
+  " Get its id - it is last in the string
   let match = matchlist(line, '.*\t\(\d\+\)$') 
   let id = get(match, 1)
   if id
@@ -747,11 +889,17 @@ function! s:Var.get_selected()
 endfunction
 
 
-" *** Start of variables ***
+" *** Var proxy class (end)
+
+
+
+" *** VarChild class (start)
+
 let s:VarChild = {}
 
+" ** Public methods
 
-" Initializes new variable without childs
+" Constructs new variable without childs
 function! s:VarChild.new(attrs)
   let new_variable = copy(self)
   let new_variable.attributes = a:attrs
@@ -770,12 +918,62 @@ function! s:VarChild.render()
 endfunction
 
 
+" VarChild can't be opened because it can't have children. But VarParent can
+function! s:VarChild.open()
+  return 0
+endfunction
+
+
+" VarChild can't be closed because it can't have children. But VarParent can
+function! s:VarChild.close()
+  return 0
+endfunction
+
+
+" VarChild can't be parent. But VarParent can. If Var have hasChildren ==
+" true, then it is parent
+function! s:VarChild.is_parent()
+  return has_key(self.attributes, 'hasChildren') && get(self.attributes, 'hasChildren') ==# 'true'
+endfunction
+
+
+" Output format for Variables Window
+function! s:VarChild.to_s()
+  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self, "id", "0")
+endfunction
+
+
+" Find and return variable by given Dict of attrs, e.g.: {'name' : 'var1'}
+function! s:VarChild.find_variable(attrs)
+  if self._match_attributes(a:attrs)
+    return self
+  else
+    return {}
+  endif
+endfunction
+
+
+" Find and return array of variables that match given Dict of attrs
+function! s:VarChild.find_variables(attrs)
+  let variables = []
+  if self._match_attributes(a:attrs)
+    call add(variables, self)
+  endif
+  return variables
+endfunction
+
+
+" ** Private methods
+
+
+" Recursive function, that renders Variable and all its childs (if they are
+" presented). Stolen from NERDTree
 function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
   let output = ""
   if a:draw_text ==# 1
     let tree_parts = ''
 
-    "get all the leading spaces and vertical tree parts for this line
+    " get all the leading spaces and vertical tree parts for this line
     if a:depth > 1
       for j in a:vertical_map[0:-2]
         if j ==# 1
@@ -786,16 +984,16 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
       endfor
     endif
     
-    "get the last vertical tree part for this line which will be different
-    "if this node is the last child of its parent
+    " get the last vertical tree part for this line which will be different
+    " if this node is the last child of its parent
     if a:is_last_child
       let tree_parts = tree_parts . '`'
     else
       let tree_parts = tree_parts . '|'
     endif
 
-    "smack the appropriate dir/file symbol on the line before the file/dir
-    "name itself
+    " smack the appropriate dir/file symbol on the line before the file/dir
+    " name itself
     if self.is_parent()
       if self.is_open
         let tree_parts = tree_parts . '~'
@@ -811,10 +1009,9 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
   endif
 
   if self.is_parent() && self.is_open
-
     if len(self.children) > 0
 
-      "draw all the nodes children except the last
+      " draw all the nodes children except the last
       let last_index = len(self.children) - 1
       if last_index > 0
         for i in self.children[0:last_index - 1]
@@ -822,7 +1019,7 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
         endfor
       endif
 
-      "draw the last child, indicating that it IS the last
+      " draw the last child, indicating that it IS the last
       let output = output . self.children[last_index]._render(a:depth + 1, 1, add(copy(a:vertical_map), 0), 1)
 
     endif
@@ -833,54 +1030,21 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
 endfunction
 
 
-function! s:VarChild.open()
-  return 0
-endfunction
-
-
-function! s:VarChild.close()
-  return 0
-endfunction
-
-
-function! s:VarChild.is_parent()
-  return has_key(self.attributes, 'hasChildren') && get(self.attributes, 'hasChildren') ==# 'true'
-endfunction
-
-
-function! s:VarChild.to_s()
-  return get(self.attributes, "name", "undefined") . "\t" . get(self.attributes, "type", "undefined") . "\t" . get(self.attributes, "value", "undefined") . "\t" . get(self, "id", "0")
-endfunction
-
-
-function! s:VarChild.find_variable(attrs)
-  if self._match_attributes(a:attrs)
-    return self
-  else
-    return {}
-  endif
-endfunction
-
-
-function! s:VarChild.find_variables(attrs)
-  let variables = []
-  if self._match_attributes(a:attrs)
-    call add(variables, self)
-  endif
-  return variables
-endfunction
-
-
-" First argument is attributes of variable, second argument is attributes of
-" parent variable 
+" Return 1 if *all* given attributes (pairs key/value) match to current
+" variable
 function! s:VarChild._match_attributes(attrs)
   let conditions = 1
   for attr in keys(a:attrs)
     if has_key(self.attributes, attr)
+      " If current key is contained in attributes of variable (they were
+      " attributes in <variable /> tag, then trying to match there.
       let conditions = conditions && self.attributes[attr] == a:attrs[attr] 
     elseif has_key(self, attr)
+      " Otherwise, if current key is contained in auxiliary attributes of the
+      " variable, trying to match there
       let conditions = conditions && self[attr] == a:attrs[attr]
     else
+      " Otherwise, this variable is not match
       let conditions = 0
       break
     endif
@@ -889,17 +1053,17 @@ function! s:VarChild._match_attributes(attrs)
 endfunction
 
 
+" *** VarChild class (end)
 
+
+
+
+" *** VarParent class (start)
 
 " Inherits VarParent from VarChild
 let s:VarParent = copy(s:VarChild)
 
-
-" Renders data of the variable
-function! s:VarParent.render()
-  return self._render(0, 0, [], len(self.children) ==# 1)
-endfunction
-
+" ** Public methods
 
 
 " Initializes new variable with childs
@@ -920,6 +1084,7 @@ function! s:VarParent.new(attrs)
 endfunction
 
 
+" Open variable, init its children and display them
 function! s:VarParent.open()
   let self.is_open = 1
   call self._init_children()
@@ -927,6 +1092,7 @@ function! s:VarParent.open()
 endfunction
 
 
+" Close variable and display it
 function! s:VarParent.close()
   let self.is_open = 0
   call s:variables_window.display()
@@ -937,20 +1103,17 @@ function! s:VarParent.close()
 endfunction
 
 
-
-function! s:VarParent._init_children()
-  "remove all the current child nodes
-  let self.children = []
-
-  if has_key(self.attributes, 'objectId')
-    let g:RubyDebugger.current_variable = self
-    call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
-  endif
-
+" Renders data of the variable
+function! s:VarParent.render()
+  return self._render(0, 0, [], len(self.children) ==# 1)
 endfunction
 
 
+
+" Add childs to the variable. You always should use this method instead of
+" explicit assigning to children property (like 'add(self.children, variables)')
 function! s:VarParent.add_childs(childs)
+  " If children are given by array, extend self.children by this array
   if type(a:childs) == type([])
     for child in a:childs
       let child.parent = self
@@ -958,6 +1121,7 @@ function! s:VarParent.add_childs(childs)
     endfor
     call extend(self.children, a:childs)
   else
+    " Otherwise, add child to self.children
     let a:childs.parent = self
     let child.level = self.level + 1
     call add(self.children, a:childs)
@@ -965,6 +1129,8 @@ function! s:VarParent.add_childs(childs)
 endfunction
 
 
+" Find and return variable by given Dict of attrs, e.g.: {'name' : 'var1'}
+" If current variable doesn't match these attributes, try to find in children
 function! s:VarParent.find_variable(attrs)
   if self._match_attributes(a:attrs)
     return self
@@ -980,6 +1146,8 @@ function! s:VarParent.find_variable(attrs)
 endfunction
 
 
+" Find and return array of variables that match given Dict of attrs.
+" Try to match current variable and its children
 function! s:VarParent.find_variables(attrs)
   let variables = []
   if self._match_attributes(a:attrs)
@@ -992,6 +1160,29 @@ function! s:VarParent.find_variables(attrs)
 endfunction
 
 
+" ** Private methods
+
+
+" Update children of the variable
+function! s:VarParent._init_children()
+  " Remove all the current child nodes
+  let self.children = []
+
+  " Get children
+  if has_key(self.attributes, 'objectId')
+    let g:RubyDebugger.current_variable = self
+    call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
+  endif
+
+endfunction
+
+
+" *** VarParent class (end)
+
+
+
+" *** Logger class (start)
+
 
 let s:Logger = {} 
 
@@ -1002,6 +1193,8 @@ function! s:Logger.new(file)
   return new_variable
 endfunction
 
+
+" Log datetime and then message
 function! s:Logger.put(string)
   let file = readfile(self.file)
   let string = strftime("%Y/%m/%d %H:%M:%S") . ' ' . a:string
@@ -1010,10 +1203,16 @@ function! s:Logger.put(string)
 endfunction
 
 
+" *** Logger class (end)
 
+
+" *** Breakpoint class (start)
 
 let s:Breakpoint = { 'id': 0 }
 
+" ** Public methods
+
+" Constructor of new brekpoint. Create new breakpoint and set sign.
 function! s:Breakpoint.new(file, line)
   let var = copy(self)
   let var.file = a:file
@@ -1025,6 +1224,53 @@ function! s:Breakpoint.new(file, line)
   call var._log("Set breakpoint to: " . var.file . ":" . var.line)
   return var
 endfunction
+
+
+" Destroyer of the breakpoint. It just sends commands to debugger and destroys
+" sign, but you should manually remove it from breakpoints array
+function! s:Breakpoint.delete() dict
+  call self._unset_sign()
+  call self._send_delete_to_debugger()
+endfunction
+
+
+" Send adding breakpoint message to debugger, if it is run
+" (e.g.: 'break /path/to/file:23')
+function! s:Breakpoint.send_to_debugger() dict
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+    let message = 'break ' . self.file . ':' . self.line
+    call g:RubyDebugger.send_command(message)
+  endif
+endfunction
+
+
+" Find and return breakpoint under cursor
+function! s:Breakpoint.get_selected() dict
+  let line = getline(".") 
+  let match = matchlist(line, '^\(\d\+\)') 
+  let id = get(match, 1)
+  let breakpoints = filter(copy(g:RubyDebugger.breakpoints), "v:val.id == " . id)
+  if !empty(breakpoints)
+    return breakpoints[0]
+  else
+    return {}
+  endif
+endfunction
+
+
+" Output format for Breakpoints Window
+function! s:Breakpoint.render() dict
+  return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
+endfunction
+
+
+" Open breakpoint in existed/new window
+function! s:Breakpoint.open() dict
+  call s:jump_to_file(self.file, self.line)
+endfunction
+
+
+" ** Private methods
 
 
 function! s:Breakpoint._set_sign() dict
@@ -1041,38 +1287,13 @@ function! s:Breakpoint._unset_sign() dict
 endfunction
 
 
-function! s:Breakpoint.delete() dict
-  call self._unset_sign()
-  call self._send_delete_to_debugger()
-endfunction
-
-
-function! s:Breakpoint.send_to_debugger() dict
-  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
-    let message = 'break ' . self.file . ':' . self.line
-    call g:RubyDebugger.send_command(message)
-  endif
-endfunction
-
-
-function! s:Breakpoint.get_selected() dict
-  let line = getline(".") 
-  let match = matchlist(line, '^\(\d\+\)') 
-  let id = get(match, 1)
-  let breakpoints = filter(copy(g:RubyDebugger.breakpoints), "v:val.id == " . id)
-  if !empty(breakpoints)
-    return breakpoints[0]
-  else
-    return {}
-  endif
-endfunction
-
-
 function! s:Breakpoint._log(string) dict
   call g:RubyDebugger.logger.put(a:string)
 endfunction
 
 
+" Send deleting breakpoint message to debugger, if it is run
+" (e.g.: 'delete 5')
 function! s:Breakpoint._send_delete_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'delete ' . self.debugger_id
@@ -1081,18 +1302,15 @@ function! s:Breakpoint._send_delete_to_debugger() dict
 endfunction
 
 
-function! s:Breakpoint.render() dict
-  return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
-endfunction
+" *** Breakpoint class (end)
 
-
-function! s:Breakpoint.open() dict
-  call s:jump_to_file(self.file, self.line)
-endfunction
-
+" *** Server class (start)
 
 let s:Server = {}
 
+" ** Public methods
+
+" Constructor of new server. Just inits it, not runs
 function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
   let var = copy(self)
   let var.rdebug_port = a:rdebug_port
@@ -1103,12 +1321,15 @@ function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
 endfunction
 
 
+" Start the server. It will kill any listeners on given ports before.
 function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
+  " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger
   let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
 
+  " Start in background
   if has("win32") || has("win64")
     call system('start ' . rdebug . ' \B')
     sleep 1
@@ -1119,6 +1340,7 @@ function! s:Server.start(script) dict
     call system(debugger. ' &')
   endif
 
+  " Set PIDs of processes
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
   let self.debugger_pid = self._get_pid('localhost', self.debugger_port)
 
@@ -1126,6 +1348,7 @@ function! s:Server.start(script) dict
 endfunction  
 
 
+" Kill servers and empty PIDs
 function! s:Server.stop() dict
   call self._kill_process(self.rdebug_pid)
   call self._kill_process(self.debugger_pid)
@@ -1134,11 +1357,16 @@ function! s:Server.stop() dict
 endfunction
 
 
+" Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
   return (self._get_pid('localhost', self.rdebug_port) =~ '^\d\+$') && (self._get_pid('localhost', self.debugger_port) =~ '^\d\+$')
 endfunction
 
 
+" ** Private methods
+
+
+" Get PID of process, that listens given port on given host
 function! s:Server._get_pid(bind, port)
   if has("win32") || has("win64")
     let netstat = system("netstat -anop tcp")
@@ -1153,6 +1381,7 @@ function! s:Server._get_pid(bind, port)
 endfunction
 
 
+" Kill listener of given host/port
 function! s:Server._stop_server(bind, port) dict
   let pid = self._get_pid(a:bind, a:port)
   if pid =~ '^\d\+$'
@@ -1161,6 +1390,7 @@ function! s:Server._stop_server(bind, port) dict
 endfunction
 
 
+" Kill process with given PID
 function! s:Server._kill_process(pid) dict
   echo "Killing server with pid " . a:pid
   call system("ruby -e 'Process.kill(9," . a:pid . ")'")
@@ -1174,15 +1404,27 @@ function! s:Server._log(string) dict
 endfunction
 
 
+" *** Server class (end)
 
 
 
+" *** Creating instances (start)
+
+
+" Creating windows
 let s:variables_window = s:WindowVariables.new("variables", "Variables_Window")
 let s:breakpoints_window = s:WindowBreakpoints.new("breakpoints", "Breakpoints_Window")
 
-let RubyDebugger.logger = s:Logger.new(s:runtime_dir . '/tmp/ruby_debugger_log')
+" Init logger. The plugin logs all its actions. If you have some troubles,
+" this file can help
+let s:logger_file = s:runtime_dir . '/tmp/ruby_debugger_log'
+let RubyDebugger.logger = s:Logger.new(s:logger_file)
 let s:variables_window.logger = RubyDebugger.logger
 let s:breakpoints_window.logger = RubyDebugger.logger
+
+
+" *** Creating instances (end)
+
 
 
 let TU = { 'output': '', 'errors': '', 'success': ''}

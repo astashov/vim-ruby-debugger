@@ -1,4 +1,8 @@
+" *** Var proxy class (start)
+
 let s:Var = { 'id' : 0 }
+
+" ** Public methods
 
 " This is a proxy method for creating new variable
 function! s:Var.new(attrs)
@@ -10,8 +14,10 @@ function! s:Var.new(attrs)
 endfunction
 
 
+" Get variable under cursor
 function! s:Var.get_selected()
   let line = getline(".") 
+  " Get its id - it is last in the string
   let match = matchlist(line, '.*\t\(\d\+\)$') 
   let id = get(match, 1)
   if id
@@ -21,4 +27,8 @@ function! s:Var.get_selected()
     return {}
   endif
 endfunction
+
+
+" *** Var proxy class (end)
+
 

@@ -1,5 +1,9 @@
+" *** WindowVariables class (start)
+
 " Inherits variables window from abstract window class
 let s:WindowVariables = copy(s:Window)
+
+" ** Public methods
 
 function! s:WindowVariables.bind_mappings()
   nnoremap <buffer> <2-leftmouse> :call <SID>window_variables_activate_node()<cr>
@@ -7,6 +11,7 @@ function! s:WindowVariables.bind_mappings()
 endfunction
 
 
+" Returns string that contains all variables (for Window.display())
 function! s:WindowVariables.render() dict
   return g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render()
 endfunction
@@ -14,6 +19,7 @@ endfunction
 
 " TODO: Is there some way to call s:WindowVariables.activate_node from mapping
 " command?
+" Expand/collapse variable under cursor
 function! s:window_variables_activate_node()
   let variable = s:Var.get_selected()
   if variable != {} && variable.type == "VarParent"
@@ -26,6 +32,7 @@ function! s:window_variables_activate_node()
 endfunction
 
 
+" Add syntax highlighting
 function! s:WindowVariables.setup_syntax_highlighting()
     execute "syn match rdebugTitle #" . self.title . "#"
 
@@ -55,4 +62,8 @@ function! s:WindowVariables.setup_syntax_highlighting()
     hi def link rdebugValue Special
     hi def link rdebugId Ignore
 endfunction
+
+
+" *** WindowVariables class (end)
+
 

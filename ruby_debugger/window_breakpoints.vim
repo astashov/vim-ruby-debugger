@@ -1,4 +1,9 @@
+" *** WindowBreakpoints class (start)
+
+" Inherits WindowBreakpoints from Window
 let s:WindowBreakpoints = copy(s:Window)
+
+" ** Public methods
 
 function! s:WindowBreakpoints.bind_mappings()
   nnoremap <buffer> <2-leftmouse> :call <SID>window_breakpoints_activate_node()<cr>
@@ -7,6 +12,7 @@ function! s:WindowBreakpoints.bind_mappings()
 endfunction
 
 
+" Returns string that contains all breakpoints (for Window.display())
 function! s:WindowBreakpoints.render() dict
   let breakpoints = ""
   for breakpoint in g:RubyDebugger.breakpoints
@@ -18,6 +24,7 @@ endfunction
 
 " TODO: Is there some way to call s:WindowBreakpoints.activate_node from mapping
 " command?
+" Open breakpoint under cursor
 function! s:window_breakpoints_activate_node()
   let breakpoint = s:Breakpoint.get_selected()
   if breakpoint != {}
@@ -26,6 +33,7 @@ function! s:window_breakpoints_activate_node()
 endfunction
 
 
+" Delete breakpoint under cursor
 function! s:window_breakpoints_delete_node()
   let breakpoint = s:Breakpoint.get_selected()
   if breakpoint != {}
@@ -36,7 +44,7 @@ function! s:window_breakpoints_delete_node()
 endfunction
 
 
-
+" Add syntax highlighting
 function! s:WindowBreakpoints.setup_syntax_highlighting() dict
     execute "syn match rdebugTitle #" . self.title . "#"
 
@@ -52,5 +60,8 @@ function! s:WindowBreakpoints.setup_syntax_highlighting() dict
     hi def link rdebugFile Normal
     hi def link rdebugLine Special
 endfunction
+
+
+" *** WindowBreakpoints class (end)
 
 

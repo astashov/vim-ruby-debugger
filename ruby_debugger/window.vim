@@ -1,11 +1,14 @@
-" *** Abstract Class for creating window. Should be inherited. ***
+" *** Window class (start). Abstract Class for creating window. 
+"     Must be inherited. Mostly, stolen from the NERDTree.
 
 let s:Window = {} 
 let s:Window['next_buffer_number'] = 1 
 let s:Window['position'] = 'botright'
 let s:Window['size'] = 10
 
+" ** Public methods
 
+" Constructs new window
 function! s:Window.new(name, title) dict
   let new_variable = copy(self)
   let new_variable.name = a:name
@@ -14,11 +17,13 @@ function! s:Window.new(name, title) dict
 endfunction
 
 
+" Clear all data from window
 function! s:Window.clear() dict
   silent 1,$delete _
 endfunction
 
 
+" Close window
 function! s:Window.close() dict
   if !self.is_open()
     throw "RubyDebug: Window " . self.name . " is not open"
@@ -29,12 +34,14 @@ function! s:Window.close() dict
     close
     exe "wincmd p"
   else
+    " If this is only one window, just quit
     :q
   endif
   call self._log("Closed window with name: " . self.name)
 endfunction
 
 
+" Get window number
 function! s:Window.get_number() dict
   if self._exist_for_tab()
     return bufwinnr(self._buf_name())
@@ -44,6 +51,7 @@ function! s:Window.get_number() dict
 endfunction
 
 
+" Display data to the window
 function! s:Window.display()
   call self._log("Start displaying data in window with name: " . self.name)
   call self.focus()
@@ -55,6 +63,7 @@ function! s:Window.display()
 
   call self.clear()
 
+  " Write title
   call setline(top_line, self.title)
   call cursor(top_line + 1, current_column)
 
@@ -66,29 +75,34 @@ function! s:Window.display()
 endfunction
 
 
+" Put cursor to the window
 function! s:Window.focus() dict
   exe self.get_number() . " wincmd w"
   call self._log("Set focus to window with name: " . self.name)
 endfunction
 
 
+" Return 1 if window is opened
 function! s:Window.is_open() dict
     return self.get_number() != -1
 endfunction
 
 
+" Open window and display data (stolen from NERDTree)
 function! s:Window.open() dict
     if !self.is_open()
       " create the window
       silent exec self.position . ' ' . self.size . ' new'
 
       if !self._exist_for_tab()
+        " If the window is not opened/exists, create new
         call self._set_buf_name(self._next_buffer_name())
         silent! exec "edit " . self._buf_name()
         " This function does not exist in Window class and should be declared in
-        " childrens
+        " descendants
         call self.bind_mappings()
       else
+        " Or just jump to opened buffer
         silent! exec "buffer " . self._buf_name()
       endif
 
@@ -114,6 +128,7 @@ function! s:Window.open() dict
 endfunction
 
 
+" Open/close window
 function! s:Window.toggle() dict
   call self._log("Toggling window with name: " . self.name)
   if self._exist_for_tab() && self.is_open()
@@ -124,18 +139,25 @@ function! s:Window.toggle() dict
 endfunction
 
 
+" ** Private methods
+
+
+" Return buffer name, that is stored in tab variable
 function! s:Window._buf_name() dict
   return t:window_{self.name}_buf_name
 endfunction
 
 
+" Return 1 if the window exists in current tab
 function! s:Window._exist_for_tab() dict
   return exists("t:window_" . self.name . "_buf_name") 
 endfunction
 
 
+" Insert data to the window
 function! s:Window._insert_data() dict
   let old_p = @p
+  " Put data to the register and then show it by 'put' command
   let @p = self.render()
   silent put p
   let @p = old_p
@@ -150,6 +172,7 @@ function! s:Window._log(string) dict
 endfunction
 
 
+" Calculate correct name for the window
 function! s:Window._next_buffer_name() dict
   let name = self.name . s:Window.next_buffer_number
   let s:Window.next_buffer_number += 1
@@ -157,8 +180,8 @@ function! s:Window._next_buffer_name() dict
 endfunction
 
 
+" Restore the view
 function! s:Window._restore_view(top_line, current_line, current_column) dict
- "restore the view
   let old_scrolloff=&scrolloff
   let &scrolloff=0
   call cursor(a:top_line, 1)
@@ -174,9 +197,6 @@ function! s:Window._set_buf_name(name) dict
 endfunction
 
 
-
-
-
-
+" *** Window class (end)
 
 

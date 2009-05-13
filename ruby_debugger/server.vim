@@ -1,5 +1,10 @@
+" *** Server class (start)
+
 let s:Server = {}
 
+" ** Public methods
+
+" Constructor of new server. Just inits it, not runs
 function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
   let var = copy(self)
   let var.rdebug_port = a:rdebug_port
@@ -10,12 +15,15 @@ function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
 endfunction
 
 
+" Start the server. It will kill any listeners on given ports before.
 function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
+  " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger
   let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
 
+  " Start in background
   if has("win32") || has("win64")
     call system('start ' . rdebug . ' \B')
     sleep 1
@@ -26,6 +34,7 @@ function! s:Server.start(script) dict
     call system(debugger. ' &')
   endif
 
+  " Set PIDs of processes
   let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
   let self.debugger_pid = self._get_pid('localhost', self.debugger_port)
 
@@ -33,6 +42,7 @@ function! s:Server.start(script) dict
 endfunction  
 
 
+" Kill servers and empty PIDs
 function! s:Server.stop() dict
   call self._kill_process(self.rdebug_pid)
   call self._kill_process(self.debugger_pid)
@@ -41,11 +51,16 @@ function! s:Server.stop() dict
 endfunction
 
 
+" Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
   return (self._get_pid('localhost', self.rdebug_port) =~ '^\d\+$') && (self._get_pid('localhost', self.debugger_port) =~ '^\d\+$')
 endfunction
 
 
+" ** Private methods
+
+
+" Get PID of process, that listens given port on given host
 function! s:Server._get_pid(bind, port)
   if has("win32") || has("win64")
     let netstat = system("netstat -anop tcp")
@@ -60,6 +75,7 @@ function! s:Server._get_pid(bind, port)
 endfunction
 
 
+" Kill listener of given host/port
 function! s:Server._stop_server(bind, port) dict
   let pid = self._get_pid(a:bind, a:port)
   if pid =~ '^\d\+$'
@@ -68,6 +84,7 @@ function! s:Server._stop_server(bind, port) dict
 endfunction
 
 
+" Kill process with given PID
 function! s:Server._kill_process(pid) dict
   echo "Killing server with pid " . a:pid
   call system("ruby -e 'Process.kill(9," . a:pid . ")'")
@@ -81,5 +98,6 @@ function! s:Server._log(string) dict
 endfunction
 
 
+" *** Server class (end)
 
 
