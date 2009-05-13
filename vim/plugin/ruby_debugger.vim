@@ -518,7 +518,7 @@ function! s:Window.open() dict
       endif
 
       " set buffer options
-      setlocal winfixwidth
+      setlocal winfixheight
       setlocal noswapfile
       setlocal buftype=nofile
       setlocal nowrap
