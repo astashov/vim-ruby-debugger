@@ -22,6 +22,11 @@ if !has("clientserver")
   echoerr "RubyDebugger: This plugin requires +clientserver option"
   finish
 endif
+echo v:servername
+"if v:servername == ''
+"  echoerr "RubyDebugger: You should specify servername. E.g.: 'vim --servername VIM'"
+"  finish
+"endif
 let g:loaded_ruby_debugger = 1
 
 
@@ -34,6 +39,11 @@ let s:runtime_dir = split(&runtimepath, ',')[0]
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
+
+" Create tmp directory if it doesn't exist
+if !isdirectory(s:runtime_dir . '/tmp')
+  call mkdir(s:runtime_dir . '/tmp')
+endif
 
 
 " Init breakpoing signs

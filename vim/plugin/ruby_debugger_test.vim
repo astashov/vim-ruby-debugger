@@ -11,7 +11,6 @@ map <Leader>e  :call g:RubyDebugger.exit()<CR>
 command! -nargs=? Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
-
 if exists("g:loaded_ruby_debugger")
   finish
 endif
@@ -23,6 +22,11 @@ if !has("clientserver")
   echoerr "RubyDebugger: This plugin requires +clientserver option"
   finish
 endif
+echo v:servername
+"if v:servername == ''
+"  echoerr "RubyDebugger: You should specify servername. E.g.: 'vim --servername VIM'"
+"  finish
+"endif
 let g:loaded_ruby_debugger = 1
 
 
@@ -35,6 +39,11 @@ let s:runtime_dir = split(&runtimepath, ',')[0]
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
+
+" Create tmp directory if it doesn't exist
+if !isdirectory(s:runtime_dir . '/tmp')
+  call mkdir(s:runtime_dir . '/tmp')
+endif
 
 
 " Init breakpoing signs
@@ -1327,16 +1336,18 @@ function! s:Server.start(script) dict
   call self._stop_server('localhost', s:debugger_port)
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
   " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger
-  let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
+  let debugger_parameters = ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
 
   " Start in background
   if has("win32") || has("win64")
-    call system('start ' . rdebug . ' \B')
+    silent exe '! start ' . rdebug
     sleep 1
-    call system('start ' . debugger. ' \B')
+    let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
+    silent exe '! start ' . debugger
   else
     call system(rdebug . ' &')
     sleep 1
+    let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters
     call system(debugger. ' &')
   endif
 
@@ -1370,7 +1381,8 @@ endfunction
 function! s:Server._get_pid(bind, port)
   if has("win32") || has("win64")
     let netstat = system("netstat -anop tcp")
-    let pid = matchstr(netstat, '\<' . a:bind . ':' . a:port . '\>.\{-\}LISTENING\s\+\zs\d\+')
+    let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
+    let pid = len(pid_match) > 0 ? pid_match[1] : ""
   elseif executable('lsof')
     let pid = system("lsof -i 4tcp@" . a:bind . ':' . a:port . " | grep LISTEN | awk '{print $2}'")
     let pid = substitute(pid, '\n', '', '')

@@ -21,6 +21,9 @@ If you use Linux, make sure you have "lsof" installed. See >
 Also, it requires ruby-debug-ide gem. To install it, run >
 	gem install ruby-debug-ide
 
+Please make sure, that vim/gvim, rdebug-ide and ruby directories are set in your
+$PATH variable
+
 {Vi does not have any of this}
 
 ==============================================================================

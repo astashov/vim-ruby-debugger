@@ -40,7 +40,7 @@ t2 = Thread.new do
     output = read_socket(response, debugger)
     File.open(ARGV[4], 'w') { |f| f.puts(output) }
     command = ":call RubyDebugger.receive_command()"
-    system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"<C-\\\\><C-N>#{command}<CR>\"");
+    system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"<C-N>#{command}<CR>\"");
  end
 end
 
