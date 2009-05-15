@@ -123,10 +123,10 @@ endfunction
 
 " Unescape HTML entities
 function! s:unescape_html(html)
-  let result = substitute(a:html, "&amp;", "\\&", "")
-  let result = substitute(result, "&quot;", "\"", "")
-  let result = substitute(result, "&lt;", "<", "")
-  let result = substitute(result, "&gt;", ">", "")
+  let result = substitute(a:html, "&amp;", "\\&", "g")
+  let result = substitute(result, "&quot;", "\"", "g")
+  let result = substitute(result, "&lt;", "<", "g")
+  let result = substitute(result, "&gt;", ">", "g")
   return result
 endfunction
 
@@ -329,7 +329,7 @@ endfunction
 function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
-  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . file . '"')
+  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
   " If breakpoint with current file/line doesn't exist, create it. Otherwise -
   " remove it
   if empty(existed_breakpoints)
@@ -1335,8 +1335,9 @@ function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
-  " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger
-  let debugger_parameters = ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
+  let os = has("win32") || has("win64") ? 'win' : 'posix'
+  " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger posix
+  let debugger_parameters = ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" ' . os
 
   " Start in background
   if has("win32") || has("win64")
@@ -1634,7 +1635,7 @@ endfunction
 
 function! s:Mock.unmock_file(filename)
   silent exe "close"
-  silent exe "!rm " . a:filename
+  call delete(a:filename)
 endfunction
 
 
@@ -1711,10 +1712,12 @@ endfunction
 function! s:Tests.breakpoint.test_should_set_breakpoint(test)
   exe "Rdebugger"
   let filename = s:Mock.mock_file()
+  let file_pattern = substitute(filename, '[\/\\]', '[\\\/\\\\]', "g")
+
   call g:RubyDebugger.toggle_breakpoint()
   let breakpoint = get(g:RubyDebugger.breakpoints, 0)
   call g:TU.equal(1, breakpoint.id, "Id of first breakpoint should == 1", a:test)
-  call g:TU.equal(filename, breakpoint.file, "File should be set right", a:test)
+  call g:TU.match(breakpoint.file, file_pattern, "File should be set right", a:test)
   call g:TU.equal(1, breakpoint.line, "Line should be set right", a:test)
   " TODO: Find way to test sign
   call g:TU.equal(g:RubyDebugger.server.rdebug_pid, breakpoint.rdebug_pid, "Breakpoint should be assigned to running server", a:test)
@@ -1775,6 +1778,7 @@ endfunction
 
 function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
   let filename = s:Mock.mock_file()
+  let file_pattern = substitute(filename, '[\/\\]', '[\\\/\\\\]', "g")
   
   " Write 2 lines and set current line to second line. We will jump to first
   " line
@@ -1789,7 +1793,7 @@ function! s:Tests.breakpoint.jump_to_breakpoint(cmd, test)
   call g:RubyDebugger.receive_command()
 
   call g:TU.equal(1, line("."), "Current line before jumping is first", a:test)
-  call g:TU.equal(filename, expand("%"), "Jumped to correct file", a:test)
+  call g:TU.match(expand("%"), file_pattern, "Jumped to correct file", a:test)
 
   call s:Mock.unmock_file(filename)
 endfunction
@@ -1808,6 +1812,9 @@ endfunction
 
 function! s:Tests.breakpoint.test_should_open_window_and_show_breakpoints(test)
   let filename = s:Mock.mock_file()
+  " Replace all windows separators (\) and POSIX separators (/) to [\/] for
+  " making it cross-platform
+  let file_pattern = substitute(filename, '[\/\\]', '[\\\/\\\\]', "g")
   " Write 2 lines of text and set 2 breakpoints (on every line)
   exe "normal iblablabla"
   exe "normal oblabla" 
@@ -1823,8 +1830,8 @@ function! s:Tests.breakpoint.test_should_open_window_and_show_breakpoints(test)
   let g:RubyDebugger.breakpoints[1].debugger_id = 4
 
   call g:RubyDebugger.open_breakpoints()
-  call g:TU.match(getline(2), '1  ' . filename . ':1', "Should show first breakpoint", a:test)
-  call g:TU.match(getline(3), '2 4 ' . filename . ':2', "Should show second breakpoint", a:test)
+  call g:TU.match(getline(2), '1  ' . file_pattern . ':1', "Should show first breakpoint", a:test)
+  call g:TU.match(getline(3), '2 4 ' . file_pattern . ':2', "Should show second breakpoint", a:test)
 
   exe 'close'
 endfunction
@@ -1848,6 +1855,7 @@ endfunction
 
 function! s:Tests.breakpoint.test_should_open_selected_breakpoint_from_breakpoints_window(test)
   let filename = s:Mock.mock_file()
+  let file_pattern = substitute(filename, '[\/\\]', '[\\\/\\\\]', "g")
   exe "normal iblablabla"
   exe "normal oblabla" 
   call g:RubyDebugger.toggle_breakpoint()
@@ -1859,7 +1867,7 @@ function! s:Tests.breakpoint.test_should_open_selected_breakpoint_from_breakpoin
   call g:RubyDebugger.open_breakpoints()
   exe 'normal 2G'
   call s:window_breakpoints_activate_node()
-  call g:TU.equal(filename, expand("%"), "It should open file with breakpoint", a:test)
+  call g:TU.match(expand("%"), file_pattern, "It should open file with breakpoint", a:test)
   call g:TU.equal(2, line("."), "It should jump to line with breakpoint", a:test)
   call g:RubyDebugger.open_breakpoints()
 

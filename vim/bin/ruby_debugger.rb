@@ -6,13 +6,30 @@ def create_directory(file)
   dir
 end
 
-def read_socket(response, debugger)
-  output = ""
+def have_unclosed_tag(output)
+  start_match = output.match(/^<([a-zA-Z0-9\-_]+)>/)
+  if start_match
+    end_match = output.match(/<\/#{start_match[1]}>$/)
+    return end_match ? false : true
+  else
+    return false
+  end
+end
+
+def read_socket(response, debugger, output = "")
   if response && response[0] && response[0][0]
-    output = response[0][0].recv(10000)
-    another_response = select([debugger], nil, nil, 0.01)
+    output += response[0][0].recv(10000)
+    if have_unclosed_tag(output)
+      # If rdebug-ide doesn't send full message, we should wait for rest parts too.
+      # We can understand that this is just part of message by matching unclosed tags
+      another_response = select([debugger], nil, nil)
+    else
+      # Sometimes by some reason rdebug-ide sends blank strings just after main message. 
+      # We need to remove these strings by receiving them 
+      another_response = select([debugger], nil, nil, 0.01)
+    end
     if another_response && another_response[0] && another_response[0][0]
-      output += read_socket(another_response, debugger)
+      output = read_socket(another_response, debugger, output)
     end
   end
   output
@@ -35,12 +52,11 @@ end
 t2 = Thread.new do
   loop do 
     response = select([debugger], nil, nil)
-    # Recursively read socket with interval 0.01 seconds. If there will be no message in next 0.01 seconds, stop read.
-    # This is need for reading whole message, because sometimes select/recv reads not all available data
     output = read_socket(response, debugger)
     File.open(ARGV[4], 'w') { |f| f.puts(output) }
     command = ":call RubyDebugger.receive_command()"
-    system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"<C-N>#{command}<CR>\"");
+    starter = (ARGV[5] == 'win' ? "<C-\\>" : "<C-\\\\>")
+    system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"" + starter + "<C-N>#{command}<CR>\"");
  end
 end
 

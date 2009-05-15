@@ -123,10 +123,10 @@ endfunction
 
 " Unescape HTML entities
 function! s:unescape_html(html)
-  let result = substitute(a:html, "&amp;", "\\&", "")
-  let result = substitute(result, "&quot;", "\"", "")
-  let result = substitute(result, "&lt;", "<", "")
-  let result = substitute(result, "&gt;", ">", "")
+  let result = substitute(a:html, "&amp;", "\\&", "g")
+  let result = substitute(result, "&quot;", "\"", "g")
+  let result = substitute(result, "&lt;", "<", "g")
+  let result = substitute(result, "&gt;", ">", "g")
   return result
 endfunction
 
@@ -329,7 +329,7 @@ endfunction
 function! RubyDebugger.toggle_breakpoint() dict
   let line = line(".")
   let file = s:get_filename()
-  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . file . '"')
+  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
   " If breakpoint with current file/line doesn't exist, create it. Otherwise -
   " remove it
   if empty(existed_breakpoints)
@@ -1335,8 +1335,9 @@ function! s:Server.start(script) dict
   call self._stop_server('localhost', s:rdebug_port)
   call self._stop_server('localhost', s:debugger_port)
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
-  " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger
-  let debugger_parameters = ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '"'
+  let os = has("win32") || has("win64") ? 'win' : 'posix'
+  " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger posix
+  let debugger_parameters = ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" ' . os
 
   " Start in background
   if has("win32") || has("win64")

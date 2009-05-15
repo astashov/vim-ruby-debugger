@@ -74,7 +74,7 @@ endfunction
 
 function! s:Mock.unmock_file(filename)
   silent exe "close"
-  silent exe "!rm " . a:filename
+  call delete(a:filename)
 endfunction
 
 

@@ -63,10 +63,10 @@ endfunction
 
 " Unescape HTML entities
 function! s:unescape_html(html)
-  let result = substitute(a:html, "&amp;", "\\&", "")
-  let result = substitute(result, "&quot;", "\"", "")
-  let result = substitute(result, "&lt;", "<", "")
-  let result = substitute(result, "&gt;", ">", "")
+  let result = substitute(a:html, "&amp;", "\\&", "g")
+  let result = substitute(result, "&quot;", "\"", "g")
+  let result = substitute(result, "&lt;", "<", "g")
+  let result = substitute(result, "&gt;", ">", "g")
   return result
 endfunction
 
