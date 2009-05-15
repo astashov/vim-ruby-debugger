@@ -22,7 +22,6 @@ if !has("clientserver")
   echoerr "RubyDebugger: This plugin requires +clientserver option"
   finish
 endif
-echo v:servername
 "if v:servername == ''
 "  echoerr "RubyDebugger: You should specify servername. E.g.: 'vim --servername VIM'"
 "  finish
