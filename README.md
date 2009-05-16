@@ -12,14 +12,14 @@ This Vim plugin implements interactive Ruby debugger in Vim.
 
 # Requirements #
 
-* Vim >= 7.0, compiled with +signs and +clientserver. You can verify it by VIM command: 
+1.  Vim >= 7.0, compiled with +signs and +clientserver. You can verify it by VIM command: 
 
-    :echo has("signs") && has("clientserver") && v:version > 700
+        :echo has("signs") && has("clientserver") && v:version > 700
 
-   It should show result '1'.
+    It should show result '1'.
 
-* ruby-debug-ide gem
-* For linux: 'lsof' program.
+2.  ruby-debug-ide gem.
+3.  For linux: 'lsof' program.
 
 
 # Installation #
