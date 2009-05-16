@@ -60,7 +60,7 @@ I've tested the plugin in Windows and Linux. All tests should be passed there.
 
     It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and ~/.vim/bin/ruby_debugger.rb on these ports accordingly.
 
-3.  Set breakpoint somewhere by **&lt;Leader&rt;b** (e.g., '\b'). You should see 'xx' symbol at current line.
+3.  Set breakpoint somewhere by **&lt;Leader&gt;b** (e.g., '\b'). You should see 'xx' symbol at current line.
 
 4.  Open page with the breakpoint in the browser. Vim should automatically set current line to breakpoint.
 
