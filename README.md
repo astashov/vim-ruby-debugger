@@ -23,7 +23,8 @@ This Vim plugin implements interactive Ruby debugger in Vim.
 
 
 # Installation #
-the repo
+
+1.  Clone the repo
 
         git clone git://github.com/astashov/vim-ruby-debugger.git
 
