@@ -84,7 +84,7 @@ And then, in command mode execute
 
 # Screenshot #
 
-![Screenshot](http://astashov.net/vim_ruby_debugger.png)
+![Screenshot](http://astashov.net/images/vim_ruby_debugger.png)
 
 
 # Thanks #
