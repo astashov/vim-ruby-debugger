@@ -13,7 +13,9 @@ endfunction
 
 " Returns string that contains all variables (for Window.display())
 function! s:WindowVariables.render() dict
-  return g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render()
+  let variables = self.title . "\n"
+  let variables .= (g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render())
+  return variables
 endfunction
 
 

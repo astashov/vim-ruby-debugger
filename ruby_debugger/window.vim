@@ -63,10 +63,6 @@ function! s:Window.display()
 
   call self.clear()
 
-  " Write title
-  call setline(top_line, self.title)
-  call cursor(top_line + 1, current_column)
-
   call self._insert_data()
   call self._restore_view(top_line, current_line, current_column)
 
@@ -159,7 +155,7 @@ function! s:Window._insert_data() dict
   let old_p = @p
   " Put data to the register and then show it by 'put' command
   let @p = self.render()
-  silent put p
+  silent exe "normal \"pP"
   let @p = old_p
   call self._log("Inserted data to window with name: " . self.name)
 endfunction

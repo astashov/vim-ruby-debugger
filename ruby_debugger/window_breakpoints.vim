@@ -15,6 +15,7 @@ endfunction
 " Returns string that contains all breakpoints (for Window.display())
 function! s:WindowBreakpoints.render() dict
   let breakpoints = ""
+  let breakpoints .= self.title . "\n"
   for breakpoint in g:RubyDebugger.breakpoints
     let breakpoints .= breakpoint.render()
   endfor

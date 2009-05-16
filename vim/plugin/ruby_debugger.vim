@@ -22,10 +22,6 @@ if !has("clientserver")
   echoerr "RubyDebugger: This plugin requires +clientserver option"
   finish
 endif
-"if v:servername == ''
-"  echoerr "RubyDebugger: You should specify servername. E.g.: 'vim --servername VIM'"
-"  finish
-"endif
 let g:loaded_ruby_debugger = 1
 
 
@@ -590,10 +586,6 @@ function! s:Window.display()
 
   call self.clear()
 
-  " Write title
-  call setline(top_line, self.title)
-  call cursor(top_line + 1, current_column)
-
   call self._insert_data()
   call self._restore_view(top_line, current_line, current_column)
 
@@ -686,7 +678,7 @@ function! s:Window._insert_data() dict
   let old_p = @p
   " Put data to the register and then show it by 'put' command
   let @p = self.render()
-  silent put p
+  silent exe "normal \"pP"
   let @p = old_p
   call self._log("Inserted data to window with name: " . self.name)
 endfunction
@@ -743,7 +735,9 @@ endfunction
 
 " Returns string that contains all variables (for Window.display())
 function! s:WindowVariables.render() dict
-  return g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render()
+  let variables = self.title . "\n"
+  let variables .= (g:RubyDebugger.variables == {} ? '' : g:RubyDebugger.variables.render())
+  return variables
 endfunction
 
 
@@ -815,6 +809,7 @@ endfunction
 " Returns string that contains all breakpoints (for Window.display())
 function! s:WindowBreakpoints.render() dict
   let breakpoints = ""
+  let breakpoints .= self.title . "\n"
   for breakpoint in g:RubyDebugger.breakpoints
     let breakpoints .= breakpoint.render()
   endfor
