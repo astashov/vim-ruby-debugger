@@ -81,7 +81,11 @@ endfunction
 " Send message to debugger. This function should never be used explicitly,
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
-  call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
+  if g:ruby_debugger_fast_sender
+    call system(s:runtime_dir . "/bin/socket localhost 39768 '" . a:message . "'")
+  else
+    call system("ruby -e \"require 'socket'; a = TCPSocket.open('localhost', 39768); a.puts('" . a:message . "'); a.close\"")
+  endif
 endfunction
 
 

@@ -1,5 +1,10 @@
 " *** Creating instances (start)
 
+" Initialize RUbyDebugger settings
+if !exists("g:ruby_debugger_fast_sender")
+  let g:ruby_debugger_fast_sender = 0
+endif
+
 
 " Creating windows
 let s:variables_window = s:WindowVariables.new("variables", "Variables_Window")
