@@ -32,6 +32,7 @@ let s:runtime_dir = split(&runtimepath, ',')[0]
 " File for communicating between intermediate Ruby script ruby_debugger.rb and
 " this plugin
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
+let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
 
@@ -1339,16 +1340,17 @@ function! s:Server.start(script) dict
 
   " Start in background
   if has("win32") || has("win64")
-    silent exe '! start ' . rdebug
+    silent exe '! start ' . rdebug . ' > ' . s:server_output_file
     sleep 2
     let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
     silent exe '! start ' . debugger
     sleep 2
   else
-    call system(rdebug . ' &')
-    sleep 1
+    call system(rdebug . ' > ' . s:server_output_file . ' &')
+    sleep 2
     let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters
     call system(debugger. ' &')
+    sleep 2
   endif
 
   " Set PIDs of processes
