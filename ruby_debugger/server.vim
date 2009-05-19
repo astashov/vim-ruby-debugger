@@ -26,7 +26,7 @@ function! s:Server.start(script) dict
 
   " Start in background
   if has("win32") || has("win64")
-    silent exe '! start ' . rdebug . ' > ' . s:server_output_file
+    silent exe '! start ' . rdebug
     sleep 2
     let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
     silent exe '! start ' . debugger
