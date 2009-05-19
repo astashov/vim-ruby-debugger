@@ -73,8 +73,8 @@ QUICKSTART					*ruby-debugger-quickstart*
 3. Run Server with Debugger: >
 	:Rdebugger
 
-   It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and
-   ~/.vim/bin/ruby_debugger.rb on these ports accordingly.
+It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and
+~/.vim/bin/ruby_debugger.rb on these ports accordingly.
 
 3. Set breakpoint somewhere by <Leader>b (usually, '\b'). You should see
    "xx" symbol at the current line.
@@ -107,23 +107,25 @@ DETAILS					*ruby-debugger-details*
 	map <Leader>c  :call g:RubyDebugger.continue()<CR>
 	map <Leader>e  :call g:RubyDebugger.exit()<CR>
 >
+2. Standard output of running script is redirected to
+~/.vim/tmp/ruby_debugger_output file (only for POSIX systems - Linux, MacOS) 
 
-2. To run some other Ruby application (not Rails), you should specify its
+3. To run some other Ruby application (not Rails), you should specify its
    path as argument of Rdebugger command. E.g. >
 	:Rdebugger bla.rb
 
-3. To run some rdebug command, use :RdbCommand. E.g.: >
+4. To run some rdebug command, use :RdbCommand. E.g.: >
 	:RdbCommand p User.find_by_name(\"john\").created_at
 
-4. For communicating with the rdebug the plugin uses temp file:
+5. For communicating with the rdebug the plugin uses temp file:
    ~/.vim/tmp/ruby_debugger. Rdebug writes some response to this file, "kicks"
    the plugin remotely calling RubyDebugger.receive_command() by Vim's
    client-server functionality and the plugin make actions. For this reason,
    you need Vim compiled with +clientserver.
 
-5. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
+6. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
 
-6. You also can run Unit tests for the plugin. For this, copy to 
+7. You also can run Unit tests for the plugin. For this, copy to 
    ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim. It has
    the same functionality, but with unit tests at end of the file. To run
    unit tests, run >
