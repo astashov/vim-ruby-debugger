@@ -8,7 +8,7 @@ map <Leader>n  :call g:RubyDebugger.next()<CR>
 map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
 
-command! -nargs=? Rdebugger :call g:RubyDebugger.start(<q-args>) 
+command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 if exists("g:loaded_ruby_debugger")
@@ -261,6 +261,7 @@ let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoin
 function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
   let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
+  echo "Loading debugger..."
   call g:RubyDebugger.server.start(script)
 
   " Send only first breakpoint to the debugger. All other breakpoints will be
