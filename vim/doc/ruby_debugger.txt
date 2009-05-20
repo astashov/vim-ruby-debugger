@@ -110,25 +110,31 @@ DETAILS					*ruby-debugger-details*
 2. Standard output of running script is redirected to
 ~/.vim/tmp/ruby_debugger_output file (only for POSIX systems - Linux, MacOS) 
 
-3. To run some other Ruby application (not Rails), you should specify its
+3. If you are using POSIX OS (Linux, MacOS), you can try fast C implementation
+   of message sender to debugger. For this, copy "socket" file from 
+   additionals/bin/ to ~/.vim/bin/, add execution rights to it (chmod +x)
+   and add this string to your .vimrc: >
+        let g:ruby_debugger_fast_sender = 1
+
+4. To run some other Ruby application (not Rails), you should specify its
    path as argument of Rdebugger command. E.g. >
 	:Rdebugger bla.rb
 
-4. To run some rdebug command, use :RdbCommand. E.g.: >
+5. To run some rdebug command, use :RdbCommand. E.g.: >
 	:RdbCommand p User.find_by_name(\"john\").created_at
 
-5. For communicating with the rdebug the plugin uses temp file:
+6. For communicating with the rdebug the plugin uses temp file:
    ~/.vim/tmp/ruby_debugger. Rdebug writes some response to this file, "kicks"
    the plugin remotely calling RubyDebugger.receive_command() by Vim's
    client-server functionality and the plugin make actions. For this reason,
    you need Vim compiled with +clientserver.
 
-6. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
+7. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
 
-7. You also can run Unit tests for the plugin. For this, copy to 
+8. You also can run Unit tests for the plugin. For this, copy to 
    ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim. It has
    the same functionality, but with unit tests at end of the file. To run
-   unit tests, run >
+   unit tests, change current directory to some rails project and run >
 	call g:TU.run()
 
 ==============================================================================
