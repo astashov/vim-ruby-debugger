@@ -6,7 +6,7 @@ let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoin
 " Run debugger server. It takes one optional argument with path to debugged
 " ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
-  let g:RubyDebugger.server = s:Server.new(s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file)
+  let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
   let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(script)

@@ -5,24 +5,26 @@ let s:Server = {}
 " ** Public methods
 
 " Constructor of new server. Just inits it, not runs
-function! s:Server.new(rdebug_port, debugger_port, runtime_dir, tmp_file) dict
+function! s:Server.new(hostname, rdebug_port, debugger_port, runtime_dir, tmp_file, output_file) dict
   let var = copy(self)
+  let var.hostname = a:hostname
   let var.rdebug_port = a:rdebug_port
   let var.debugger_port = a:debugger_port
   let var.runtime_dir = a:runtime_dir
   let var.tmp_file = a:tmp_file
+  let var.output_file = a:output_file
   return var
 endfunction
 
 
 " Start the server. It will kill any listeners on given ports before.
 function! s:Server.start(script) dict
-  call self._stop_server('localhost', s:rdebug_port)
-  call self._stop_server('localhost', s:debugger_port)
+  call self._stop_server(self.hostname, self.rdebug_port)
+  call self._stop_server(self.hostname, self.debugger_port)
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
   let os = has("win32") || has("win64") ? 'win' : 'posix'
   " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger posix
-  let debugger_parameters = ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" ' . os
+  let debugger_parameters = ' ' . self.hostname . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" ' . os
 
   " Start in background
   if has("win32") || has("win64")
@@ -32,7 +34,7 @@ function! s:Server.start(script) dict
     silent exe '! start ' . debugger
     sleep 2
   else
-    call system(rdebug . ' > ' . s:server_output_file . ' &')
+    call system(rdebug . ' > ' . self.output_file . ' &')
     sleep 2
     let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters
     call system(debugger. ' &')
@@ -40,8 +42,8 @@ function! s:Server.start(script) dict
   endif
 
   " Set PIDs of processes
-  let self.rdebug_pid = self._get_pid('localhost', self.rdebug_port)
-  let self.debugger_pid = self._get_pid('localhost', self.debugger_port)
+  let self.rdebug_pid = self._get_pid(self.hostname, self.rdebug_port)
+  let self.debugger_pid = self._get_pid(self.hostname, self.debugger_port)
 
   call g:RubyDebugger.logger.put("Start debugger")
 endfunction  
@@ -58,7 +60,7 @@ endfunction
 
 " Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
-  return (self._get_pid('localhost', self.rdebug_port) =~ '^\d\+$') && (self._get_pid('localhost', self.debugger_port) =~ '^\d\+$')
+  return (self._get_pid(self.hostname, self.rdebug_port) =~ '^\d\+$') && (self._get_pid(self.hostname, self.debugger_port) =~ '^\d\+$')
 endfunction
 
 

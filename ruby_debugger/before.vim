@@ -27,6 +27,7 @@ let g:loaded_ruby_debugger = 1
 
 let s:rdebug_port = 39767
 let s:debugger_port = 39768
+let s:hostname = hostname()
 " ~/.vim for Linux, vimfiles for Windows
 let s:runtime_dir = split(&runtimepath, ',')[0]
 " File for communicating between intermediate Ruby script ruby_debugger.rb and

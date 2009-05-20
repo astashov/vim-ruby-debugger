@@ -13,8 +13,8 @@ endfunction
 function! s:Tests.variables.before()
   let g:RubyDebugger.breakpoints = []
   let g:RubyDebugger.variables = {} 
-  call s:Server._stop_server('localhost', s:rdebug_port)
-  call s:Server._stop_server('localhost', s:debugger_port)
+  call s:Server._stop_server(s:hostname, s:rdebug_port)
+  call s:Server._stop_server(s:hostname, s:debugger_port)
 endfunction
 
 

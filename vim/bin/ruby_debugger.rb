@@ -35,9 +35,9 @@ def read_socket(response, debugger, output = "")
   output
 end
 
-server = TCPServer.new('localhost', ARGV[1])
-debugger = TCPSocket.open('localhost', ARGV[0])
-create_directory(ARGV[4])
+server = TCPServer.new(ARGV[0], ARGV[2])
+debugger = TCPSocket.open(ARGV[0], ARGV[1])
+create_directory(ARGV[5])
 
 storage = []
 
@@ -53,10 +53,10 @@ t2 = Thread.new do
   loop do 
     response = select([debugger], nil, nil)
     output = read_socket(response, debugger)
-    File.open(ARGV[4], 'w') { |f| f.puts(output) }
+    File.open(ARGV[5], 'w') { |f| f.puts(output) }
     command = ":call RubyDebugger.receive_command()"
-    starter = (ARGV[5] == 'win' ? "<C-\\>" : "<C-\\\\>")
-    system("#{ARGV[2]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"" + starter + "<C-N>#{command}<CR>\"");
+    starter = (ARGV[6] == 'win' ? "<C-\\>" : "<C-\\\\>")
+    system("#{ARGV[3]} --servername #{ARGV[3]} -u NONE -U NONE --remote-send \"" + starter + "<C-N>#{command}<CR>\"");
  end
 end
 
