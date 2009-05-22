@@ -139,9 +139,28 @@ endfunction
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   if g:ruby_debugger_fast_sender
-    call system(s:runtime_dir . "/bin/socket " . s:hostname . " 39768 '" . a:message . "'")
+    call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " '" . a:message . "'")
   else
-    call system("ruby -e \"require 'socket'; a = TCPSocket.open('" . s:hostname . "', 39768); a.puts('" . a:message . "'); a.close\"")
+    let script =  "ruby -e \"require 'socket'; "
+    let script .= "attempts = 0; "
+    let script .= "begin; "
+    let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
+    let script .=   "a.puts('" . a:message . "'); "
+    let script .=   "a.close; "
+    let script .= "rescue Errno::ECONNREFUSED; "
+    let script .=   "attempts += 1; "
+    let script .=   "if attempts < 400; "
+    let script .=     "sleep 0.05; "
+    let script .=     "retry; "
+    let script .=   "else; "
+    let script .=     "puts('" . s:hostname . ":" . s:debugger_port . " can not be opened'); "
+    let script .=     "exit; "
+    let script .=   "end; "
+    let script .= "end; \""
+    let output = system(script)
+    if output =~ 'can not be opened'
+      call g:RubyDebugger.logger.put("Can't send a message to rdebug - port is not opened") 
+    endif
   endif
 endfunction
 
@@ -1345,21 +1364,17 @@ function! s:Server.start(script) dict
   " Start in background
   if has("win32") || has("win64")
     silent exe '! start ' . rdebug
-    sleep 2
     let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
     silent exe '! start ' . debugger
-    sleep 2
   else
     call system(rdebug . ' > ' . self.output_file . ' &')
-    sleep 2
     let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters
     call system(debugger. ' &')
-    sleep 2
   endif
 
   " Set PIDs of processes
-  let self.rdebug_pid = self._get_pid(self.hostname, self.rdebug_port)
-  let self.debugger_pid = self._get_pid(self.hostname, self.debugger_port)
+  let self.rdebug_pid = self._get_pid(self.hostname, self.rdebug_port, 1)
+  let self.debugger_pid = self._get_pid(self.hostname, self.debugger_port, 1)
 
   call g:RubyDebugger.logger.put("Start debugger")
 endfunction  
@@ -1376,15 +1391,30 @@ endfunction
 
 " Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
-  return (self._get_pid(self.hostname, self.rdebug_port) =~ '^\d\+$') && (self._get_pid(self.hostname, self.debugger_port) =~ '^\d\+$')
+  return (self._get_pid(self.hostname, self.rdebug_port, 0) =~ '^\d\+$') && (self._get_pid(self.hostname, self.debugger_port, 0) =~ '^\d\+$')
 endfunction
 
 
 " ** Private methods
 
 
-" Get PID of process, that listens given port on given host
-function! s:Server._get_pid(bind, port)
+" Get PID of process, that listens given port on given host. If must_get_pid
+" parameter is true, it will try to get PID for 20 seconds.
+function! s:Server._get_pid(bind, port, must_get_pid)
+  let attempt = 0
+  let pid = self._get_pid_attempt(a:bind, a:port)
+  while a:must_get_pid && pid == "" && attempt < 2000
+    sleep 10m
+    let attempt += 1
+    let pid = self._get_pid_attempt(a:bind, a:port)
+  endwhile
+  return pid
+endfunction
+
+
+" Just try to get PID of process and return empty string if it was
+" unsuccessful
+function! s:Server._get_pid_attempt(bind, port)
   if has("win32") || has("win64")
     let netstat = system("netstat -anop tcp")
     let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
@@ -1401,7 +1431,7 @@ endfunction
 
 " Kill listener of given host/port
 function! s:Server._stop_server(bind, port) dict
-  let pid = self._get_pid(a:bind, a:port)
+  let pid = self._get_pid(a:bind, a:port, 0)
   if pid =~ '^\d\+$'
     call self._kill_process(pid)
   endif
@@ -1676,8 +1706,8 @@ function! s:Tests.server.test_should_stop_server(test)
   exe "Rdebugger"
   call g:RubyDebugger.server.stop()
   call g:TU.ok(!g:RubyDebugger.server.is_running(), "Server should not be run", a:test)
-  call g:TU.equal("", s:Server._get_pid(s:hostname, s:rdebug_port), "Process rdebug-ide should not exist", a:test)
-  call g:TU.equal("", s:Server._get_pid(s:hostname, s:debugger_port), "Process debugger.rb should not exist", a:test)
+  call g:TU.equal("", s:Server._get_pid(s:hostname, s:rdebug_port, 0), "Process rdebug-ide should not exist", a:test)
+  call g:TU.equal("", s:Server._get_pid(s:hostname, s:debugger_port, 0), "Process debugger.rb should not exist", a:test)
   call g:TU.equal("", g:RubyDebugger.server.rdebug_pid, "Pid of rdebug-ide should be nullified", a:test)
   call g:TU.equal("", g:RubyDebugger.server.debugger_pid, "Pid of debugger.rb should be nullified", a:test)
 endfunction

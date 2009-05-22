@@ -82,9 +82,28 @@ endfunction
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   if g:ruby_debugger_fast_sender
-    call system(s:runtime_dir . "/bin/socket " . s:hostname . " 39768 '" . a:message . "'")
+    call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " '" . a:message . "'")
   else
-    call system("ruby -e \"require 'socket'; a = TCPSocket.open('" . s:hostname . "', 39768); a.puts('" . a:message . "'); a.close\"")
+    let script =  "ruby -e \"require 'socket'; "
+    let script .= "attempts = 0; "
+    let script .= "begin; "
+    let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
+    let script .=   "a.puts('" . a:message . "'); "
+    let script .=   "a.close; "
+    let script .= "rescue Errno::ECONNREFUSED; "
+    let script .=   "attempts += 1; "
+    let script .=   "if attempts < 400; "
+    let script .=     "sleep 0.05; "
+    let script .=     "retry; "
+    let script .=   "else; "
+    let script .=     "puts('" . s:hostname . ":" . s:debugger_port . " can not be opened'); "
+    let script .=     "exit; "
+    let script .=   "end; "
+    let script .= "end; \""
+    let output = system(script)
+    if output =~ 'can not be opened'
+      call g:RubyDebugger.logger.put("Can't send a message to rdebug - port is not opened") 
+    endif
   endif
 endfunction
 

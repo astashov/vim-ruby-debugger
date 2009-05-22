@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <time.h>
+
 extern int errno;
 
 int main(int argc, char **argv) {
@@ -49,8 +51,14 @@ int main(int argc, char **argv) {
   memcpy(&socketaddr.sin_addr, hostaddr->h_addr, hostaddr->h_length);
 
   int rval;
-  rval = connect(sd, (struct sockaddr *) &socketaddr, sizeof(socketaddr));
-  printf("%d\n", rval);
+  int attempts = 0;
+  struct timespec ts = { .tv_sec = 0, .tv_nsec = 50000000 };
+  do { 
+    rval = connect(sd, (struct sockaddr *) &socketaddr, sizeof(socketaddr));
+    attempts += 1;
+    nanosleep(&ts, NULL);
+  } while (rval == -1 && attempts < 400);
+    
   if (rval == -1) {
     perror("connect()");
     return(errno);

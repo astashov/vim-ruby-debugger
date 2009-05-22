@@ -29,21 +29,17 @@ function! s:Server.start(script) dict
   " Start in background
   if has("win32") || has("win64")
     silent exe '! start ' . rdebug
-    sleep 2
     let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
     silent exe '! start ' . debugger
-    sleep 2
   else
     call system(rdebug . ' > ' . self.output_file . ' &')
-    sleep 2
     let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters
     call system(debugger. ' &')
-    sleep 2
   endif
 
   " Set PIDs of processes
-  let self.rdebug_pid = self._get_pid(self.hostname, self.rdebug_port)
-  let self.debugger_pid = self._get_pid(self.hostname, self.debugger_port)
+  let self.rdebug_pid = self._get_pid(self.hostname, self.rdebug_port, 1)
+  let self.debugger_pid = self._get_pid(self.hostname, self.debugger_port, 1)
 
   call g:RubyDebugger.logger.put("Start debugger")
 endfunction  
@@ -60,15 +56,30 @@ endfunction
 
 " Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
-  return (self._get_pid(self.hostname, self.rdebug_port) =~ '^\d\+$') && (self._get_pid(self.hostname, self.debugger_port) =~ '^\d\+$')
+  return (self._get_pid(self.hostname, self.rdebug_port, 0) =~ '^\d\+$') && (self._get_pid(self.hostname, self.debugger_port, 0) =~ '^\d\+$')
 endfunction
 
 
 " ** Private methods
 
 
-" Get PID of process, that listens given port on given host
-function! s:Server._get_pid(bind, port)
+" Get PID of process, that listens given port on given host. If must_get_pid
+" parameter is true, it will try to get PID for 20 seconds.
+function! s:Server._get_pid(bind, port, must_get_pid)
+  let attempt = 0
+  let pid = self._get_pid_attempt(a:bind, a:port)
+  while a:must_get_pid && pid == "" && attempt < 2000
+    sleep 10m
+    let attempt += 1
+    let pid = self._get_pid_attempt(a:bind, a:port)
+  endwhile
+  return pid
+endfunction
+
+
+" Just try to get PID of process and return empty string if it was
+" unsuccessful
+function! s:Server._get_pid_attempt(bind, port)
   if has("win32") || has("win64")
     let netstat = system("netstat -anop tcp")
     let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
@@ -85,7 +96,7 @@ endfunction
 
 " Kill listener of given host/port
 function! s:Server._stop_server(bind, port) dict
-  let pid = self._get_pid(a:bind, a:port)
+  let pid = self._get_pid(a:bind, a:port, 0)
   if pid =~ '^\d\+$'
     call self._kill_process(pid)
   endif

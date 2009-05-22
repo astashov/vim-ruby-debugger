@@ -23,8 +23,8 @@ function! s:Tests.server.test_should_stop_server(test)
   exe "Rdebugger"
   call g:RubyDebugger.server.stop()
   call g:TU.ok(!g:RubyDebugger.server.is_running(), "Server should not be run", a:test)
-  call g:TU.equal("", s:Server._get_pid(s:hostname, s:rdebug_port), "Process rdebug-ide should not exist", a:test)
-  call g:TU.equal("", s:Server._get_pid(s:hostname, s:debugger_port), "Process debugger.rb should not exist", a:test)
+  call g:TU.equal("", s:Server._get_pid(s:hostname, s:rdebug_port, 0), "Process rdebug-ide should not exist", a:test)
+  call g:TU.equal("", s:Server._get_pid(s:hostname, s:debugger_port, 0), "Process debugger.rb should not exist", a:test)
   call g:TU.equal("", g:RubyDebugger.server.rdebug_pid, "Pid of rdebug-ide should be nullified", a:test)
   call g:TU.equal("", g:RubyDebugger.server.debugger_pid, "Pid of debugger.rb should be nullified", a:test)
 endfunction
