@@ -121,6 +121,8 @@ DETAILS					*ruby-debugger-details*
 4. To run some other Ruby application (not Rails), you should specify its
    path as argument of Rdebugger command. E.g. >
 	:Rdebugger bla.rb
+If your script receives arguments, quote it into single quotes: >
+        :Rdebugger '/path/to/bla.rb 1234 bla_bla'
 
 5. To run some rdebug command, use :RdbCommand. E.g.: >
 	:RdbCommand p User.find_by_name(\"john\").created_at

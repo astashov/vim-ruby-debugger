@@ -13,7 +13,7 @@ command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>)
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 if exists("g:loaded_ruby_debugger")
-  " finish
+  finish
 endif
 if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
@@ -1367,7 +1367,9 @@ endfunction
 function! s:Server.start(script) dict
   call self._stop_server(self.hostname, self.rdebug_port)
   call self._stop_server(self.hostname, self.debugger_port)
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . a:script
+  " Remove leading and trailing quotes
+  let script_name = substitute(a:script, "\\(^['\"]\\|['\"]$\\)", '', 'g')
+  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . script_name
   let os = has("win32") || has("win64") ? 'win' : 'posix'
   " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger posix
   let debugger_parameters = ' ' . self.hostname . ' ' . self.rdebug_port . ' ' . self.debugger_port . ' ' . v:progname . ' ' . v:servername . ' "' . self.tmp_file . '" ' . os

@@ -13,7 +13,7 @@ command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>)
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 if exists("g:loaded_ruby_debugger")
-  " finish
+  finish
 endif
 if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
