@@ -11,8 +11,9 @@ map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
 
 command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
+command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
 
-if exists("g:loaded_ruby_debugger")
+if exists("g:ruby_debugger_loaded")
   finish
 endif
 if v:version < 700 
@@ -23,7 +24,7 @@ if !has("clientserver")
   echoerr "RubyDebugger: This plugin requires +clientserver option"
   finish
 endif
-let g:loaded_ruby_debugger = 1
+let g:ruby_debugger_loaded = 1
 
 
 let s:rdebug_port = 39767

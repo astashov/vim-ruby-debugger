@@ -11,8 +11,9 @@ map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
 
 command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
+command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
 
-if exists("g:loaded_ruby_debugger")
+if exists("g:ruby_debugger_loaded")
   finish
 endif
 if v:version < 700 
@@ -23,7 +24,7 @@ if !has("clientserver")
   echoerr "RubyDebugger: This plugin requires +clientserver option"
   finish
 endif
-let g:loaded_ruby_debugger = 1
+let g:ruby_debugger_loaded = 1
 
 
 let s:rdebug_port = 39767
@@ -409,6 +410,19 @@ endfunction
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.send_command("exit")
   call s:clear_current_state()
+endfunction
+
+
+" Debug current opened test
+function! RubyDebugger.run_test() dict
+  let file = s:get_filename()
+  if file =~ '_spec\.rb$'
+    call g:RubyDebugger.start(g:ruby_debugger_spec_path . ' ' . file)
+  elseif file =~ '\.feature$'
+    call g:RubyDebugger.start(g:ruby_debugger_cucumber_path . ' ' . file)
+  elseif file =~ '_test\.rb$'
+    call g:RubyDebugger.start(file)
+  endif
 endfunction
 
 
@@ -1474,6 +1488,12 @@ endfunction
 " Initialize RUbyDebugger settings
 if !exists("g:ruby_debugger_fast_sender")
   let g:ruby_debugger_fast_sender = 0
+endif
+if !exists("g:ruby_debugger_spec_path")
+  let g:ruby_debugger_spec_path = '/usr/bin/spec'
+endif
+if !exists("g:ruby_debugger_cucumber_path")
+  let g:ruby_debugger_cucumber_path = '/usr/bin/cucumber'
 endif
 
 

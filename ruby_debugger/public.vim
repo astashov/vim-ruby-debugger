@@ -137,6 +137,19 @@ function! RubyDebugger.exit() dict
 endfunction
 
 
+" Debug current opened test
+function! RubyDebugger.run_test() dict
+  let file = s:get_filename()
+  if file =~ '_spec\.rb$'
+    call g:RubyDebugger.start(g:ruby_debugger_spec_path . ' ' . file)
+  elseif file =~ '\.feature$'
+    call g:RubyDebugger.start(g:ruby_debugger_cucumber_path . ' ' . file)
+  elseif file =~ '_test\.rb$'
+    call g:RubyDebugger.start(file)
+  endif
+endfunction
+
+
 " *** Public interface (end)
 
 

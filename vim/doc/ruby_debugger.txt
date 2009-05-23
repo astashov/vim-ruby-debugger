@@ -7,6 +7,7 @@ Author: Anton Astashov
 |ruby-debugger-installation|	Installation
 |ruby-debugger-quickstart|	QuickStart
 |ruby-debugger-details|		Some additional details about the plugin
+|ruby-debugger-tests|		Debugging of tests
 |ruby-debugger-bugs|		Bugreporting
 |ruby-debugger-about|		About
 
@@ -140,6 +141,31 @@ If your script receives arguments, quote it into single quotes: >
    the same functionality, but with unit tests at end of the file. To run
    unit tests, change current directory to some rails project and run >
 	call g:TU.run()
+
+==============================================================================
+DEBUGGING OF TESTS					*ruby-debugger-tests*
+
+The plugin supports debugging of Test::Unit tests, RSpec specs and Cucumber
+features by :RdbTest command. Just open file with the test, set some
+breakpoints and type:  >
+  :RdbTest
+
+It equals to running >
+  :Rdebugger /path/to/some_test.rb                      " for Test::Unit tests
+  :Rdebugger '/usr/bin/spec /path/to/some_spec.rb'      " for RSpec
+  :Rdebugger '/usr/bin/cucumber /path/to/some.feature'  " for Cucumber feautres
+
+For debugging Cucumber features, you should set breakpoints in step
+definitions file (e.g., user_steps.rb), but start debugger by :RdbTest command
+in blabla.feature file. You can't set breakpoints in .feature file (I mean you
+can, but they will be ignored), because... well, it is just plain text! :)
+
+If you store spec or cucumber executables in some different place, not in
+/usr/bin (e.g., if you have Windows), you should set path to them explicitly.
+
+For this, set some variables in your .vimrc. E.g.: >
+  let g:ruby_debugger_spec_path = 'c:\gembins\spec'         " set Rspec path
+  let g:ruby_debugger_cucumber_path = 'c:\gembins\cucumber' " set Cucumber path
 
 ==============================================================================
 BUGS					*ruby-debugger-bugs*
