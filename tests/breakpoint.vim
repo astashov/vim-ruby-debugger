@@ -62,6 +62,29 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
   call s:Mock.unmock_file(filename)
 endfunction
 
+
+function! s:Tests.breakpoint.test_should_remove_all_breakpoints(test)
+  let filename = s:Mock.mock_file()
+  " Write 3 lines of text and set 3 breakpoints (on every line)
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  exe "normal obla" 
+  exe "normal gg"
+  exe "write"
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal j"
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal j"
+  call g:RubyDebugger.toggle_breakpoint()
+  call g:TU.equal(3, len(g:RubyDebugger.breakpoints), "3 breakpoints should be set", a:test)
+  
+  call g:RubyDebugger.remove_breakpoints()
+
+  call g:TU.equal(0, len(g:RubyDebugger.breakpoints), "Breakpoints should be removed", a:test)
+
+  call s:Mock.unmock_file(filename)
+endfunction
+
   
 function! s:Tests.breakpoint.test_jump_to_breakpoint_by_breakpoint(test)
   call s:Tests.breakpoint.jump_to_breakpoint('breakpoint', a:test)

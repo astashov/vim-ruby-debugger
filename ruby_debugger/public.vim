@@ -97,6 +97,15 @@ function! RubyDebugger.toggle_breakpoint() dict
 endfunction
 
 
+" Remove all breakpoints
+function! RubyDebugger.remove_breakpoints() dict
+  for breakpoint in g:RubyDebugger.breakpoints
+    call breakpoint.delete()
+  endfor
+  let g:RubyDebugger.breakpoints = []
+endfunction
+
+
 " Next
 function! RubyDebugger.next() dict
   call g:RubyDebugger.send_command("next")

@@ -7,14 +7,15 @@ map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
 map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
+map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
 
 command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 if exists("g:loaded_ruby_debugger")
-  finish
+  " finish
 endif
-if v:version < 700
+if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
   finish
 endif
@@ -368,6 +369,15 @@ function! RubyDebugger.toggle_breakpoint() dict
     call s:breakpoints_window.open()
     exe "wincmd p"
   endif
+endfunction
+
+
+" Remove all breakpoints
+function! RubyDebugger.remove_breakpoints() dict
+  for breakpoint in g:RubyDebugger.breakpoints
+    call breakpoint.delete()
+  endfor
+  let g:RubyDebugger.breakpoints = []
 endfunction
 
 
@@ -1790,6 +1800,29 @@ function! s:Tests.breakpoint.test_should_add_all_unassigned_breakpoints_to_runni
   for breakpoint in g:RubyDebugger.breakpoints
     call g:TU.equal(g:RubyDebugger.server.rdebug_pid, breakpoint.rdebug_pid, "Breakpoint should have PID of running server", a:test)
   endfor
+  call s:Mock.unmock_file(filename)
+endfunction
+
+
+function! s:Tests.breakpoint.test_should_remove_all_breakpoints(test)
+  let filename = s:Mock.mock_file()
+  " Write 3 lines of text and set 3 breakpoints (on every line)
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  exe "normal obla" 
+  exe "normal gg"
+  exe "write"
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal j"
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal j"
+  call g:RubyDebugger.toggle_breakpoint()
+  call g:TU.equal(3, len(g:RubyDebugger.breakpoints), "3 breakpoints should be set", a:test)
+  
+  call g:RubyDebugger.remove_breakpoints()
+
+  call g:TU.equal(0, len(g:RubyDebugger.breakpoints), "Breakpoints should be removed", a:test)
+
   call s:Mock.unmock_file(filename)
 endfunction
 

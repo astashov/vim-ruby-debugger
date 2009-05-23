@@ -7,14 +7,15 @@ map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
 map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
+map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
 
 command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>) 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 
 if exists("g:loaded_ruby_debugger")
-  finish
+  " finish
 endif
-if v:version < 700
+if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
   finish
 endif
