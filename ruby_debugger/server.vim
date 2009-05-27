@@ -34,7 +34,7 @@ function! s:Server.start(script) dict
     let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
     silent exe '! start ' . debugger
   else
-    call system(rdebug . ' > ' . self.output_file . ' &')
+    call system(rdebug . ' > ' . self.output_file . ' 2>&1 &')
     let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters
     call system(debugger. ' &')
   endif

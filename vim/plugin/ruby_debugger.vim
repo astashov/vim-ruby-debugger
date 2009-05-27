@@ -10,6 +10,7 @@ map <Leader>e  :call g:RubyDebugger.exit()<CR>
 map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
 
 command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>) 
+command! -nargs=0 RdbStop :call g:RubyDebugger.stop() 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
 
@@ -297,6 +298,14 @@ function! RubyDebugger.start(...) dict
     call g:RubyDebugger.send_command('start')
   endif
   echo "Debugger started"
+endfunction
+
+
+" Stop running server.
+function! RubyDebugger.stop() dict
+  if has_key(g:RubyDebugger, 'server')
+    call g:RubyDebugger.server.stop()
+  endif
 endfunction
 
 
@@ -1394,7 +1403,7 @@ function! s:Server.start(script) dict
     let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
     silent exe '! start ' . debugger
   else
-    call system(rdebug . ' > ' . self.output_file . ' &')
+    call system(rdebug . ' > ' . self.output_file . ' 2>&1 &')
     let debugger = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters
     call system(debugger. ' &')
   endif

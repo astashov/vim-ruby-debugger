@@ -24,6 +24,14 @@ function! RubyDebugger.start(...) dict
 endfunction
 
 
+" Stop running server.
+function! RubyDebugger.stop() dict
+  if has_key(g:RubyDebugger, 'server')
+    call g:RubyDebugger.server.stop()
+  endif
+endfunction
+
+
 " This function receives commands from the debugger. When ruby_debugger.rb
 " gets output from rdebug-ide, it writes it to the special file and 'kick'
 " the plugin by remotely calling RubyDebugger.receive_command(), e.g.:
