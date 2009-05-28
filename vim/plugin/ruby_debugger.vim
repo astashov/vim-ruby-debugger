@@ -25,6 +25,14 @@ if !has("clientserver")
   echoerr "RubyDebugger: This plugin requires +clientserver option"
   finish
 endif
+if !executable("rdebug-ide")
+  echoerr "RubyDebugger: You don't have installed 'ruby-debug-ide' gem or executable 'rdebug-ide' can't be found in your PATH"
+  finish
+endif
+if !(has("win32") || has("win64")) && !executable("lsof")
+  echoerr "RubyDebugger: You don't have 'lsof' installed or executable 'lsof' can't be found in your PATH"
+  finish
+endif
 let g:ruby_debugger_loaded = 1
 
 
