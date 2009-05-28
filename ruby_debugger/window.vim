@@ -110,6 +110,7 @@ function! s:Window.open() dict
       setlocal foldcolumn=0
       setlocal nobuflisted
       setlocal nospell
+      setlocal nolist
       iabc <buffer>
       setlocal cursorline
       setfiletype ruby_debugger_window
