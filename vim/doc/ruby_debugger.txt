@@ -141,9 +141,10 @@ If your script receives arguments, quote it into single quotes: >
 8. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
 
 9. You also can run Unit tests for the plugin. For this, copy to 
-   ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim. It has
-   the same functionality, but with unit tests at end of the file. To run
-   unit tests, change current directory to some rails project and run >
+   ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim (from
+   additionals/plugin directory). It has the same functionality, but with unit 
+   tests at end of the file. To run unit tests, change current directory to 
+   some rails project and run >
 	call g:TU.run()
 
 ==============================================================================

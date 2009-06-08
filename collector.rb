@@ -39,5 +39,5 @@ common = Collector.new(['ruby_debugger_plan.txt'], 'vim/plugin/ruby_debugger.vim
 common.accumulate!
 
 
-with_tests = Collector.new(['ruby_debugger_plan.txt', 'ruby_test_plan.txt'], 'vim/plugin/ruby_debugger_test.vim')
+with_tests = Collector.new(['ruby_debugger_plan.txt', 'ruby_test_plan.txt'], 'additionals/plugin/ruby_debugger_test.vim')
 with_tests.accumulate!

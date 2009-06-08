@@ -64,7 +64,7 @@ endfunction
 
 " We set function this way, because we want have possibility to mock it by
 " other function in tests
-let RubyDebugger.send_command = function("s:send_message_to_debugger")
+let RubyDebugger.send_command = function("<SID>send_message_to_debugger")
 
 
 " Open variables window
