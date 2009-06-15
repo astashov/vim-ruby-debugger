@@ -1397,8 +1397,8 @@ endfunction
 
 " Start the server. It will kill any listeners on given ports before.
 function! s:Server.start(script) dict
-  call self._stop_server(self.hostname, self.rdebug_port)
-  call self._stop_server(self.hostname, self.debugger_port)
+  call self._stop_server(self.rdebug_port)
+  call self._stop_server(self.debugger_port)
   " Remove leading and trailing quotes
   let script_name = substitute(a:script, "\\(^['\"]\\|['\"]$\\)", '', 'g')
   let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . script_name
@@ -1418,8 +1418,8 @@ function! s:Server.start(script) dict
   endif
 
   " Set PIDs of processes
-  let self.rdebug_pid = self._get_pid(self.hostname, self.rdebug_port, 1)
-  let self.debugger_pid = self._get_pid(self.hostname, self.debugger_port, 1)
+  let self.rdebug_pid = self._get_pid(self.rdebug_port, 1)
+  let self.debugger_pid = self._get_pid(self.debugger_port, 1)
 
   call g:RubyDebugger.logger.put("Start debugger")
 endfunction  
@@ -1436,7 +1436,7 @@ endfunction
 
 " Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
-  return (self._get_pid(self.hostname, self.rdebug_port, 0) =~ '^\d\+$') && (self._get_pid(self.hostname, self.debugger_port, 0) =~ '^\d\+$')
+  return (self._get_pid(self.rdebug_port, 0) =~ '^\d\+$') && (self._get_pid(self.debugger_port, 0) =~ '^\d\+$')
 endfunction
 
 
@@ -1445,13 +1445,13 @@ endfunction
 
 " Get PID of process, that listens given port on given host. If must_get_pid
 " parameter is true, it will try to get PID for 20 seconds.
-function! s:Server._get_pid(bind, port, must_get_pid)
+function! s:Server._get_pid(port, must_get_pid)
   let attempt = 0
-  let pid = self._get_pid_attempt(a:bind, a:port)
+  let pid = self._get_pid_attempt(a:port)
   while a:must_get_pid && pid == "" && attempt < 2000
     sleep 10m
     let attempt += 1
-    let pid = self._get_pid_attempt(a:bind, a:port)
+    let pid = self._get_pid_attempt(a:port)
   endwhile
   return pid
 endfunction
@@ -1459,13 +1459,13 @@ endfunction
 
 " Just try to get PID of process and return empty string if it was
 " unsuccessful
-function! s:Server._get_pid_attempt(bind, port)
+function! s:Server._get_pid_attempt(port)
   if has("win32") || has("win64")
     let netstat = system("netstat -anop tcp")
     let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
     let pid = len(pid_match) > 0 ? pid_match[1] : ""
   elseif executable('lsof')
-    let pid = system("lsof -i 4tcp@" . a:bind . ':' . a:port . " | grep LISTEN | awk '{print $2}'")
+    let pid = system("lsof -i tcp:" . a:port . " | grep LISTEN | awk '{print $2}'")
     let pid = substitute(pid, '\n', '', '')
   else
     let pid = ""
@@ -1475,8 +1475,8 @@ endfunction
 
 
 " Kill listener of given host/port
-function! s:Server._stop_server(bind, port) dict
-  let pid = self._get_pid(a:bind, a:port, 0)
+function! s:Server._stop_server(port) dict
+  let pid = self._get_pid(a:port, 0)
   if pid =~ '^\d\+$'
     call self._kill_process(pid)
   endif
@@ -1740,8 +1740,8 @@ function! s:Tests.server.before_all()
 endfunction
 
 function! s:Tests.server.before()
-  call s:Server._stop_server(s:hostname, s:rdebug_port)
-  call s:Server._stop_server(s:hostname, s:debugger_port)
+  call s:Server._stop_server(s:rdebug_port)
+  call s:Server._stop_server(s:debugger_port)
 endfunction
 
 function! s:Tests.server.test_should_run_server(test)
@@ -1757,8 +1757,8 @@ function! s:Tests.server.test_should_stop_server(test)
   exe "Rdebugger"
   call g:RubyDebugger.server.stop()
   call g:TU.ok(!g:RubyDebugger.server.is_running(), "Server should not be run", a:test)
-  call g:TU.equal("", s:Server._get_pid(s:hostname, s:rdebug_port, 0), "Process rdebug-ide should not exist", a:test)
-  call g:TU.equal("", s:Server._get_pid(s:hostname, s:debugger_port, 0), "Process debugger.rb should not exist", a:test)
+  call g:TU.equal("", s:Server._get_pid(s:rdebug_port, 0), "Process rdebug-ide should not exist", a:test)
+  call g:TU.equal("", s:Server._get_pid(s:debugger_port, 0), "Process debugger.rb should not exist", a:test)
   call g:TU.equal("", g:RubyDebugger.server.rdebug_pid, "Pid of rdebug-ide should be nullified", a:test)
   call g:TU.equal("", g:RubyDebugger.server.debugger_pid, "Pid of debugger.rb should be nullified", a:test)
 endfunction
@@ -1795,8 +1795,8 @@ function! s:Tests.breakpoint.before()
   let s:Breakpoint.id = 0
   let g:RubyDebugger.breakpoints = []
   let g:RubyDebugger.variables = {} 
-  call s:Server._stop_server(s:hostname, s:rdebug_port)
-  call s:Server._stop_server(s:hostname, s:debugger_port)
+  call s:Server._stop_server(s:rdebug_port)
+  call s:Server._stop_server(s:debugger_port)
 endfunction
 
 
@@ -2004,8 +2004,8 @@ endfunction
 function! s:Tests.variables.before()
   let g:RubyDebugger.breakpoints = []
   let g:RubyDebugger.variables = {} 
-  call s:Server._stop_server(s:hostname, s:rdebug_port)
-  call s:Server._stop_server(s:hostname, s:debugger_port)
+  call s:Server._stop_server(s:rdebug_port)
+  call s:Server._stop_server(s:debugger_port)
 endfunction
 
 
