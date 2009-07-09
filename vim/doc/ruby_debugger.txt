@@ -8,6 +8,7 @@ Author: Anton Astashov
 |ruby-debugger-quickstart|	QuickStart
 |ruby-debugger-details|		Some additional details about the plugin
 |ruby-debugger-tests|		Debugging of tests
+|ruby-debugger-issues|		Troubleshooting
 |ruby-debugger-bugs|		Bugreporting
 |ruby-debugger-about|		About
 
@@ -171,6 +172,24 @@ If you store spec or cucumber executables in some different place, not in
 For this, set some variables in your .vimrc. E.g.: >
   let g:ruby_debugger_spec_path = 'c:\gembins\spec'         " set Rspec path
   let g:ruby_debugger_cucumber_path = 'c:\gembins\cucumber' " set Cucumber path
+
+==============================================================================
+TROUBLESHOOTING				*ruby-debugger-issues*
+
+1. Sometimes (e.g., if you use Mac OS and mvim), you can notice strange and 
+not correct behavior of the plugin (only a couple commands work, you can't see 
+variables list, next/step commands don't work). Make sure variable 
+'g:ruby_debugger_progname' contains proper name of Vim's executable (mvim 
+if you run mvim, gvim for gvim, vim for vim): >
+  :echo g:ruby_debugger_progname
+
+If it contains some incorrect value, set it in your .vimrc. E.g. for mvim: >
+  let g:ruby_debugger_progname = 'mvim'
+
+If Vim's executable directory is not in your PATH environment variable, set 
+full path to executable: >
+  let g:ruby_debugger_progname = '/opt/local/bin/mvim'
+  
 
 ==============================================================================
 BUGS					*ruby-debugger-bugs*

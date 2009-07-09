@@ -10,7 +10,9 @@ endif
 if !exists("g:ruby_debugger_cucumber_path")
   let g:ruby_debugger_cucumber_path = '/usr/bin/cucumber'
 endif
-
+if !exists("g:ruby_debugger_progname")
+  let g:ruby_debugger_progname = v:progname
+endif
 
 " Creating windows
 let s:variables_window = s:WindowVariables.new("variables", "Variables_Window")

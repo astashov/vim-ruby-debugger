@@ -28,6 +28,7 @@ function! TU.run(...)
       let g:TU.output = g:TU.output . "\n"
     endif
   endfor
+
   call g:TU.show_output()
   call g:TU.restore()
 endfunction
@@ -59,6 +60,10 @@ function! TU.init()
   let g:TU.output = ""
   let g:TU.success = ""
   let g:TU.errors = ""
+
+  " For correct closing and deleting test files
+  let g:TU.hidden = &hidden
+  set nohidden
 endfunction
 
 
@@ -74,6 +79,8 @@ function! TU.restore()
 
   let s:Var.id = g:TU.var_id 
   unlet g:TU.var_id 
+
+  let &hidden = g:TU.hidden
 endfunction
 
 
