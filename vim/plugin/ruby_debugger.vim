@@ -14,9 +14,9 @@ command! -nargs=0 RdbStop :call g:RubyDebugger.stop()
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
 
-if exists("g:ruby_debugger_loaded")
-  finish
-endif
+"if exists("g:ruby_debugger_loaded")
+"  finish
+"endif
 if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
   finish
@@ -283,9 +283,58 @@ function! s:first_normal_window()
   return -1
 endfunction
 
+" *** Queue class (start)
+
+let s:Queue = {}
+
+" ** Public methods
+
+" Constructor of new queue.
+function! s:Queue.new() dict
+  let var = copy(self)
+  let var.queue = []
+  let var.after = ""
+  return var
+endfunction
+
+
+" Execute next command in the queue and remove it from queue
+function! s:Queue.execute() dict
+  if !empty(self.queue)
+    let message = self.queue[0]
+    call remove(self.queue, 0)
+    call g:RubyDebugger.send_command(message)
+  endif
+endfunction
+
+
+" Execute 'after' hook only if queue is empty
+function! s:Queue.after_hook() dict
+  if self.after != "" && empty(self.queue)
+    call self.after()
+  endif
+endfunction
+
+
+function! s:Queue.add(element) dict
+  call add(self.queue, a:element)
+endfunction
+
+
+function! s:Queue.empty() dict
+  let self.queue = []
+endfunction
+
+
+" *** Queue class (end)
+
+
+
+
 " *** Public interface (start)
 
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
+let g:RubyDebugger.queue = s:Queue.new()
 
 
 " Run debugger server. It takes one optional argument with path to debugged
@@ -296,16 +345,12 @@ function! RubyDebugger.start(...) dict
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(script)
 
-  " Send only first breakpoint to the debugger. All other breakpoints will be
-  " sent by 'set_breakpoint' command
-  let breakpoint = get(g:RubyDebugger.breakpoints, 0)
-  if type(breakpoint) == type({})
-    call breakpoint.send_to_debugger()
-  else
-    " if there are no breakpoints, just run the script
-    call g:RubyDebugger.send_command('start')
-  endif
+  for breakpoint in g:RubyDebugger.breakpoints
+    call g:RubyDebugger.queue.add(breakpoint.command())
+  endfor
+  call g:RubyDebugger.queue.add('start')
   echo "Debugger started"
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -344,6 +389,8 @@ function! RubyDebugger.receive_command() dict
       call g:RubyDebugger.commands.eval(cmd)
     endif
   endif
+  call g:RubyDebugger.queue.after_hook()
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -463,7 +510,8 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 
-  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.queue.add('var local')
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -486,17 +534,6 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   endfor
 
   call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
-
-  " If there are not assigned breakpoints, assign them!
-  let not_assigned_breakpoints = filter(copy(g:RubyDebugger.breakpoints), '!has_key(v:val, "rdebug_pid") || v:val["rdebug_pid"] != ' . pid)
-  let not_assigned_breakpoint = get(not_assigned_breakpoints, 0)
-  if type(not_assigned_breakpoint) == type({})
-    call not_assigned_breakpoint.send_to_debugger()
-  else
-    " If the debugger is started, start command does nothing. If the debugger is not
-    " started, it starts the debugger *after* assigning breakpoints.
-    call g:RubyDebugger.send_command('start')
-  endif
 endfunction
 
 
@@ -1307,12 +1344,16 @@ endfunction
 
 
 " Send adding breakpoint message to debugger, if it is run
-" (e.g.: 'break /path/to/file:23')
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
-    let message = 'break ' . self.file . ':' . self.line
-    call g:RubyDebugger.send_command(message)
+    call g:RubyDebugger.send_command(self.command())
   endif
+endfunction
+
+
+" Command for setting breakpoint (e.g.: 'break /path/to/file:23')
+function! s:Breakpoint.command() dict
+  return 'break ' . self.file . ':' . self.line
 endfunction
 
 

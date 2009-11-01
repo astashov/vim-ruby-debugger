@@ -6,7 +6,7 @@ endfunction
 
 
 function! s:Tests.breakpoint.after_all()
-    call s:Mock.unmock_debugger()
+  call s:Mock.unmock_debugger()
 endfunction
 
 

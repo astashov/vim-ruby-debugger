@@ -13,7 +13,8 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 
-  call g:RubyDebugger.send_command('var local')
+  call g:RubyDebugger.queue.add('var local')
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -36,17 +37,6 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   endfor
 
   call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
-
-  " If there are not assigned breakpoints, assign them!
-  let not_assigned_breakpoints = filter(copy(g:RubyDebugger.breakpoints), '!has_key(v:val, "rdebug_pid") || v:val["rdebug_pid"] != ' . pid)
-  let not_assigned_breakpoint = get(not_assigned_breakpoints, 0)
-  if type(not_assigned_breakpoint) == type({})
-    call not_assigned_breakpoint.send_to_debugger()
-  else
-    " If the debugger is started, start command does nothing. If the debugger is not
-    " started, it starts the debugger *after* assigning breakpoints.
-    call g:RubyDebugger.send_command('start')
-  endif
 endfunction
 
 

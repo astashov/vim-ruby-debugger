@@ -1,5 +1,6 @@
 ruby_debugger/before.vim
 ruby_debugger/common.vim
+ruby_debugger/queue.vim
 ruby_debugger/public.vim
 ruby_debugger/commands.vim
 ruby_debugger/window.vim

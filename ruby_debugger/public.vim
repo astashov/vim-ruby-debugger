@@ -1,6 +1,7 @@
 " *** Public interface (start)
 
 let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
+let g:RubyDebugger.queue = s:Queue.new()
 
 
 " Run debugger server. It takes one optional argument with path to debugged
@@ -11,16 +12,12 @@ function! RubyDebugger.start(...) dict
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(script)
 
-  " Send only first breakpoint to the debugger. All other breakpoints will be
-  " sent by 'set_breakpoint' command
-  let breakpoint = get(g:RubyDebugger.breakpoints, 0)
-  if type(breakpoint) == type({})
-    call breakpoint.send_to_debugger()
-  else
-    " if there are no breakpoints, just run the script
-    call g:RubyDebugger.send_command('start')
-  endif
+  for breakpoint in g:RubyDebugger.breakpoints
+    call g:RubyDebugger.queue.add(breakpoint.command())
+  endfor
+  call g:RubyDebugger.queue.add('start')
   echo "Debugger started"
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -59,6 +56,8 @@ function! RubyDebugger.receive_command() dict
       call g:RubyDebugger.commands.eval(cmd)
     endif
   endif
+  call g:RubyDebugger.queue.after_hook()
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 

@@ -27,12 +27,16 @@ endfunction
 
 
 " Send adding breakpoint message to debugger, if it is run
-" (e.g.: 'break /path/to/file:23')
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
-    let message = 'break ' . self.file . ':' . self.line
-    call g:RubyDebugger.send_command(message)
+    call g:RubyDebugger.send_command(self.command())
   endif
+endfunction
+
+
+" Command for setting breakpoint (e.g.: 'break /path/to/file:23')
+function! s:Breakpoint.command() dict
+  return 'break ' . self.file . ':' . self.line
 endfunction
 
 
