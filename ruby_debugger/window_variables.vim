@@ -31,6 +31,7 @@ function! s:window_variables_activate_node()
       call variable.open()
     endif
   endif
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 

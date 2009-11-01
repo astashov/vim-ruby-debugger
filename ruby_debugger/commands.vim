@@ -14,7 +14,6 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   endif
 
   call g:RubyDebugger.queue.add('var local')
-  call g:RubyDebugger.queue.execute()
 endfunction
 
 

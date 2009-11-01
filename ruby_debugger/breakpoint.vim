@@ -29,7 +29,7 @@ endfunction
 " Send adding breakpoint message to debugger, if it is run
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
-    call g:RubyDebugger.send_command(self.command())
+    call g:RubyDebugger.queue.add(self.command())
   endif
 endfunction
 
@@ -93,7 +93,7 @@ endfunction
 function! s:Breakpoint._send_delete_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'delete ' . self.debugger_id
-    call g:RubyDebugger.send_command(message)
+    call g:RubyDebugger.queue.add(message)
   endif
 endfunction
 

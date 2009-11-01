@@ -403,6 +403,7 @@ let RubyDebugger.send_command = function("<SID>send_message_to_debugger")
 function! RubyDebugger.open_variables() dict
   call s:variables_window.toggle()
   call g:RubyDebugger.logger.put("Opened variables window")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -410,6 +411,7 @@ endfunction
 function! RubyDebugger.open_breakpoints() dict
   call s:breakpoints_window.toggle()
   call g:RubyDebugger.logger.put("Opened breakpoints window")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -434,6 +436,7 @@ function! RubyDebugger.toggle_breakpoint() dict
     call s:breakpoints_window.open()
     exe "wincmd p"
   endif
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -443,37 +446,42 @@ function! RubyDebugger.remove_breakpoints() dict
     call breakpoint.delete()
   endfor
   let g:RubyDebugger.breakpoints = []
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Next
 function! RubyDebugger.next() dict
-  call g:RubyDebugger.send_command("next")
+  call g:RubyDebugger.queue.add("next")
   call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step over")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Step
 function! RubyDebugger.step() dict
-  call g:RubyDebugger.send_command("step")
+  call g:RubyDebugger.queue.add("step")
   call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step into")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Continue
 function! RubyDebugger.continue() dict
-  call g:RubyDebugger.send_command("cont")
+  call g:RubyDebugger.queue.add("cont")
   call s:clear_current_state()
   call g:RubyDebugger.logger.put("Continue")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Exit
 function! RubyDebugger.exit() dict
-  call g:RubyDebugger.send_command("exit")
+  call g:RubyDebugger.queue.add("exit")
   call s:clear_current_state()
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -511,7 +519,6 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   endif
 
   call g:RubyDebugger.queue.add('var local')
-  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -859,6 +866,7 @@ function! s:window_variables_activate_node()
       call variable.open()
     endif
   endif
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -1280,7 +1288,7 @@ function! s:VarParent._init_children()
   " Get children
   if has_key(self.attributes, 'objectId')
     let g:RubyDebugger.current_variable = self
-    call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
+    call g:RubyDebugger.queue.add('var instance ' . self.attributes.objectId)
   endif
 
 endfunction
@@ -1346,7 +1354,7 @@ endfunction
 " Send adding breakpoint message to debugger, if it is run
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
-    call g:RubyDebugger.send_command(self.command())
+    call g:RubyDebugger.queue.add(self.command())
   endif
 endfunction
 
@@ -1410,7 +1418,7 @@ endfunction
 function! s:Breakpoint._send_delete_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
     let message = 'delete ' . self.debugger_id
-    call g:RubyDebugger.send_command(message)
+    call g:RubyDebugger.queue.add(message)
   endif
 endfunction
 

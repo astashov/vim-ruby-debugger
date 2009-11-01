@@ -111,7 +111,7 @@ function! s:VarParent._init_children()
   " Get children
   if has_key(self.attributes, 'objectId')
     let g:RubyDebugger.current_variable = self
-    call g:RubyDebugger.send_command('var instance ' . self.attributes.objectId)
+    call g:RubyDebugger.queue.add('var instance ' . self.attributes.objectId)
   endif
 
 endfunction

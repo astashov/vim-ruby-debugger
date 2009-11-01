@@ -70,6 +70,7 @@ let RubyDebugger.send_command = function("<SID>send_message_to_debugger")
 function! RubyDebugger.open_variables() dict
   call s:variables_window.toggle()
   call g:RubyDebugger.logger.put("Opened variables window")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -77,6 +78,7 @@ endfunction
 function! RubyDebugger.open_breakpoints() dict
   call s:breakpoints_window.toggle()
   call g:RubyDebugger.logger.put("Opened breakpoints window")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -101,6 +103,7 @@ function! RubyDebugger.toggle_breakpoint() dict
     call s:breakpoints_window.open()
     exe "wincmd p"
   endif
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -110,37 +113,42 @@ function! RubyDebugger.remove_breakpoints() dict
     call breakpoint.delete()
   endfor
   let g:RubyDebugger.breakpoints = []
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Next
 function! RubyDebugger.next() dict
-  call g:RubyDebugger.send_command("next")
+  call g:RubyDebugger.queue.add("next")
   call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step over")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Step
 function! RubyDebugger.step() dict
-  call g:RubyDebugger.send_command("step")
+  call g:RubyDebugger.queue.add("step")
   call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step into")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Continue
 function! RubyDebugger.continue() dict
-  call g:RubyDebugger.send_command("cont")
+  call g:RubyDebugger.queue.add("cont")
   call s:clear_current_state()
   call g:RubyDebugger.logger.put("Continue")
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
 " Exit
 function! RubyDebugger.exit() dict
-  call g:RubyDebugger.send_command("exit")
+  call g:RubyDebugger.queue.add("exit")
   call s:clear_current_state()
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
