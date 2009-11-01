@@ -14,6 +14,7 @@ function! s:Tests.breakpoint.before()
   let s:Breakpoint.id = 0
   let g:RubyDebugger.breakpoints = []
   let g:RubyDebugger.variables = {} 
+  call g:RubyDebugger.queue.empty() 
   call s:Server._stop_server(s:rdebug_port)
   call s:Server._stop_server(s:debugger_port)
 endfunction

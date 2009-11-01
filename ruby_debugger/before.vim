@@ -48,6 +48,7 @@ let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
+let s:separator = "++vim-ruby-debugger separator++"
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')

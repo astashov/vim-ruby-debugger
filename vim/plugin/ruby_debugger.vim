@@ -48,6 +48,7 @@ let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
+let s:separator = "++vim-ruby-debugger separator++"
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')
@@ -301,8 +302,8 @@ endfunction
 " Execute next command in the queue and remove it from queue
 function! s:Queue.execute() dict
   if !empty(self.queue)
-    let message = self.queue[0]
-    call remove(self.queue, 0)
+    let message = join(self.queue, s:separator)
+    call self.empty()
     call g:RubyDebugger.send_command(message)
   endif
 endfunction
@@ -369,26 +370,28 @@ endfunction
 " That's why +clientserver is required
 " This function analyzes the special file and gives handling to right command
 function! RubyDebugger.receive_command() dict
-  let cmd = join(readfile(s:tmp_file), "")
-  call g:RubyDebugger.logger.put("Received command: " . cmd)
-  " Clear command line
-  if !empty(cmd)
-    if match(cmd, '<breakpoint ') != -1
-      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
-    elseif match(cmd, '<suspended ') != -1
-      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
-    elseif match(cmd, '<breakpointAdded ') != -1
-      call g:RubyDebugger.commands.set_breakpoint(cmd)
-    elseif match(cmd, '<variables>') != -1
-      call g:RubyDebugger.commands.set_variables(cmd)
-    elseif match(cmd, '<error>') != -1
-      call g:RubyDebugger.commands.error(cmd)
-    elseif match(cmd, '<message>') != -1
-      call g:RubyDebugger.commands.message(cmd)
-    elseif match(cmd, '<eval ') != -1
-      call g:RubyDebugger.commands.eval(cmd)
+  let file_contents = join(readfile(s:tmp_file), "")
+  call g:RubyDebugger.logger.put("Received command: " . file_contents)
+  let commands = split(file_contents, s:separator)
+  for cmd in commands
+    if !empty(cmd)
+      if match(cmd, '<breakpoint ') != -1
+        call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<suspended ') != -1
+        call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<breakpointAdded ') != -1
+        call g:RubyDebugger.commands.set_breakpoint(cmd)
+      elseif match(cmd, '<variables>') != -1
+        call g:RubyDebugger.commands.set_variables(cmd)
+      elseif match(cmd, '<error>') != -1
+        call g:RubyDebugger.commands.error(cmd)
+      elseif match(cmd, '<message>') != -1
+        call g:RubyDebugger.commands.message(cmd)
+      elseif match(cmd, '<eval ') != -1
+        call g:RubyDebugger.commands.eval(cmd)
+      endif
     endif
-  endif
+  endfor
   call g:RubyDebugger.queue.after_hook()
   call g:RubyDebugger.queue.execute()
 endfunction

@@ -36,26 +36,28 @@ endfunction
 " That's why +clientserver is required
 " This function analyzes the special file and gives handling to right command
 function! RubyDebugger.receive_command() dict
-  let cmd = join(readfile(s:tmp_file), "")
-  call g:RubyDebugger.logger.put("Received command: " . cmd)
-  " Clear command line
-  if !empty(cmd)
-    if match(cmd, '<breakpoint ') != -1
-      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
-    elseif match(cmd, '<suspended ') != -1
-      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
-    elseif match(cmd, '<breakpointAdded ') != -1
-      call g:RubyDebugger.commands.set_breakpoint(cmd)
-    elseif match(cmd, '<variables>') != -1
-      call g:RubyDebugger.commands.set_variables(cmd)
-    elseif match(cmd, '<error>') != -1
-      call g:RubyDebugger.commands.error(cmd)
-    elseif match(cmd, '<message>') != -1
-      call g:RubyDebugger.commands.message(cmd)
-    elseif match(cmd, '<eval ') != -1
-      call g:RubyDebugger.commands.eval(cmd)
+  let file_contents = join(readfile(s:tmp_file), "")
+  call g:RubyDebugger.logger.put("Received command: " . file_contents)
+  let commands = split(file_contents, s:separator)
+  for cmd in commands
+    if !empty(cmd)
+      if match(cmd, '<breakpoint ') != -1
+        call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<suspended ') != -1
+        call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<breakpointAdded ') != -1
+        call g:RubyDebugger.commands.set_breakpoint(cmd)
+      elseif match(cmd, '<variables>') != -1
+        call g:RubyDebugger.commands.set_variables(cmd)
+      elseif match(cmd, '<error>') != -1
+        call g:RubyDebugger.commands.error(cmd)
+      elseif match(cmd, '<message>') != -1
+        call g:RubyDebugger.commands.message(cmd)
+      elseif match(cmd, '<eval ') != -1
+        call g:RubyDebugger.commands.eval(cmd)
+      endif
     endif
-  endif
+  endfor
   call g:RubyDebugger.queue.after_hook()
   call g:RubyDebugger.queue.execute()
 endfunction

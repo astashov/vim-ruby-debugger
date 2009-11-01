@@ -7,6 +7,9 @@ class VimRubyDebugger
     create_directory(@params[:messages_file])
     @rdebug = wait_for_opened_socket(@params[:host], @params[:rdebug_port])
     @vim_ruby_debugger = TCPServer.new(@params[:host], @params[:vim_ruby_debugger_port])
+    @queue = []
+    @result = []
+    @separator = "++vim-ruby-debugger separator++"
     run
   end
 
@@ -41,17 +44,16 @@ class VimRubyDebugger
       t1 = Thread.new do
         while(session = @vim_ruby_debugger.accept)
           input = session.gets
-          @rdebug.puts(input)
+          @queue = input.split(@separator)
+          handle_queue
         end
       end
       t2 = Thread.new do
         loop do 
           response = select([@rdebug], nil, nil)
           output = read_socket(response, @rdebug)
-          File.open(@params[:messages_file], 'w') { |f| f.puts(output) }
-          command = ":call RubyDebugger.receive_command()"
-          starter = (@params[:os] == 'win' ? "<C-\\>" : "<C-\\\\>")
-          system("#{@params[:vim_executable]} --servername #{@params[:vim_servername]} -u NONE -U NONE --remote-send \"" + starter + "<C-N>#{command}<CR>\"");
+          @result << output
+          handle_queue
         end
       end
 
@@ -66,7 +68,7 @@ class VimRubyDebugger
     def read_socket(response, debugger, output = "")
       if response && response[0] && response[0][0]
         output += response[0][0].recv(10000)
-        if have_unclosed_tag(output)
+        if have_unclosed_tag?(output)
           # If rdebug-ide doesn't send full message, we should wait for rest parts too.
           # We can understand that this is just part of message by matching unclosed tags
           another_response = select([debugger], nil, nil)
@@ -83,7 +85,31 @@ class VimRubyDebugger
     end
 
 
-    def have_unclosed_tag(output)
+    def handle_queue
+      unless @queue.empty?
+        message = @queue.shift
+        @rdebug.puts(message)
+        # Start command doesn't return any response, so send message immediatly
+        send_message if message == 'start'
+      else
+        send_message
+      end
+    end
+
+
+    def send_message
+      message = @result.join(@separator)
+      @result = []
+      if message && !message.empty?
+        File.open(@params[:messages_file], 'w') { |f| f.puts(message) }
+        command = ":call RubyDebugger.receive_command()"
+        starter = (@params[:os] == 'win' ? "<C-\\>" : "<C-\\\\>")
+        system("#{@params[:vim_executable]} --servername #{@params[:vim_servername]} -u NONE -U NONE --remote-send \"#{starter}<C-N>#{command}<CR>\"");
+      end
+    end
+
+
+    def have_unclosed_tag?(output)
       start_match = output.match(/^<([a-zA-Z0-9\-_]+)>/)
       if start_match
         end_match = output.match(/<\/#{start_match[1]}>$/)

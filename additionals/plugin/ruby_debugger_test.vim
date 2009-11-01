@@ -48,6 +48,7 @@ let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
+let s:separator = "++vim-ruby-debugger separator++"
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')
@@ -301,8 +302,8 @@ endfunction
 " Execute next command in the queue and remove it from queue
 function! s:Queue.execute() dict
   if !empty(self.queue)
-    let message = self.queue[0]
-    call remove(self.queue, 0)
+    let message = join(self.queue, s:separator)
+    call self.empty()
     call g:RubyDebugger.send_command(message)
   endif
 endfunction
@@ -369,26 +370,28 @@ endfunction
 " That's why +clientserver is required
 " This function analyzes the special file and gives handling to right command
 function! RubyDebugger.receive_command() dict
-  let cmd = join(readfile(s:tmp_file), "")
-  call g:RubyDebugger.logger.put("Received command: " . cmd)
-  " Clear command line
-  if !empty(cmd)
-    if match(cmd, '<breakpoint ') != -1
-      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
-    elseif match(cmd, '<suspended ') != -1
-      call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
-    elseif match(cmd, '<breakpointAdded ') != -1
-      call g:RubyDebugger.commands.set_breakpoint(cmd)
-    elseif match(cmd, '<variables>') != -1
-      call g:RubyDebugger.commands.set_variables(cmd)
-    elseif match(cmd, '<error>') != -1
-      call g:RubyDebugger.commands.error(cmd)
-    elseif match(cmd, '<message>') != -1
-      call g:RubyDebugger.commands.message(cmd)
-    elseif match(cmd, '<eval ') != -1
-      call g:RubyDebugger.commands.eval(cmd)
+  let file_contents = join(readfile(s:tmp_file), "")
+  call g:RubyDebugger.logger.put("Received command: " . file_contents)
+  let commands = split(file_contents, s:separator)
+  for cmd in commands
+    if !empty(cmd)
+      if match(cmd, '<breakpoint ') != -1
+        call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<suspended ') != -1
+        call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<breakpointAdded ') != -1
+        call g:RubyDebugger.commands.set_breakpoint(cmd)
+      elseif match(cmd, '<variables>') != -1
+        call g:RubyDebugger.commands.set_variables(cmd)
+      elseif match(cmd, '<error>') != -1
+        call g:RubyDebugger.commands.error(cmd)
+      elseif match(cmd, '<message>') != -1
+        call g:RubyDebugger.commands.message(cmd)
+      elseif match(cmd, '<eval ') != -1
+        call g:RubyDebugger.commands.eval(cmd)
+      endif
     endif
-  endif
+  endfor
   call g:RubyDebugger.queue.after_hook()
   call g:RubyDebugger.queue.execute()
 endfunction
@@ -1710,55 +1713,62 @@ let s:Tests = {}
 
 let s:Mock = { 'breakpoints': 0, 'evals': 0 }
 
-function! s:mock_debugger(message)
-  let cmd = ""
-  if a:message =~ 'break'
-    let matches = matchlist(a:message, 'break \(.*\):\(.*\)')
-    let cmd = '<breakpointAdded no="1" location="' . matches[1] . ':' . matches[2] . '" />'
-    let s:Mock.breakpoints += 1
-  elseif a:message =~ 'delete'
-    let matches = matchlist(a:message, 'delete \(.*\)')
-    let cmd = '<breakpointDeleted no="' . matches[1] . '" />'
-    let s:Mock.breakpoints -= 1
-  elseif a:message =~ 'var local'
-    let cmd = '<variables>'
-    let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
-    let cmd = cmd . '<variable name="some_local" kind="local" value="bla" type="String" hasChildren="false" objectId="-0x2418a905" />'
-    let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a906" />'
-    let cmd = cmd . '<variable name="quoted_hash" kind="local" value="Hash (1 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a914" />'
-    let cmd = cmd . '<variable name="hash" kind="local" value="Hash (2 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a907" />'
-    let cmd = cmd . '</variables>'
-  elseif a:message =~ 'var instance -0x2418a904'
-    let cmd = '<variables>'
-    let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
-    let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
-    let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a916" />'
-    let cmd = cmd . '</variables>'
-  elseif a:message =~ 'var instance -0x2418a907'
-    let cmd = '<variables>'
-    let cmd = cmd . '<variable name="hash_local" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a910" />'
-    let cmd = cmd . '<variable name="hash_array" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a911" />'
-    let cmd = cmd . '</variables>'
-  elseif a:message =~ 'var instance -0x2418a906'
-    let cmd = '<variables>'
-    let cmd = cmd . '<variable name="[0]" kind="instance" value="[\.^bla$]" type="String" hasChildren="false" objectId="-0x2418a912" />'
-    let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
-    let cmd = cmd . '</variables>'
-  elseif a:message =~ 'var instance -0x2418a914'
-    let cmd = '<variables>'
-    let cmd = cmd . "<variable name=\"'quoted'\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a915\" />"
-    let cmd = cmd . '</variables>'
-  elseif a:message =~ 'var instance -0x2418a916'
-    let cmd = '<variables>'
-    let cmd = cmd . "<variable name=\"[0]\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a917\" />"
-    let cmd = cmd . '</variables>'
-  elseif a:message =~ '^p '
-    let p = matchlist(a:message, "^p \\(.*\\)")[1]
-    let s:Mock.evals += 1
-    let cmd = '<eval expression="' . p . '" value=""all users"" />'
-  endif
-  if cmd != "" 
-    call writefile([ cmd ], s:tmp_file)
+function! s:mock_debugger(messages)
+  let commands = []
+  let messages_array = split(a:messages, s:separator)
+  for message in messages_array
+    let cmd = ""
+    if message =~ 'break'
+      let matches = matchlist(message, 'break \(.*\):\(.*\)')
+      let cmd = '<breakpointAdded no="1" location="' . matches[1] . ':' . matches[2] . '" />'
+      let s:Mock.breakpoints += 1
+    elseif message =~ 'delete'
+      let matches = matchlist(message, 'delete \(.*\)')
+      let cmd = '<breakpointDeleted no="' . matches[1] . '" />'
+      let s:Mock.breakpoints -= 1
+    elseif message =~ 'var local'
+      let cmd = '<variables>'
+      let cmd = cmd . '<variable name="self" kind="instance" value="Self" type="Object" hasChildren="true" objectId="-0x2418a904" />'
+      let cmd = cmd . '<variable name="some_local" kind="local" value="bla" type="String" hasChildren="false" objectId="-0x2418a905" />'
+      let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a906" />'
+      let cmd = cmd . '<variable name="quoted_hash" kind="local" value="Hash (1 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a914" />'
+      let cmd = cmd . '<variable name="hash" kind="local" value="Hash (2 element(s))" type="Hash" hasChildren="true" objectId="-0x2418a907" />'
+      let cmd = cmd . '</variables>'
+    elseif message =~ 'var instance -0x2418a904'
+      let cmd = '<variables>'
+      let cmd = cmd . '<variable name="self_array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a908" />'
+      let cmd = cmd . '<variable name="self_local" kind="local" value="blabla" type="String" hasChildren="false" objectId="-0x2418a909" />'
+      let cmd = cmd . '<variable name="array" kind="local" value="Array (2 element(s))" type="Array" hasChildren="true" objectId="-0x2418a916" />'
+      let cmd = cmd . '</variables>'
+    elseif message =~ 'var instance -0x2418a907'
+      let cmd = '<variables>'
+      let cmd = cmd . '<variable name="hash_local" kind="instance" value="Some string" type="String" hasChildren="false" objectId="-0x2418a910" />'
+      let cmd = cmd . '<variable name="hash_array" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a911" />'
+      let cmd = cmd . '</variables>'
+    elseif message =~ 'var instance -0x2418a906'
+      let cmd = '<variables>'
+      let cmd = cmd . '<variable name="[0]" kind="instance" value="[\.^bla$]" type="String" hasChildren="false" objectId="-0x2418a912" />'
+      let cmd = cmd . '<variable name="[1]" kind="instance" value="Array (1 element(s))" type="Array" hasChildren="true" objectId="-0x2418a913" />'
+      let cmd = cmd . '</variables>'
+    elseif message =~ 'var instance -0x2418a914'
+      let cmd = '<variables>'
+      let cmd = cmd . "<variable name=\"'quoted'\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a915\" />"
+      let cmd = cmd . '</variables>'
+    elseif message =~ 'var instance -0x2418a916'
+      let cmd = '<variables>'
+      let cmd = cmd . "<variable name=\"[0]\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a917\" />"
+      let cmd = cmd . '</variables>'
+    elseif message =~ '^p '
+      let p = matchlist(message, "^p \\(.*\\)")[1]
+      let s:Mock.evals += 1
+      let cmd = '<eval expression="' . p . '" value=""all users"" />'
+    endif
+    if cmd != ""
+      call add(commands, cmd)
+    endif
+  endfor
+  if !empty(commands)
+    call writefile([ join(commands, s:separator) ], s:tmp_file)
     call g:RubyDebugger.receive_command()
   endif
 endfunction
@@ -1798,6 +1808,7 @@ function! s:Tests.server.before_all()
 endfunction
 
 function! s:Tests.server.before()
+  call g:RubyDebugger.queue.empty() 
   call s:Server._stop_server(s:rdebug_port)
   call s:Server._stop_server(s:debugger_port)
 endfunction
@@ -1853,6 +1864,7 @@ function! s:Tests.breakpoint.before()
   let s:Breakpoint.id = 0
   let g:RubyDebugger.breakpoints = []
   let g:RubyDebugger.variables = {} 
+  call g:RubyDebugger.queue.empty() 
   call s:Server._stop_server(s:rdebug_port)
   call s:Server._stop_server(s:debugger_port)
 endfunction
@@ -2062,6 +2074,7 @@ endfunction
 function! s:Tests.variables.before()
   let g:RubyDebugger.breakpoints = []
   let g:RubyDebugger.variables = {} 
+  call g:RubyDebugger.queue.empty() 
   call s:Server._stop_server(s:rdebug_port)
   call s:Server._stop_server(s:debugger_port)
 endfunction

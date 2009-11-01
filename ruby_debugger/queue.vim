@@ -16,8 +16,8 @@ endfunction
 " Execute next command in the queue and remove it from queue
 function! s:Queue.execute() dict
   if !empty(self.queue)
-    let message = self.queue[0]
-    call remove(self.queue, 0)
+    let message = join(self.queue, s:separator)
+    call self.empty()
     call g:RubyDebugger.send_command(message)
   endif
 endfunction
