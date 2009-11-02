@@ -137,6 +137,15 @@ function! RubyDebugger.step() dict
 endfunction
 
 
+" Finish
+function! RubyDebugger.finish() dict
+  call g:RubyDebugger.queue.add("finish")
+  call s:clear_current_state()
+  call g:RubyDebugger.logger.put("Step out")
+  call g:RubyDebugger.queue.execute()
+endfunction
+
+
 " Continue
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.queue.add("cont")

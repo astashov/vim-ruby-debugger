@@ -93,6 +93,7 @@ It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and
                  or delete the breakpoint by pressing 'd' on it.
    * <Leader>n - step over
    * <Leader>s - step into
+   * <Leader>f - step out
    * <Leader>c - continue
    * <Leader>d - remove all breakpoints
 
@@ -107,6 +108,7 @@ DETAILS					*ruby-debugger-details*
 	map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
 	map <Leader>s  :call g:RubyDebugger.step()<CR>
 	map <Leader>n  :call g:RubyDebugger.next()<CR>
+        map <Leader>f  :call g:RubyDebugger.finish()<CR>
 	map <Leader>c  :call g:RubyDebugger.continue()<CR>
 	map <Leader>e  :call g:RubyDebugger.exit()<CR>
 	map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>

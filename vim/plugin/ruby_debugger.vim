@@ -4,6 +4,7 @@ map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
 map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
 map <Leader>s  :call g:RubyDebugger.step()<CR>
+map <Leader>f  :call g:RubyDebugger.finish()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
 map <Leader>c  :call g:RubyDebugger.continue()<CR>
 map <Leader>e  :call g:RubyDebugger.exit()<CR>
@@ -467,6 +468,15 @@ function! RubyDebugger.step() dict
   call g:RubyDebugger.queue.add("step")
   call s:clear_current_state()
   call g:RubyDebugger.logger.put("Step into")
+  call g:RubyDebugger.queue.execute()
+endfunction
+
+
+" Finish
+function! RubyDebugger.finish() dict
+  call g:RubyDebugger.queue.add("finish")
+  call s:clear_current_state()
+  call g:RubyDebugger.logger.put("Step out")
   call g:RubyDebugger.queue.execute()
 endfunction
 
