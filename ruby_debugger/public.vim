@@ -55,6 +55,8 @@ function! RubyDebugger.receive_command() dict
         call g:RubyDebugger.commands.message(cmd)
       elseif match(cmd, '<eval ') != -1
         call g:RubyDebugger.commands.eval(cmd)
+      elseif match(cmd, '<processingException ') != -1
+        call g:RubyDebugger.commands.processing_exception(cmd)
       endif
     endif
   endfor

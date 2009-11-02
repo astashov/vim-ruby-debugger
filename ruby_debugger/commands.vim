@@ -100,6 +100,16 @@ function! RubyDebugger.commands.eval(cmd)
 endfunction
 
 
+" <processingException type="SyntaxError" message="some message" />
+" Just show exception message
+function! RubyDebugger.commands.processing_exception(cmd)
+  let attrs = s:get_tag_attributes(a:cmd) 
+  let message = "RubyDebugger Exception, type: " . attrs.type . ", message: " . attrs.message
+  echo message
+  call g:RubyDebugger.logger.put(message)
+endfunction
+
+
 " <error>Error</error>
 " Just show error
 function! RubyDebugger.commands.error(cmd)

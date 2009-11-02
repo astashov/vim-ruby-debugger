@@ -401,6 +401,8 @@ function! RubyDebugger.receive_command() dict
         call g:RubyDebugger.commands.message(cmd)
       elseif match(cmd, '<eval ') != -1
         call g:RubyDebugger.commands.eval(cmd)
+      elseif match(cmd, '<processingException ') != -1
+        call g:RubyDebugger.commands.processing_exception(cmd)
       endif
     endif
   endfor
@@ -634,6 +636,16 @@ function! RubyDebugger.commands.eval(cmd)
   " use usual attribute extractor here...
   let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\" \\/>")
   echo "Evaluated expression:\n" . s:unescape_html(match[1]) ."\nResulted value is:\n" . match[2] . "\n"
+endfunction
+
+
+" <processingException type="SyntaxError" message="some message" />
+" Just show exception message
+function! RubyDebugger.commands.processing_exception(cmd)
+  let attrs = s:get_tag_attributes(a:cmd) 
+  let message = "RubyDebugger Exception, type: " . attrs.type . ", message: " . attrs.message
+  echo message
+  call g:RubyDebugger.logger.put(message)
 endfunction
 
 
