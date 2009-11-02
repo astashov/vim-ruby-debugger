@@ -71,6 +71,13 @@ function! s:unescape_html(html)
 endfunction
 
 
+function! s:quotify(exp)
+  let quoted = a:exp
+  let quoted = substitute(quoted, "\"", "\\\\\"", 'g')
+  return quoted
+endfunction
+
+
 " Get filename of current buffer
 function! s:get_filename()
   return expand("%:p")
@@ -82,13 +89,13 @@ endfunction
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   if g:ruby_debugger_fast_sender
-    call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " '" . a:message . "'")
+    call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\"")
   else
     let script =  "ruby -e \"require 'socket'; "
     let script .= "attempts = 0; "
     let script .= "begin; "
     let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
-    let script .=   "a.puts('" . a:message . "'); "
+    let script .=   "a.puts(%q[" . substitute(substitute(a:message, '[', '\[', 'g'), ']', '\]', 'g') . "]);"
     let script .=   "a.close; "
     let script .= "rescue Errno::ECONNREFUSED; "
     let script .=   "attempts += 1; "

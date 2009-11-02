@@ -14,10 +14,11 @@ command! -nargs=? -complete=file Rdebugger :call g:RubyDebugger.start(<q-args>)
 command! -nargs=0 RdbStop :call g:RubyDebugger.stop() 
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
+command! -nargs=1 RdbEval :call g:RubyDebugger.eval(<q-args>)
 
-"if exists("g:ruby_debugger_loaded")
-"  finish
-"endif
+if exists("g:ruby_debugger_loaded")
+  finish
+endif
 if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
   finish
@@ -142,6 +143,13 @@ function! s:unescape_html(html)
 endfunction
 
 
+function! s:quotify(exp)
+  let quoted = a:exp
+  let quoted = substitute(quoted, "\"", "\\\\\"", 'g')
+  return quoted
+endfunction
+
+
 " Get filename of current buffer
 function! s:get_filename()
   return expand("%:p")
@@ -153,13 +161,13 @@ endfunction
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   if g:ruby_debugger_fast_sender
-    call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " '" . a:message . "'")
+    call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\"")
   else
     let script =  "ruby -e \"require 'socket'; "
     let script .= "attempts = 0; "
     let script .= "begin; "
     let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
-    let script .=   "a.puts('" . a:message . "'); "
+    let script .=   "a.puts(%q[" . substitute(substitute(a:message, '[', '\[', 'g'), ']', '\]', 'g') . "]);"
     let script .=   "a.close; "
     let script .= "rescue Errno::ECONNREFUSED; "
     let script .=   "attempts += 1; "
@@ -454,6 +462,14 @@ function! RubyDebugger.remove_breakpoints() dict
 endfunction
 
 
+" Eval the passed in expression
+function! RubyDebugger.eval(exp) dict
+  let quoted = s:quotify(a:exp)
+  call g:RubyDebugger.queue.add("eval " . quoted)
+  call g:RubyDebugger.queue.execute()
+endfunction
+
+
 " Next
 function! RubyDebugger.next() dict
   call g:RubyDebugger.queue.add("next")
@@ -614,7 +630,7 @@ function! RubyDebugger.commands.eval(cmd)
   " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
   " use usual attribute extractor here...
   let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\" \\/>")
-  echo "Evaluated expression:\n" . match[1] ."\nResulted value is:\n" . match[2] . "\n"
+  echo "Evaluated expression:\n" . s:unescape_html(match[1]) ."\nResulted value is:\n" . match[2] . "\n"
 endfunction
 
 

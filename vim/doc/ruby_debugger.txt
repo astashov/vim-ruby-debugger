@@ -130,20 +130,24 @@ If your script receives arguments, quote it into single quotes: >
         :Rdebugger '/path/to/bla.rb 1234 bla_bla'
 
 5. To run some rdebug command, use :RdbCommand. E.g.: >
-	:RdbCommand p User.find_by_name(\"john\").created_at
+	:RdbCommand where
 
-6. To stop running server, you can use :RdbStop command: >
+6. To eval some code, use :RdbEval. E.g.: >
+        :RdbEval u.name
+        :RdbEval app_config['settings'].map { |s| s.capitalize }
+
+7. To stop running server, you can use :RdbStop command: >
         :RdbStop
 
-7. For communicating with the rdebug the plugin uses temp file:
+8. For communicating with the rdebug the plugin uses temp file:
    ~/.vim/tmp/ruby_debugger. Rdebug writes some response to this file, "kicks"
    the plugin remotely calling RubyDebugger.receive_command() by Vim's
    client-server functionality and the plugin make actions. For this reason,
    you need Vim compiled with +clientserver.
 
-8. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
+9. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
 
-9. You also can run Unit tests for the plugin. For this, copy to 
+10. You also can run Unit tests for the plugin. For this, copy to 
    ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim (from
    additionals/plugin directory). It has the same functionality, but with unit 
    tests at end of the file. To run unit tests, change current directory to 

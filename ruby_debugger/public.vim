@@ -119,6 +119,14 @@ function! RubyDebugger.remove_breakpoints() dict
 endfunction
 
 
+" Eval the passed in expression
+function! RubyDebugger.eval(exp) dict
+  let quoted = s:quotify(a:exp)
+  call g:RubyDebugger.queue.add("eval " . quoted)
+  call g:RubyDebugger.queue.execute()
+endfunction
+
+
 " Next
 function! RubyDebugger.next() dict
   call g:RubyDebugger.queue.add("next")
