@@ -93,6 +93,7 @@ function! s:send_message_to_debugger(message)
   else
     let script =  "ruby -e \"require 'socket'; "
     let script .= "attempts = 0; "
+    let script .= "a = nil; "
     let script .= "begin; "
     let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
     let script .=   "a.puts(%q[" . substitute(substitute(a:message, '[', '\[', 'g'), ']', '\]', 'g') . "]);"
@@ -106,6 +107,8 @@ function! s:send_message_to_debugger(message)
     let script .=     "puts('" . s:hostname . ":" . s:debugger_port . " can not be opened'); "
     let script .=     "exit; "
     let script .=   "end; "
+    let script .= "ensure; "
+    let script .=   "a.close if a; "
     let script .= "end; \""
     let output = system(script)
     if output =~ 'can not be opened'
