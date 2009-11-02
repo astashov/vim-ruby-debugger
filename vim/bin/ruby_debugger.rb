@@ -60,8 +60,9 @@ class VimRubyDebugger
       t1.join
 
       @rdebug.puts('exit')
-      @rdebug.close
-      @vim_ruby_debugger.close
+    ensure
+      @rdebug.close if @rdebug
+      @vim_ruby_debugger.close if @vim_ruby_debugger
     end
 
 
