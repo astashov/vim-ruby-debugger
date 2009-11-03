@@ -12,8 +12,6 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   if has("signs")
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
-
-  call g:RubyDebugger.queue.add('var local')
 endfunction
 
 
