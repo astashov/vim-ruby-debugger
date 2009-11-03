@@ -2,6 +2,7 @@ let s:Tests.server = {}
 
 function! s:Tests.server.before_all()
   let g:RubyDebugger.breakpoints = []
+  let g:RubyDebugger.frames = []
   let g:RubyDebugger.variables = {} 
 endfunction
 

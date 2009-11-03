@@ -12,6 +12,7 @@ endfunction
 
 function! s:Tests.breakpoint.before()
   let s:Breakpoint.id = 0
+  let g:RubyDebugger.frames = []
   let g:RubyDebugger.breakpoints = []
   let g:RubyDebugger.variables = {} 
   call g:RubyDebugger.queue.empty() 

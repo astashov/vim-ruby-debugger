@@ -1,6 +1,6 @@
 let s:Mock = { 'breakpoints': 0, 'evals': 0 }
 
-function! s:mock_debugger(messages)
+function! s:mock_debugger(messages, ...)
   let commands = []
   let messages_array = split(a:messages, s:separator)
   for message in messages_array
@@ -45,6 +45,12 @@ function! s:mock_debugger(messages)
       let cmd = '<variables>'
       let cmd = cmd . "<variable name=\"[0]\" kind=\"instance\" value=\"String\" type=\"String\" hasChildren=\"false\" objectId=\"-0x2418a917\" />"
       let cmd = cmd . '</variables>'
+    elseif message =~ 'where'
+      let filename = s:Mock.file
+      let cmd = '<frames>'
+      let cmd = cmd . "<frame no='1' file='" . filename . "' line='2' current='true' />"
+      let cmd = cmd . "<frame no='2' file='" . filename . "' line='3' />"
+      let cmd = cmd . '</frames>'
     elseif message =~ '^p '
       let p = matchlist(message, "^p \\(.*\\)")[1]
       let s:Mock.evals += 1

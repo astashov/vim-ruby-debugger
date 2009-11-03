@@ -2,5 +2,6 @@ tests/framework.vim
 tests/mock.vim
 tests/server.vim
 tests/breakpoint.vim
+tests/frames.vim
 tests/variables.vim
 tests/command.vim

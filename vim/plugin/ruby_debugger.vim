@@ -667,7 +667,7 @@ endfunction
 "   <frame no='1' file='/path/to/file.rb' line='21' current='true' />
 "   <frame no='2' file='/path/to/file.rb' line='11' />
 " </frames>
-" Assign all frames, fill Frames window by them, set signs
+" Assign all frames, fill Frames window by them
 function! RubyDebugger.commands.trace(cmd)
   let tags = s:get_tags(a:cmd)
   let list_of_frames = []
