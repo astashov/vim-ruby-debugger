@@ -54,7 +54,10 @@ class VimRubyDebugger
           output = read_socket(response, @rdebug)
           @result << output
           # If we stop at breakpoint, add taking of local variables into queue
-          @queue << "var local" if output =~ /<breakpoint / || output =~ /<suspended /
+          if output =~ /<breakpoint / || output =~ /<suspended /
+            @queue << "var local" 
+            @queue << "where"
+          end
           handle_queue
         end
       end

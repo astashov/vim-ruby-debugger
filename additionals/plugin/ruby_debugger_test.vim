@@ -3,6 +3,7 @@
 map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
 map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
+map <Leader>t  :call g:RubyDebugger.open_frames()<CR>
 map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>f  :call g:RubyDebugger.finish()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
@@ -17,7 +18,7 @@ command! -nargs=0 RdbTest :call g:RubyDebugger.run_test()
 command! -nargs=1 RdbEval :call g:RubyDebugger.eval(<q-args>)
 
 if exists("g:ruby_debugger_loaded")
-  finish
+  "finish
 endif
 if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
@@ -51,6 +52,7 @@ let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"
+let s:sign_id = 0
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')
@@ -202,9 +204,13 @@ endfunction
 function! s:clear_current_state()
   call s:unplace_sign_of_current_line()
   let g:RubyDebugger.variables = {}
-  " Clear variables window (just show our empty variables Dict)
+  let g:RubyDebugger.frames = []
+  " Clear variables and frames window (just show our empty variables Dict)
   if s:variables_window.is_open()
     call s:variables_window.open()
+  endif
+  if s:frames_window.is_open()
+    call s:frames_window.open()
   endif
 endfunction
 
@@ -346,7 +352,7 @@ endfunction
 
 " *** Public interface (start)
 
-let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [], 'frames': [] }
 let g:RubyDebugger.queue = s:Queue.new()
 
 
@@ -403,6 +409,8 @@ function! RubyDebugger.receive_command() dict
         call g:RubyDebugger.commands.eval(cmd)
       elseif match(cmd, '<processingException ') != -1
         call g:RubyDebugger.commands.processing_exception(cmd)
+      elseif match(cmd, '<frames>') != -1
+        call g:RubyDebugger.commands.trace(cmd)
       endif
     endif
   endfor
@@ -428,6 +436,14 @@ endfunction
 function! RubyDebugger.open_breakpoints() dict
   call s:breakpoints_window.toggle()
   call g:RubyDebugger.logger.put("Opened breakpoints window")
+  call g:RubyDebugger.queue.execute()
+endfunction
+
+
+" Open frames window
+function! RubyDebugger.open_frames() dict
+  call s:frames_window.toggle()
+  call g:RubyDebugger.logger.put("Opened frames window")
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -644,6 +660,31 @@ function! RubyDebugger.commands.processing_exception(cmd)
   let message = "RubyDebugger Exception, type: " . attrs.type . ", message: " . attrs.message
   echo message
   call g:RubyDebugger.logger.put(message)
+endfunction
+
+
+" <frames>
+"   <frame no='1' file='/path/to/file.rb' line='21' current='true' />
+"   <frame no='2' file='/path/to/file.rb' line='11' />
+" </frames>
+" Assign all frames, fill Frames window by them, set signs
+function! RubyDebugger.commands.trace(cmd)
+  let tags = s:get_tags(a:cmd)
+  let list_of_frames = []
+
+  " Create hash from list of tags
+  for tag in tags
+    let attrs = s:get_tag_attributes(tag)
+    let frame = s:Frame.new(attrs)
+    call add(list_of_frames, frame)
+  endfor
+
+  let g:RubyDebugger.frames = list_of_frames
+
+  if s:frames_window.is_open()
+    " show backtrace only if Backtrace Window is open
+    call s:frames_window.open()
+  endif
 endfunction
 
 
@@ -1014,6 +1055,60 @@ endfunction
 
 
 " *** WindowBreakpoints class (end)
+
+
+
+" *** WindowFrames class (start)
+
+" Inherits WindowFrames from Window
+let s:WindowFrames = copy(s:Window)
+
+" ** Public methods
+
+function! s:WindowFrames.bind_mappings()
+  nnoremap <buffer> <2-leftmouse> :call <SID>window_frames_activate_node()<cr>
+  nnoremap <buffer> o :call <SID>window_frames_activate_node()<cr>
+endfunction
+
+
+" Returns string that contains all frames (for Window.display())
+function! s:WindowFrames.render() dict
+  let frames = ""
+  let frames .= self.title . "\n"
+  for frame in g:RubyDebugger.frames
+    let frames .= frame.render()
+  endfor
+  return frames
+endfunction
+
+
+" Open frame under cursor
+function! s:window_frames_activate_node()
+  let frame = s:Frame.get_selected()
+  if frame != {}
+    call frame.open()
+  endif
+endfunction
+
+
+" Add syntax highlighting
+function! s:WindowFrames.setup_syntax_highlighting() dict
+    execute "syn match rdebugTitle #" . self.title . "#"
+
+    syn match rdebugId "^\d\+\s" contained nextgroup=rdebugFile
+    syn match rdebugFile ".*:" contained nextgroup=rdebugLine
+    syn match rdebugLine "\d\+" contained
+
+    syn match rdebugWrapper "^\d\+.*" contains=rdebugId transparent
+
+    hi def link rdebugId Directory
+    hi def link rdebugFile Normal
+    hi def link rdebugLine Special
+endfunction
+
+
+" *** WindowFrames class (end)
+
 
 
 
@@ -1467,6 +1562,82 @@ endfunction
 
 " *** Breakpoint class (end)
 
+" *** Frame class (start)
+
+let s:Frame = { }
+
+" ** Public methods
+
+" Constructor of new frame. 
+" Create new frame and set sign to it.
+function! s:Frame.new(attrs)
+  let var = copy(self)
+  let var.no = a:attrs.no
+  let var.file = a:attrs.file
+  let var.line = a:attrs.line
+  if has_key(a:attrs, 'current')
+    let var.current = (a:attrs.current == 'true')
+  else
+    let var.current = 0
+  endif
+  "let s:sign_id += 1
+  "let var.sign_id = s:sign_id
+  "call var._set_sign()
+  return var
+endfunction
+
+
+" Find and return frame under cursor
+function! s:Frame.get_selected() dict
+  let line = getline(".") 
+  let match = matchlist(line, '^\(\d\+\)') 
+  let no = get(match, 1)
+  let frames = filter(copy(g:RubyDebugger.frames), "v:val.no == " . no)
+  if !empty(frames)
+    return frames[0]
+  else
+    return {}
+  endif
+endfunction
+
+
+" Output format for Frame Window
+function! s:Frame.render() dict
+  return self.no . (self.current ? ' Current' : ''). " " . self.file . ":" . self.line . "\n"
+endfunction
+
+
+" Open frame in existed/new window
+function! s:Frame.open() dict
+  call s:jump_to_file(self.file, self.line)
+endfunction
+
+
+" ** Private methods
+
+function! s:Frame._log(string) dict
+  call g:RubyDebugger.logger.put(a:string)
+endfunction
+
+
+function! s:Frame._set_sign() dict
+  if has("signs")
+    exe ":sign place " . self.sign_id . " line=" . self.line . " name=frame file=" . self.file
+  endif
+endfunction
+
+
+function! s:Frame._unset_sign() dict
+  if has("signs")
+    exe ":sign unplace " . self.sign_id
+  endif
+endfunction
+
+
+" *** Frame class (end)
+
+
+
 " *** Server class (start)
 
 let s:Server = {}
@@ -1611,6 +1782,7 @@ endif
 " Creating windows
 let s:variables_window = s:WindowVariables.new("variables", "Variables_Window")
 let s:breakpoints_window = s:WindowBreakpoints.new("breakpoints", "Breakpoints_Window")
+let s:frames_window = s:WindowFrames.new("frames", "Backtrace_Window")
 
 " Init logger. The plugin logs all its actions. If you have some troubles,
 " this file can help
@@ -1618,6 +1790,7 @@ let s:logger_file = s:runtime_dir . '/tmp/ruby_debugger_log'
 let RubyDebugger.logger = s:Logger.new(s:logger_file)
 let s:variables_window.logger = RubyDebugger.logger
 let s:breakpoints_window.logger = RubyDebugger.logger
+let s:frames_window.logger = RubyDebugger.logger
 
 
 " *** Creating instances (end)

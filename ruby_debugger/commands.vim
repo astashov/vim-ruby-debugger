@@ -108,6 +108,31 @@ function! RubyDebugger.commands.processing_exception(cmd)
 endfunction
 
 
+" <frames>
+"   <frame no='1' file='/path/to/file.rb' line='21' current='true' />
+"   <frame no='2' file='/path/to/file.rb' line='11' />
+" </frames>
+" Assign all frames, fill Frames window by them, set signs
+function! RubyDebugger.commands.trace(cmd)
+  let tags = s:get_tags(a:cmd)
+  let list_of_frames = []
+
+  " Create hash from list of tags
+  for tag in tags
+    let attrs = s:get_tag_attributes(tag)
+    let frame = s:Frame.new(attrs)
+    call add(list_of_frames, frame)
+  endfor
+
+  let g:RubyDebugger.frames = list_of_frames
+
+  if s:frames_window.is_open()
+    " show backtrace only if Backtrace Window is open
+    call s:frames_window.open()
+  endif
+endfunction
+
+
 " <error>Error</error>
 " Just show error
 function! RubyDebugger.commands.error(cmd)

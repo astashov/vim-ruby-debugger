@@ -6,10 +6,12 @@ ruby_debugger/commands.vim
 ruby_debugger/window.vim
 ruby_debugger/window_variables.vim
 ruby_debugger/window_breakpoints.vim
+ruby_debugger/window_frames.vim
 ruby_debugger/var.vim
 ruby_debugger/var_child.vim
 ruby_debugger/var_parent.vim
 ruby_debugger/logger.vim
 ruby_debugger/breakpoint.vim
+ruby_debugger/frame.vim
 ruby_debugger/server.vim
 ruby_debugger/after.vim

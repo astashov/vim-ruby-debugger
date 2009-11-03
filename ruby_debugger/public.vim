@@ -1,6 +1,6 @@
 " *** Public interface (start)
 
-let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [] }
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [], 'frames': [] }
 let g:RubyDebugger.queue = s:Queue.new()
 
 
@@ -57,6 +57,8 @@ function! RubyDebugger.receive_command() dict
         call g:RubyDebugger.commands.eval(cmd)
       elseif match(cmd, '<processingException ') != -1
         call g:RubyDebugger.commands.processing_exception(cmd)
+      elseif match(cmd, '<frames>') != -1
+        call g:RubyDebugger.commands.trace(cmd)
       endif
     endif
   endfor
@@ -82,6 +84,14 @@ endfunction
 function! RubyDebugger.open_breakpoints() dict
   call s:breakpoints_window.toggle()
   call g:RubyDebugger.logger.put("Opened breakpoints window")
+  call g:RubyDebugger.queue.execute()
+endfunction
+
+
+" Open frames window
+function! RubyDebugger.open_frames() dict
+  call s:frames_window.toggle()
+  call g:RubyDebugger.logger.put("Opened frames window")
   call g:RubyDebugger.queue.execute()
 endfunction
 

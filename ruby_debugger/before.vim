@@ -3,6 +3,7 @@
 map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
 map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
 map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
+map <Leader>t  :call g:RubyDebugger.open_frames()<CR>
 map <Leader>s  :call g:RubyDebugger.step()<CR>
 map <Leader>f  :call g:RubyDebugger.finish()<CR>
 map <Leader>n  :call g:RubyDebugger.next()<CR>
@@ -17,7 +18,7 @@ command! -nargs=0 RdbTest :call g:RubyDebugger.run_test()
 command! -nargs=1 RdbEval :call g:RubyDebugger.eval(<q-args>)
 
 if exists("g:ruby_debugger_loaded")
-  finish
+  "finish
 endif
 if v:version < 700 
   echoerr "RubyDebugger: This plugin requires Vim >= 7."
@@ -51,6 +52,7 @@ let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"
+let s:sign_id = 0
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')

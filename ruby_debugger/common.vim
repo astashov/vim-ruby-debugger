@@ -130,9 +130,13 @@ endfunction
 function! s:clear_current_state()
   call s:unplace_sign_of_current_line()
   let g:RubyDebugger.variables = {}
-  " Clear variables window (just show our empty variables Dict)
+  let g:RubyDebugger.frames = []
+  " Clear variables and frames window (just show our empty variables Dict)
   if s:variables_window.is_open()
     call s:variables_window.open()
+  endif
+  if s:frames_window.is_open()
+    call s:frames_window.open()
   endif
 endfunction
 
