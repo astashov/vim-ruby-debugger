@@ -30,10 +30,14 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
     if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
       let breakpoint.debugger_id = attrs.no
       let breakpoint.rdebug_pid = pid
+      if has_key(breakpoint, 'condition')
+        call breakpoint.add_condition(breakpoint.condition)
+      endif
     endif
   endfor
 
   call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 

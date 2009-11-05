@@ -84,7 +84,6 @@ function! s:get_filename()
 endfunction
 
 
-" TODO: Find way to improve its performance
 " Send message to debugger. This function should never be used explicitly,
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)

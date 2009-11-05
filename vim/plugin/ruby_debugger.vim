@@ -16,6 +16,7 @@ command! -nargs=0 RdbStop :call g:RubyDebugger.stop()
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
 command! -nargs=1 RdbEval :call g:RubyDebugger.eval(<q-args>)
+command! -nargs=1 RdbCond :call g:RubyDebugger.conditional_breakpoint(<q-args>)
 
 if exists("g:ruby_debugger_loaded")
   "finish
@@ -158,7 +159,6 @@ function! s:get_filename()
 endfunction
 
 
-" TODO: Find way to improve its performance
 " Send message to debugger. This function should never be used explicitly,
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
@@ -448,8 +448,9 @@ function! RubyDebugger.open_frames() dict
 endfunction
 
 
-" Set/remove breakpoint at current position
-function! RubyDebugger.toggle_breakpoint() dict
+" Set/remove breakpoint at current position. If argument
+" is given, it will set conditional breakpoint (argument is condition)
+function! RubyDebugger.toggle_breakpoint(...) dict
   let line = line(".")
   let file = s:get_filename()
   let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
@@ -488,6 +489,29 @@ function! RubyDebugger.eval(exp) dict
   let quoted = s:quotify(a:exp)
   call g:RubyDebugger.queue.add("eval " . quoted)
   call g:RubyDebugger.queue.execute()
+endfunction
+
+
+" Sets conditional breakpoint where cursor is placed
+function! RubyDebugger.conditional_breakpoint(exp) dict
+  let line = line(".")
+  let file = s:get_filename()
+  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
+  " If breakpoint with current file/line doesn't exist, create it. Otherwise -
+  " remove it
+  if empty(existed_breakpoints)
+    echo "You can set condition only to already set breakpoints. Move cursor to set breakpoint and add condition"
+  else
+    let breakpoint = existed_breakpoints[0]
+    let quoted = s:quotify(a:exp)
+    call breakpoint.add_condition(quoted)
+    " Update info in Breakpoints window
+    if s:breakpoints_window.is_open()
+      call s:breakpoints_window.open()
+      exe "wincmd p"
+    endif
+    call g:RubyDebugger.queue.execute()
+  endif
 endfunction
 
 
@@ -585,10 +609,14 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
     if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
       let breakpoint.debugger_id = attrs.no
       let breakpoint.rdebug_pid = pid
+      if has_key(breakpoint, 'condition')
+        call breakpoint.add_condition(breakpoint.condition)
+      endif
     endif
   endfor
 
   call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
+  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -1488,6 +1516,17 @@ function! s:Breakpoint.delete() dict
 endfunction
 
 
+" Add condition to breakpoint. If server is not running, just store it, it
+" will be evaluated after starting the server
+function! s:Breakpoint.add_condition(condition) dict
+  let self.condition = a:condition
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running() && has_key(self, 'debugger_id')
+    call g:RubyDebugger.queue.add(self.condition_command())
+  endif
+endfunction
+
+
+
 " Send adding breakpoint message to debugger, if it is run
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
@@ -1499,6 +1538,12 @@ endfunction
 " Command for setting breakpoint (e.g.: 'break /path/to/file:23')
 function! s:Breakpoint.command() dict
   return 'break ' . self.file . ':' . self.line
+endfunction
+
+
+" Command for adding condition to breakpoin (e.g.: 'condition 1 x>5')
+function! s:Breakpoint.condition_command() dict
+  return 'condition ' . self.debugger_id . ' ' . self.condition
 endfunction
 
 
@@ -1518,7 +1563,11 @@ endfunction
 
 " Output format for Breakpoints Window
 function! s:Breakpoint.render() dict
-  return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
+  let output = self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line
+  if exists("self.condition")
+    let output .= " " . self.condition
+  endif
+  return output . "\n"
 endfunction
 
 

@@ -26,6 +26,17 @@ function! s:Breakpoint.delete() dict
 endfunction
 
 
+" Add condition to breakpoint. If server is not running, just store it, it
+" will be evaluated after starting the server
+function! s:Breakpoint.add_condition(condition) dict
+  let self.condition = a:condition
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running() && has_key(self, 'debugger_id')
+    call g:RubyDebugger.queue.add(self.condition_command())
+  endif
+endfunction
+
+
+
 " Send adding breakpoint message to debugger, if it is run
 function! s:Breakpoint.send_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
@@ -37,6 +48,12 @@ endfunction
 " Command for setting breakpoint (e.g.: 'break /path/to/file:23')
 function! s:Breakpoint.command() dict
   return 'break ' . self.file . ':' . self.line
+endfunction
+
+
+" Command for adding condition to breakpoin (e.g.: 'condition 1 x>5')
+function! s:Breakpoint.condition_command() dict
+  return 'condition ' . self.debugger_id . ' ' . self.condition
 endfunction
 
 
@@ -56,7 +73,11 @@ endfunction
 
 " Output format for Breakpoints Window
 function! s:Breakpoint.render() dict
-  return self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line . "\n"
+  let output = self.id . " " . (exists("self.debugger_id") ? self.debugger_id : '') . " " . self.file . ":" . self.line
+  if exists("self.condition")
+    let output .= " " . self.condition
+  endif
+  return output . "\n"
 endfunction
 
 

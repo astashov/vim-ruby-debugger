@@ -16,6 +16,7 @@ command! -nargs=0 RdbStop :call g:RubyDebugger.stop()
 command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>) 
 command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
 command! -nargs=1 RdbEval :call g:RubyDebugger.eval(<q-args>)
+command! -nargs=1 RdbCond :call g:RubyDebugger.conditional_breakpoint(<q-args>)
 
 if exists("g:ruby_debugger_loaded")
   "finish

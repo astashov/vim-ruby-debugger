@@ -91,6 +91,8 @@ It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and
    * <Leader>m - open/close window with breakpoints. You can open file with
                  breakpoint by pressing 'o' or left-mouse double-click on it,
                  or delete the breakpoint by pressing 'd' on it.
+   * <Leader>t - open/close window with backtrace. You can open file/line in
+                 this window by pressing 'o' or left-mouse double-click on it
    * <Leader>n - step over
    * <Leader>s - step into
    * <Leader>f - step out
@@ -103,15 +105,16 @@ DETAILS					*ruby-debugger-details*
 1. Of course, you can set your own mappings instead of mine. For this, just
    add this to your .vimrc and change keys for mapping:
 >
-	map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
-	map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
-	map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
-	map <Leader>s  :call g:RubyDebugger.step()<CR>
-	map <Leader>n  :call g:RubyDebugger.next()<CR>
+        map <Leader>b  :call g:RubyDebugger.toggle_breakpoint()<CR>
+        map <Leader>v  :call g:RubyDebugger.open_variables()<CR>
+        map <Leader>m  :call g:RubyDebugger.open_breakpoints()<CR>
+        map <Leader>t  :call g:RubyDebugger.open_frames()<CR>
+        map <Leader>s  :call g:RubyDebugger.step()<CR>
         map <Leader>f  :call g:RubyDebugger.finish()<CR>
-	map <Leader>c  :call g:RubyDebugger.continue()<CR>
-	map <Leader>e  :call g:RubyDebugger.exit()<CR>
-	map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
+        map <Leader>n  :call g:RubyDebugger.next()<CR>
+        map <Leader>c  :call g:RubyDebugger.continue()<CR>
+        map <Leader>e  :call g:RubyDebugger.exit()<CR>
+        map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
 >
 2. Standard output and errors (STDOUT and STDERR) of running script is 
 redirected to ~/.vim/tmp/ruby_debugger_output file (only for POSIX 
@@ -136,18 +139,25 @@ If your script receives arguments, quote it into single quotes: >
         :RdbEval u.name
         :RdbEval app_config['settings'].map { |s| s.capitalize }
 
-7. To stop running server, you can use :RdbStop command: >
+7. To add condition to some breakpoint, you can move cursor on the breakpoint,
+   and type command: >
+        :RdbCond condition 
+E.g.: >
+        :RdbCond current_user.name == "John"
+Then, execution will be stopped on the breakpoint only if condition is true
+
+8. To stop running server, you can use :RdbStop command: >
         :RdbStop
 
-8. For communicating with the rdebug the plugin uses temp file:
+9. For communicating with the rdebug the plugin uses temp file:
    ~/.vim/tmp/ruby_debugger. Rdebug writes some response to this file, "kicks"
    the plugin remotely calling RubyDebugger.receive_command() by Vim's
    client-server functionality and the plugin make actions. For this reason,
    you need Vim compiled with +clientserver.
 
-9. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
+10. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
 
-10. You also can run Unit tests for the plugin. For this, copy to 
+11. You also can run Unit tests for the plugin. For this, copy to 
    ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim (from
    additionals/plugin directory). It has the same functionality, but with unit 
    tests at end of the file. To run unit tests, change current directory to 

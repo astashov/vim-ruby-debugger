@@ -96,8 +96,9 @@ function! RubyDebugger.open_frames() dict
 endfunction
 
 
-" Set/remove breakpoint at current position
-function! RubyDebugger.toggle_breakpoint() dict
+" Set/remove breakpoint at current position. If argument
+" is given, it will set conditional breakpoint (argument is condition)
+function! RubyDebugger.toggle_breakpoint(...) dict
   let line = line(".")
   let file = s:get_filename()
   let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
@@ -136,6 +137,29 @@ function! RubyDebugger.eval(exp) dict
   let quoted = s:quotify(a:exp)
   call g:RubyDebugger.queue.add("eval " . quoted)
   call g:RubyDebugger.queue.execute()
+endfunction
+
+
+" Sets conditional breakpoint where cursor is placed
+function! RubyDebugger.conditional_breakpoint(exp) dict
+  let line = line(".")
+  let file = s:get_filename()
+  let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
+  " If breakpoint with current file/line doesn't exist, create it. Otherwise -
+  " remove it
+  if empty(existed_breakpoints)
+    echo "You can set condition only to already set breakpoints. Move cursor to set breakpoint and add condition"
+  else
+    let breakpoint = existed_breakpoints[0]
+    let quoted = s:quotify(a:exp)
+    call breakpoint.add_condition(quoted)
+    " Update info in Breakpoints window
+    if s:breakpoints_window.is_open()
+      call s:breakpoints_window.open()
+      exe "wincmd p"
+    endif
+    call g:RubyDebugger.queue.execute()
+  endif
 endfunction
 
 
