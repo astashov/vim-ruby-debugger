@@ -41,7 +41,7 @@ function! s:Tests.exceptions.test_should_display_exceptions_in_window_breakpoint
   call g:RubyDebugger.catch_exception("NameError")
   call g:RubyDebugger.catch_exception("ArgumentError")
   call g:RubyDebugger.open_breakpoints()
-  call g:TU.match(getline(3), 'Exception breakpoints: NameError, ArgumentError', "Should show exception breakpoints", a:test)
+  call g:TU.match('Exception breakpoints: NameError, ArgumentError', getline(3), "Should show exception breakpoints", a:test)
   exe 'close'
 endfunction
 

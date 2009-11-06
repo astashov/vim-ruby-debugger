@@ -2222,6 +2222,7 @@ function! s:Tests.breakpoint.before()
   call g:RubyDebugger.queue.empty() 
   call s:Server._stop_server(s:rdebug_port)
   call s:Server._stop_server(s:debugger_port)
+  silent exe "only"
 endfunction
 
 
@@ -2376,6 +2377,29 @@ function! s:Tests.breakpoint.test_should_open_window_and_show_breakpoints(test)
 endfunction
 
 
+function! s:Tests.breakpoint.test_should_open_selected_breakpoint_from_breakpoints_window(test)
+  let filename = s:Mock.mock_file()
+  let file_pattern = substitute(filename, '[\/\\]', '[\\\/\\\\]', "g")
+  exe "normal iblablabla"
+  exe "normal oblabla" 
+  call g:RubyDebugger.toggle_breakpoint()
+  exe "normal gg"
+  exe "write"
+  exe "wincmd w"
+  exe "new"
+
+  call g:TU.ok(expand("%") != filename, "It should not be within the file with breakpoint", a:test)
+  call g:RubyDebugger.open_breakpoints()
+  exe 'normal 2G'
+  call s:window_breakpoints_activate_node()
+  call g:TU.match(expand("%"), file_pattern, "It should open file with breakpoint", a:test)
+  call g:TU.equal(2, line("."), "It should jump to line with breakpoint", a:test)
+  call g:RubyDebugger.open_breakpoints()
+
+  call s:Mock.unmock_file(filename)
+endfunction
+
+
 function! s:Tests.breakpoint.test_should_delete_breakpoint_from_breakpoints_window(test)
   let filename = s:Mock.mock_file()
   call g:RubyDebugger.toggle_breakpoint()
@@ -2391,27 +2415,6 @@ function! s:Tests.breakpoint.test_should_delete_breakpoint_from_breakpoints_wind
   exe 'close'
 endfunction
 
-
-function! s:Tests.breakpoint.test_should_open_selected_breakpoint_from_breakpoints_window(test)
-  let filename = s:Mock.mock_file()
-  let file_pattern = substitute(filename, '[\/\\]', '[\\\/\\\\]', "g")
-  exe "normal iblablabla"
-  exe "normal oblabla" 
-  call g:RubyDebugger.toggle_breakpoint()
-  exe "normal gg"
-  exe "write"
-  exe "wincmd w"
-
-  call g:TU.ok(expand("%") != filename, "It should not be within the file with breakpoint", a:test)
-  call g:RubyDebugger.open_breakpoints()
-  exe 'normal 2G'
-  call s:window_breakpoints_activate_node()
-  call g:TU.match(expand("%"), file_pattern, "It should open file with breakpoint", a:test)
-  call g:TU.equal(2, line("."), "It should jump to line with breakpoint", a:test)
-  call g:RubyDebugger.open_breakpoints()
-
-  call s:Mock.unmock_file(filename)
-endfunction
 
 
 let s:Tests.exceptions = {}
@@ -2457,7 +2460,7 @@ function! s:Tests.exceptions.test_should_display_exceptions_in_window_breakpoint
   call g:RubyDebugger.catch_exception("NameError")
   call g:RubyDebugger.catch_exception("ArgumentError")
   call g:RubyDebugger.open_breakpoints()
-  call g:TU.match(getline(3), 'Exception breakpoints: NameError, ArgumentError', "Should show exception breakpoints", a:test)
+  call g:TU.match('Exception breakpoints: NameError, ArgumentError', getline(3), "Should show exception breakpoints", a:test)
   exe 'close'
 endfunction
 
