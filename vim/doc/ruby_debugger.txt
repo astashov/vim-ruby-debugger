@@ -146,18 +146,30 @@ E.g.: >
         :RdbCond current_user.name == "John"
 Then, execution will be stopped on the breakpoint only if condition is true
 
-8. To stop running server, you can use :RdbStop command: >
+8. To add exceptions catcher, use command: >
+        :RdbCatch NameOfException
+This way, when exception is raised, debugger will catch it, jump to file/line
+of the exception and you'll be allowed to watch variables, backtrace, etc there.
+To reset all catched exceptions just restart the server by :Rdebugger command.
+You can watch placed catchers in the Breakpoints Window (<Leader>m by default). 
+See the bottom line of the window.
+
+WARNING!!! If you try to set catcher to unexisted exception (e.g., if you
+mistyped class of the exception), ruby-debug-ide will be crashed! Then, you
+will have to restart the server by :Rdebugger command
+
+9. To stop running server, you can use :RdbStop command: >
         :RdbStop
 
-9. For communicating with the rdebug the plugin uses temp file:
+10. For communicating with the rdebug the plugin uses temp file:
    ~/.vim/tmp/ruby_debugger. Rdebug writes some response to this file, "kicks"
    the plugin remotely calling RubyDebugger.receive_command() by Vim's
    client-server functionality and the plugin make actions. For this reason,
    you need Vim compiled with +clientserver.
 
-10. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
+11. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
 
-11. You also can run Unit tests for the plugin. For this, copy to 
+12. You also can run Unit tests for the plugin. For this, copy to 
    ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim (from
    additionals/plugin directory). It has the same functionality, but with unit 
    tests at end of the file. To run unit tests, change current directory to 
@@ -205,6 +217,10 @@ If it contains some incorrect value, set it in your .vimrc. E.g. for mvim: >
 If Vim's executable directory is not in your PATH environment variable, set 
 full path to executable: >
   let g:ruby_debugger_progname = '/opt/local/bin/mvim'
+
+2. If you try to set exceptions catcher to unexisted exception class, 
+ruby-debug-ide will be crushed with error. This is issue of the
+ruby-debud-ide.
   
 
 ==============================================================================
