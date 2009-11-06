@@ -19,6 +19,8 @@ function! s:WindowBreakpoints.render() dict
   for breakpoint in g:RubyDebugger.breakpoints
     let breakpoints .= breakpoint.render()
   endfor
+  let exceptions = map(copy(g:RubyDebugger.exceptions), 'v:val.render()')
+  let breakpoints .= "\nException breakpoints: " . join(exceptions, ", ")
   return breakpoints
 endfunction
 

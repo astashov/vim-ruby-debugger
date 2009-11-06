@@ -17,6 +17,7 @@ command! -nargs=1 RdbCommand :call g:RubyDebugger.send_command(<q-args>)
 command! -nargs=0 RdbTest :call g:RubyDebugger.run_test() 
 command! -nargs=1 RdbEval :call g:RubyDebugger.eval(<q-args>)
 command! -nargs=1 RdbCond :call g:RubyDebugger.conditional_breakpoint(<q-args>)
+command! -nargs=1 RdbCatch :call g:RubyDebugger.catch_exception(<q-args>)
 
 if exists("g:ruby_debugger_loaded")
   "finish
@@ -352,7 +353,7 @@ endfunction
 
 " *** Public interface (start)
 
-let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [], 'frames': [] }
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [], 'frames': [], 'exceptions': [] }
 let g:RubyDebugger.queue = s:Queue.new()
 
 
@@ -364,6 +365,7 @@ function! RubyDebugger.start(...) dict
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(script)
 
+  let g:RubyDebugger.exceptions = []
   for breakpoint in g:RubyDebugger.breakpoints
     call g:RubyDebugger.queue.add(breakpoint.command())
   endfor
@@ -397,8 +399,12 @@ function! RubyDebugger.receive_command() dict
         call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
       elseif match(cmd, '<suspended ') != -1
         call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<exception ') != -1
+        call g:RubyDebugger.commands.handle_exception(cmd)
       elseif match(cmd, '<breakpointAdded ') != -1
         call g:RubyDebugger.commands.set_breakpoint(cmd)
+      elseif match(cmd, '<catchpointSet ') != -1
+        call g:RubyDebugger.commands.set_exception(cmd)
       elseif match(cmd, '<variables>') != -1
         call g:RubyDebugger.commands.set_variables(cmd)
       elseif match(cmd, '<error>') != -1
@@ -515,6 +521,23 @@ function! RubyDebugger.conditional_breakpoint(exp) dict
 endfunction
 
 
+" Catch all exceptions with given name
+function! RubyDebugger.catch_exception(exp) dict
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+    let quoted = s:quotify(a:exp)
+    let exception = s:Exception.new(quoted)
+    call add(g:RubyDebugger.exceptions, exception)
+    if s:breakpoints_window.is_open()
+      call s:breakpoints_window.open()
+      exe "wincmd p"
+    endif
+    call g:RubyDebugger.queue.execute()
+  else
+    echo "Sorry, but you can set Exceptional Breakpoints only with running debugger"
+  endif
+endfunction
+
+
 " Next
 function! RubyDebugger.next() dict
   call g:RubyDebugger.queue.add("next")
@@ -591,6 +614,23 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   if has("signs")
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
+endfunction
+
+
+" <exception file="test.rb" line="1" type="NameError" message="some exception message" threadId="4" />
+" Show message error and jump to given file/line
+function! RubyDebugger.commands.handle_exception(cmd) dict
+  let message_match = matchlist(a:cmd, 'message="\(.\{-}\)"')
+  call g:RubyDebugger.commands.jump_to_breakpoint(a:cmd)
+  echo "Exception message: " . s:unescape_html(message_match[1])
+endfunction
+
+
+" <catchpointSet exception="NoMethodError"/>
+" Confirm setting of exception catcher
+function! RubyDebugger.commands.set_exception(cmd) dict
+  let attrs = s:get_tag_attributes(a:cmd)
+  call g:RubyDebugger.logger.put("Exception successfully set: " . attrs.exception)
 endfunction
 
 
@@ -1038,6 +1078,8 @@ function! s:WindowBreakpoints.render() dict
   for breakpoint in g:RubyDebugger.breakpoints
     let breakpoints .= breakpoint.render()
   endfor
+  let exceptions = map(copy(g:RubyDebugger.exceptions), 'v:val.render()')
+  let breakpoints .= "\nException breakpoints: " . join(exceptions, ", ")
   return breakpoints
 endfunction
 
@@ -1610,6 +1652,49 @@ endfunction
 
 
 " *** Breakpoint class (end)
+
+" *** Exception class (start)
+" These are ruby exceptions we catch with 'catch Exception' command
+" (:RdbCatch)
+
+let s:Exception = { }
+
+" ** Public methods
+
+" Constructor of new exception.
+function! s:Exception.new(name)
+  let var = copy(self)
+  let var.name = a:name
+  call var._log("Trying to set exception: " . var.name)
+  call g:RubyDebugger.queue.add(var.command())
+  return var
+endfunction
+
+
+" Command for setting exception (e.g.: 'catch NameError')
+function! s:Exception.command() dict
+  return 'catch ' . self.name
+endfunction
+
+
+" Output format for Breakpoints Window
+function! s:Exception.render() dict
+  return self.name
+endfunction
+
+
+" ** Private methods
+
+
+function! s:Exception._log(string) dict
+  call g:RubyDebugger.logger.put(a:string)
+endfunction
+
+
+" *** Exception class (end)
+
+
+
 
 " *** Frame class (start)
 

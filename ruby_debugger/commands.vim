@@ -15,6 +15,23 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
 endfunction
 
 
+" <exception file="test.rb" line="1" type="NameError" message="some exception message" threadId="4" />
+" Show message error and jump to given file/line
+function! RubyDebugger.commands.handle_exception(cmd) dict
+  let message_match = matchlist(a:cmd, 'message="\(.\{-}\)"')
+  call g:RubyDebugger.commands.jump_to_breakpoint(a:cmd)
+  echo "Exception message: " . s:unescape_html(message_match[1])
+endfunction
+
+
+" <catchpointSet exception="NoMethodError"/>
+" Confirm setting of exception catcher
+function! RubyDebugger.commands.set_exception(cmd) dict
+  let attrs = s:get_tag_attributes(a:cmd)
+  call g:RubyDebugger.logger.put("Exception successfully set: " . attrs.exception)
+endfunction
+
+
 " <breakpointAdded no="1" location="test.rb:2" />
 " Add debugger info to breakpoints (pid of debugger, debugger breakpoint's id)
 " Assign rest breakpoints to debugger recursively, if there are breakpoints

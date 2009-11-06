@@ -1,6 +1,6 @@
 " *** Public interface (start)
 
-let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [], 'frames': [] }
+let RubyDebugger = { 'commands': {}, 'variables': {}, 'settings': {}, 'breakpoints': [], 'frames': [], 'exceptions': [] }
 let g:RubyDebugger.queue = s:Queue.new()
 
 
@@ -12,6 +12,7 @@ function! RubyDebugger.start(...) dict
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(script)
 
+  let g:RubyDebugger.exceptions = []
   for breakpoint in g:RubyDebugger.breakpoints
     call g:RubyDebugger.queue.add(breakpoint.command())
   endfor
@@ -45,8 +46,12 @@ function! RubyDebugger.receive_command() dict
         call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
       elseif match(cmd, '<suspended ') != -1
         call g:RubyDebugger.commands.jump_to_breakpoint(cmd)
+      elseif match(cmd, '<exception ') != -1
+        call g:RubyDebugger.commands.handle_exception(cmd)
       elseif match(cmd, '<breakpointAdded ') != -1
         call g:RubyDebugger.commands.set_breakpoint(cmd)
+      elseif match(cmd, '<catchpointSet ') != -1
+        call g:RubyDebugger.commands.set_exception(cmd)
       elseif match(cmd, '<variables>') != -1
         call g:RubyDebugger.commands.set_variables(cmd)
       elseif match(cmd, '<error>') != -1
@@ -159,6 +164,23 @@ function! RubyDebugger.conditional_breakpoint(exp) dict
       exe "wincmd p"
     endif
     call g:RubyDebugger.queue.execute()
+  endif
+endfunction
+
+
+" Catch all exceptions with given name
+function! RubyDebugger.catch_exception(exp) dict
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+    let quoted = s:quotify(a:exp)
+    let exception = s:Exception.new(quoted)
+    call add(g:RubyDebugger.exceptions, exception)
+    if s:breakpoints_window.is_open()
+      call s:breakpoints_window.open()
+      exe "wincmd p"
+    endif
+    call g:RubyDebugger.queue.execute()
+  else
+    echo "Sorry, but you can set Exceptional Breakpoints only with running debugger"
   endif
 endfunction
 
