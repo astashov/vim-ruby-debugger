@@ -23,4 +23,3 @@ command! -nargs=1 RdbCatch call g:RubyDebugger.catch_exception(<q-args>)
 
 let g:ruby_debugger_loaded = 1
 
-
