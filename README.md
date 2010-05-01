@@ -1,3 +1,11 @@
+# THIS IS AN EXPERIMENTAL BRANCH! #
+
+In this branch I'm trying to move ruby_debugger.rb daemon inside VIM plugin instead of
+starting this daemon separately. It will require VIM compiled with +ruby (but I hope if
+you write on Ruby you will have that option anyway :)). 
+
+Ideally, that should improve performance and stability.
+
 # Description #
 
 This Vim plugin implements interactive Ruby debugger in Vim.
