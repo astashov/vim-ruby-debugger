@@ -35,9 +35,11 @@ class Collector
 end
 
 
-common = Collector.new(['ruby_debugger_plan.txt'], 'vim/plugin/ruby_debugger.vim')
-common.accumulate!
+plugin = Collector.new(['ruby_debugger_plugin_plan.txt'], 'vim/plugin/ruby_debugger.vim')
+plugin.accumulate!
 
+auto_load = Collector.new(['ruby_debugger_autoload_plan.txt'], 'vim/autoload/ruby_debugger.vim')
+auto_load.accumulate!
 
-with_tests = Collector.new(['ruby_debugger_plan.txt', 'ruby_test_plan.txt'], 'additionals/plugin/ruby_debugger_test.vim')
+with_tests = Collector.new(['ruby_debugger_plugin_plan.txt', 'ruby_debugger_autoload_plan.txt', 'ruby_test_plan.txt'], 'additionals/plugin/ruby_debugger_test.vim')
 with_tests.accumulate!

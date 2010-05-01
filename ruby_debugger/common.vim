@@ -1,5 +1,10 @@
 " *** Common (global) functions
 
+" only load this file. Required for autoloading the code for this plugin
+fun! ruby_debugger#load_debugger()
+  " no operation
+endf
+
 " Split string of tags to List. E.g., 
 " <variables><variable name="a" value="b" /><variable name="c" value="d" /></variables>
 " will be splitted to 
