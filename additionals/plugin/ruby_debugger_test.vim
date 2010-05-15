@@ -14,12 +14,12 @@ noremap <leader>e  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger
 noremap <leader>d  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.remove_breakpoints()<CR>
 
 command! -nargs=? -complete=file Rdebugger call ruby_debugger#load_debugger() | call g:RubyDebugger.start(<q-args>) 
-command! -nargs=0 RdbStop call g:RubyDebugger.stop() 
-command! -nargs=1 RdbCommand call g:RubyDebugger.send_command(<q-args>) 
-command! -nargs=0 RdbTest call g:RubyDebugger.run_test() 
-command! -nargs=1 RdbEval call g:RubyDebugger.eval(<q-args>)
-command! -nargs=1 RdbCond call g:RubyDebugger.conditional_breakpoint(<q-args>)
-command! -nargs=1 RdbCatch call g:RubyDebugger.catch_exception(<q-args>)
+command! -nargs=0 RdbStop call ruby_debugger#load_debugger() | call g:RubyDebugger.stop() 
+command! -nargs=1 RdbCommand call ruby_debugger#load_debugger() | call g:RubyDebugger.send_command(<q-args>) 
+command! -nargs=0 RdbTest call ruby_debugger#load_debugger() | call g:RubyDebugger.run_test() 
+command! -nargs=1 RdbEval call ruby_debugger#load_debugger() | call g:RubyDebugger.eval(<q-args>)
+command! -nargs=1 RdbCond call ruby_debugger#load_debugger() | call g:RubyDebugger.conditional_breakpoint(<q-args>)
+command! -nargs=1 RdbCatch call ruby_debugger#load_debugger() | call g:RubyDebugger.catch_exception(<q-args>)
 
 let g:ruby_debugger_loaded = 1
 
@@ -27,7 +27,6 @@ let g:ruby_debugger_loaded = 1
 " Init section - set default values, highlight colors
 
 let s:rdebug_port = 39767
-let s:debugger_port = 39768
 " hostname() returns something strange in Windows (E98BD9A419BB41D), so set hostname explicitly
 let s:hostname = 'localhost' "hostname()
 " ~/.vim for Linux, vimfiles for Windows
@@ -40,6 +39,7 @@ let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"
 let s:sign_id = 0
+let s:default_script = 'script/server webrick'
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')
@@ -181,13 +181,11 @@ endfunction
 " Send message to debugger. This function should never be used explicitly,
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
-
 ruby << RUBY
-
-VIM.evaluate('a:message').split(VIM.evaluate('s:separator')).each { |msg| @rdebug_ide.puts(msg) }
-
+  if @rdebug_ide && @forked_pid
+    VIM.evaluate('a:message').split(VIM.evaluate('s:separator')).each { |msg| @rdebug_ide.puts(msg) }
+  end
 RUBY
-
 endfunction
 
 
@@ -358,8 +356,8 @@ let g:RubyDebugger.queue = s:Queue.new()
 " Run debugger server. It takes one optional argument with path to debugged
 " ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
-  let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
-  let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
+  let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:server_output_file, s:tmp_file, v:servername, g:ruby_debugger_progname, s:separator)
+  let script = a:0 && !empty(a:1) ? a:1 : s:default_script
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(script)
 
@@ -1777,148 +1775,146 @@ let s:Server = {}
 " ** Public methods
 
 " Constructor of new server. Just inits it, not runs
-function! s:Server.new(hostname, rdebug_port, debugger_port, runtime_dir, tmp_file, output_file) dict
+function! s:Server.new(host, port, output_file, tmp_file, servername, progname, separator) dict
   let var = copy(self)
-  let var.hostname = a:hostname
-  let var.rdebug_port = a:rdebug_port
-  let var.runtime_dir = a:runtime_dir
+  let var.host = a:host
+  let var.port = a:port
   let var.output_file = a:output_file
+  let var.tmp_file = a:tmp_file
+  let var.servername = a:servername
+  let var.progname = a:progname
+  let var.separator = a:separator
   return var
 endfunction
 
 
 " Start the server. It will kill any listeners on given ports before.
 function! s:Server.start(script) dict
-  call self._stop_server(self.rdebug_port)
+  if self._check_already_running_server(self.port)
+    echo "Another Vim instance has running rdebug-ide. Please stop it there (or kill 'zombie' rdebug-ide process if there is no running VIM)"
+    return 0
+  endif
+  call self._stop_server()
   " Remove leading and trailing quotes
   let script_name = substitute(a:script, "\\(^['\"]\\|['\"]$\\)", '', 'g')
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . script_name
+  let rdebug_ide = 'rdebug-ide -p ' . self.port . ' -- ' . script_name
 
   " Start in background
   if has("win32") || has("win64")
-    silent exe '! start ' . rdebug
-    let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
-    silent exe '! start ' . debugger
+    "silent exe '! start ' . rdebug
+    "let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
+    "silent exe '! start ' . debugger
   else
-    call system(rdebug . ' > ' . self.output_file . ' 2>&1 &')
-    call self.start_debugger(self.hostname, self.rdebug_port)
+    call system(rdebug_ide . ' > ' . self.output_file . ' 2>&1 &')
+    call self.start_debugger(self.host, self.port, self.tmp_file, self.servername, self.progname, self.separator)
   endif
+  autocmd VimLeavePre * :call g:RubyDebugger.stop()
 
   " Set PIDs of processes
-  let self.rdebug_pid = self._get_pid(self.rdebug_port, 1)
+  let self.rdebug_pid = self._get_pid(self.port, 1)
   call g:RubyDebugger.logger.put("Start debugger")
 endfunction  
 
 
 " Kill servers and empty PIDs
 function! s:Server.stop() dict
-  call self._kill_process(self.rdebug_pid)
+  call self._stop_server()
   let self.rdebug_pid = ""
 endfunction
 
 
-function! s:Server.start_debugger(hostname, rdebug_port) dict
+function! s:Server.start_debugger(host, port, tmp_file, servername, progname, separator) dict
 ruby << RUBY
 
-require 'socket'
+  require 'socket'
+  host = VIM.evaluate('a:host')
+  port = VIM.evaluate('a:port')
+  @tmp_file = VIM.evaluate('a:tmp_file')
+  @server_name = VIM.evaluate('a:servername')
+  @progname = VIM.evaluate('a:progname')
+  @separator = VIM.evaluate('a:separator')
 
-host = VIM.evaluate('a:hostname')
-port = VIM.evaluate('a:rdebug_port')
-@server_name = VIM.evaluate('v:servername')
-@progname = VIM.evaluate('g:ruby_debugger_progname')
-@tmp_file = VIM.evaluate('s:tmp_file')
-@separator = VIM.evaluate('s:separator')
-
-def wait_for_opened_socket(host, port)
-  attempts = 0
-  begin
-    TCPSocket.open(host, port)
-  rescue Errno::ECONNREFUSED => msg
-    attempts += 1
-    # If socket wasn't be opened for 20 seconds, exit
-    if attempts < 400
-      sleep 0.05
-      retry
-    else
-      raise Errno::ECONNREFUSED, "#{host}:#{port} wasn't be opened"
-    end
-  end
-end
-@rdebug_ide = wait_for_opened_socket(host, port)
-
-@forked_pid = Process.fork do
-
-  Signal.trap("TERM") { exit }
-
-  def read_rdebug_socket(response, rdebug, output = "")
-    if response && response[0] && response[0][0]
-      output += response[0][0].recv(10000)
-      if have_unclosed_tag?(output)
-        # If rdebug-ide doesn't send full message, we should wait for rest parts too.
-        # We can understand that this is just part of message by matching unclosed tags
-        another_response = select([rdebug], nil, nil)
+  def wait_for_opened_socket(host, port)
+    attempts = 0
+    begin
+      TCPSocket.open(host, port)
+    rescue Errno::ECONNREFUSED => msg
+      attempts += 1
+      # If socket wasn't be opened for 20 seconds, exit
+      if attempts < 400
+        sleep 0.05
+        retry
       else
-        # Sometimes by some reason rdebug-ide sends blank strings just after main message. 
-        # We need to remove these strings by receiving them 
-        another_response = select([rdebug], nil, nil, 0.01)
-      end
-      if another_response && another_response[0] && another_response[0][0]
-        output = read_rdebug_socket(another_response, rdebug, output)
+        raise Errno::ECONNREFUSED, "#{host}:#{port} wasn't be opened"
       end
     end
-    output
   end
+  @rdebug_ide = wait_for_opened_socket(host, port)
 
-  def have_unclosed_tag?(output)
-    start_match = output.match(/^<([a-zA-Z0-9\-_]+)>/)
-    if start_match
-      end_match = output.match(/<\/#{start_match[1]}>$/)
-      return end_match ? false : true
-    else
-      return false
+  @forked_pid = Process.fork do
+
+    Signal.trap("TERM") { exit }
+
+    def read_rdebug_socket(response, rdebug, output = "")
+      if response && response[0] && response[0][0]
+        output += response[0][0].recv(10000)
+        if have_unclosed_tag?(output)
+          # If rdebug-ide doesn't send full message, we should wait for rest parts too.
+          # We can understand that this is just part of message by matching unclosed tags
+          another_response = select([rdebug], nil, nil)
+        else
+          # Sometimes by some reason rdebug-ide sends blank strings just after main message. 
+          # We need to remove these strings by receiving them 
+          another_response = select([rdebug], nil, nil, 0.01)
+        end
+        if another_response && another_response[0] && another_response[0][0]
+          output = read_rdebug_socket(another_response, rdebug, output)
+        end
+      end
+      output
     end
-  end
 
-  loop do
-    response = select([@rdebug_ide], nil, nil)
-    result = []
-    result << read_rdebug_socket(response, @rdebug_ide)
-    # If we stop at breakpoint, add taking of local variables into queue
-    stop_commands = [ '<breakpoint ', '<suspended ', '<exception ' ]
-    if stop_commands.any? { |c| result.first.include?(c) }
-      @rdebug_ide.puts("var local")
+    def have_unclosed_tag?(output)
+      start_match = output.match(/^<([a-zA-Z0-9\-_]+)>/)
+      if start_match
+        end_match = output.match(/<\/#{start_match[1]}>$/)
+        return end_match ? false : true
+      else
+        return false
+      end
+    end
+
+    loop do
       response = select([@rdebug_ide], nil, nil)
+      result = []
       result << read_rdebug_socket(response, @rdebug_ide)
-      @rdebug_ide.puts("where")
-      response = select([@rdebug_ide], nil, nil)
-      result << read_rdebug_socket(response, @rdebug_ide)
-    end
-    message = result.join(@separator)
-    if message && !message.empty?
-      File.open(@tmp_file, 'w') { |f| f.puts(message) }
-      command = ":call RubyDebugger.receive_command()"
-      starter = "<C-\\\\>"
-      system("#{@progname} --servername #{@server_name} -u NONE -U NONE --remote-send \"#{starter}<C-N>#{command}<CR>\"")
+      # If we stop at breakpoint, add taking of local variables into queue
+      stop_commands = [ '<breakpoint ', '<suspended ', '<exception ' ]
+      if stop_commands.any? { |c| result.first.include?(c) }
+        @rdebug_ide.puts("var local")
+        response = select([@rdebug_ide], nil, nil)
+        result << read_rdebug_socket(response, @rdebug_ide)
+        @rdebug_ide.puts("where")
+        response = select([@rdebug_ide], nil, nil)
+        result << read_rdebug_socket(response, @rdebug_ide)
+      end
+      message = result.join(@separator)
+      if message && !message.empty?
+        File.open(@tmp_file, 'w') { |f| f.puts(message) }
+        command = ":call RubyDebugger.receive_command()"
+        starter = "<C-\\\\>"
+        system("#{@progname} --servername #{@server_name} -u NONE -U NONE --remote-send \"#{starter}<C-N>#{command}<CR>\"")
+      end
     end
   end
-end
 
-RUBY
-
-autocmd VimLeavePre * :call StopForkedRubyProcess()
-
-endfunction
-
-function! StopForkedRubyProcess()
-ruby << RUBY
-Process.kill("TERM", @forked_pid) if @forked_pid
 RUBY
 endfunction
 
 
 " Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
-  return (self._get_pid(self.rdebug_port, 0) =~ '^\d\+$')
+  return (self._get_pid(self.port, 0) =~ '^\d\+$')
 endfunction
 
 
@@ -1956,8 +1952,40 @@ function! s:Server._get_pid_attempt(port)
 endfunction
 
 
+function! s:Server._check_already_running_server(port)
+  let pid = self._get_pid(a:port, 0)
+ruby << RUBY
+  if VIM.evaluate('l:pid').to_i != 0 && !@rdebug_ide
+    VIM.command('let result = 1')
+  else
+    VIM.command('let result = 0')
+  end
+RUBY
+  return result
+endfunction
+
+
 " Kill listener of given host/port
-function! s:Server._stop_server(port) dict
+function! s:Server._stop_server() dict
+ruby << RUBY
+  if @forked_pid
+    Process.kill("TERM", @forked_pid)
+    VIM.command("echo 'Forked process is stopped'")
+    @forked_pid = nil
+  end
+  if @rdebug_ide
+    @rdebug_ide.puts("exit")
+    @rdebug_ide.flush
+    @rdebug_ide.close
+    VIM.command("echo 'Rdebug-ide is stopped'")
+    @rdebug_ide = nil
+  end
+RUBY
+endfunction
+
+
+" Kill listener of given host/port
+function! s:Server._kill_server(port) dict
   let pid = self._get_pid(a:port, 0)
   if pid =~ '^\d\+$'
     call self._kill_process(pid)
@@ -1968,7 +1996,7 @@ endfunction
 " Kill process with given PID
 function! s:Server._kill_process(pid) dict
   echo "Killing server with pid " . a:pid
-  call system("ruby -e 'Process.kill(9," . a:pid . ")'")
+  ruby "Process.kill('KILL', VIM.evaluate('a:pid'))"
   sleep 100m
   call self._log("Killed server with pid: " . a:pid)
 endfunction
@@ -1986,9 +2014,6 @@ endfunction
 " *** Creating instances (start)
 
 " Initialize RUbyDebugger settings
-if !exists("g:ruby_debugger_fast_sender")
-  let g:ruby_debugger_fast_sender = 0
-endif
 if !exists("g:ruby_debugger_spec_path")
   let g:ruby_debugger_spec_path = '/usr/bin/spec'
 endif

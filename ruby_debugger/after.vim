@@ -1,9 +1,6 @@
 " *** Creating instances (start)
 
 " Initialize RUbyDebugger settings
-if !exists("g:ruby_debugger_fast_sender")
-  let g:ruby_debugger_fast_sender = 0
-endif
 if !exists("g:ruby_debugger_spec_path")
   let g:ruby_debugger_spec_path = '/usr/bin/spec'
 endif

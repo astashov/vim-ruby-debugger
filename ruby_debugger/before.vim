@@ -1,7 +1,6 @@
 " Init section - set default values, highlight colors
 
 let s:rdebug_port = 39767
-let s:debugger_port = 39768
 " hostname() returns something strange in Windows (E98BD9A419BB41D), so set hostname explicitly
 let s:hostname = 'localhost' "hostname()
 " ~/.vim for Linux, vimfiles for Windows
@@ -14,6 +13,7 @@ let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"
 let s:sign_id = 0
+let s:default_script = 'script/server webrick'
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')

@@ -92,13 +92,11 @@ endfunction
 " Send message to debugger. This function should never be used explicitly,
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
-
 ruby << RUBY
-
-VIM.evaluate('a:message').split(VIM.evaluate('s:separator')).each { |msg| @rdebug_ide.puts(msg) }
-
+  if @rdebug_ide && @forked_pid
+    VIM.evaluate('a:message').split(VIM.evaluate('s:separator')).each { |msg| @rdebug_ide.puts(msg) }
+  end
 RUBY
-
 endfunction
 
 
