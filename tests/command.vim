@@ -11,7 +11,7 @@ endfunction
 
 
 function! s:Tests.command.test_some_user_command(test)
-  RdbCommand p \"all users\"
+  call g:RubyDebugger.send_command("p \"all users\"") 
   call g:TU.equal(1, s:Mock.evals, "It should return eval command", a:test)
 endfunction
 

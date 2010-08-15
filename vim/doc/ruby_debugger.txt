@@ -46,13 +46,22 @@ in command line of VIM and it will display result like usual echo VIM command.
 ==============================================================================
 INSTALLATION					*ruby-debugger-installation*
 
-Extract files from archive to vimfiles (Windows) or ~/.vim (everything else).
-You should have the following files: >
+Clone current version of the repo from GitHub: >
+        git clone git://github.com/astashov/vim-ruby-debugger.git
+or if you don't have Git, download the archive from here: >
+        http://github.com/astashov/vim-ruby-debugger/tarball/master
+
+Then, copy files from ./vim directory to vimfiles (Windows) or ~/.vim 
+(everything else). Or, if you use pathogen, copy ./vim directory contents 
+to ~/.vim/bundle/vim-ruby-debugger. You should have the following files: >
 	plugin/ruby_debugger.vim
+	autoload/ruby_debugger.vim
 	bin/ruby_debugger.rb
 	doc/ruby_debugger.txt
-The first one is a debugger plugin, second is a small ruby script, that makes
-interaction between the VIM and the ruby-debug-ide gem, and third is help file.
+The first one is a debugger plugin loader (maps shortcuts and commands), 
+second is ruby-debugger itself. Third is a small ruby script, that makes an 
+interaction between the VIM and the ruby-debug-ide gem, and fourth is the 
+help file.
 
 Then, run: >
 	:helptags ~/.vim/doc
@@ -170,10 +179,9 @@ will have to restart the server by :Rdebugger command
 11. The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
 
 12. You also can run Unit tests for the plugin. For this, copy to 
-   ~/.vim/plugin/ ruby_debugger_test.vim instead of ruby_debugger.vim (from
-   additionals/plugin directory). It has the same functionality, but with unit 
-   tests at end of the file. To run unit tests, change current directory to 
-   some rails project and run >
+   ~/.vim/autoload/ ruby_debugger.vim from additionals/autoload (instead of vim/autoload).
+   It has the same functionality, but with unit tests at end of the file. 
+   To run unit tests, change current directory to some rails project and run >
 	call g:TU.run()
 
 ==============================================================================

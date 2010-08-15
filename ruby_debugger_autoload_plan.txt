@@ -15,4 +15,3 @@ ruby_debugger/breakpoint.vim
 ruby_debugger/exception.vim
 ruby_debugger/frame.vim
 ruby_debugger/server.vim
-ruby_debugger/after.vim

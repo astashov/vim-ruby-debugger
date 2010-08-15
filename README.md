@@ -28,8 +28,12 @@ This Vim plugin implements interactive Ruby debugger in Vim.
 
         git clone git://github.com/astashov/vim-ruby-debugger.git
 
-2.  Copy contents of 'vim' folder to your ~/.vim/. You should have 3 files there then: **~/.vim/plugin/ruby_debugger.vim**, **~/.vim/bin/ruby_debugger.rb** and **~/.vim/doc/ruby_debugger.txt**
-    First file is a debugger plugin and second is a small ruby script, that makes interaction between the VIM and the ruby-debug-ide gem. Third is documentation file.
+    or just download the archive from here:
+
+        http://github.com/astashov/vim-ruby-debugger/tarball/master
+
+2.  Copy contents of 'vim' folder to your ~/.vim/ (or to ~/.vim/bundle/vim-ruby-debugger if you use pathogen). You should have 4 files there then: **~/.vim/autoload/ruby_debugger.vim**, **~/.vim/plugin/ruby_debugger.vim**, **~/.vim/bin/ruby_debugger.rb** and **~/.vim/doc/ruby_debugger.txt**
+    First file is a debugger plugin loader, second is a debugger itself, third is a small ruby script, that makes interaction between the VIM and the ruby-debug-ide gem. Fourth is a documentation file.
 
 3.  Generate local tags file
 	
@@ -74,7 +78,7 @@ I've tested the plugin in Windows and Linux. All tests should be passed there.
 
 # Testing #
 
-If you want to run tests, replace in /plugin directory ruby_debugger.vim to **ruby_debugger_test.vim** (take it from additionals/plugin directory).
+If you want to run tests, replace in /autoload directory ruby_debugger.vim to **ruby_debugger.vim** from additionals/autoload directory.
 And then, in command mode execute
   
          :call g:TU.run()

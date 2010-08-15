@@ -6,9 +6,9 @@ noremap <leader>b  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger
 noremap <leader>v  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.open_variables()<CR>
 noremap <leader>m  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.open_breakpoints()<CR>
 noremap <leader>t  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.open_frames()<CR>
-noremap <leader>s  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.command('step'.(v:count > 1 ? ' '.v:count : ''))<CR>
+noremap <leader>s  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.command('step')<CR>
 noremap <leader>f  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.finish()<CR>
-noremap <leader>n  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.command('next'.(v:count > 1 ? ' '.v:count : ''))<CR>
+noremap <leader>n  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.command('next')<CR>
 noremap <leader>c  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.continue()<CR>
 noremap <leader>e  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.exit()<CR>
 noremap <leader>d  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.remove_breakpoints()<CR>
