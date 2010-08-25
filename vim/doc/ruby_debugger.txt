@@ -8,6 +8,7 @@ Author: Anton Astashov
 |ruby-debugger-quickstart|	QuickStart
 |ruby-debugger-details|		Some additional details about the plugin
 |ruby-debugger-tests|		Debugging of tests
+|ruby-debugger-ruby19|		Using the plugin with ruby 1.9
 |ruby-debugger-issues|		Troubleshooting
 |ruby-debugger-bugs|		Bugreporting
 |ruby-debugger-about|		About
@@ -135,6 +136,9 @@ systems - Linux, MacOS)
    and add this string to your .vimrc: >
         let g:ruby_debugger_fast_sender = 1
 
+4. You can specify path to Ruby (if it is not in your PATH environment or
+   you want to use specific version of Ruby)
+
 4. To run some other Ruby application (not Rails), you should specify its
    path as argument of Rdebugger command. E.g. >
 	:Rdebugger bla.rb
@@ -208,6 +212,61 @@ If you store spec or cucumber executables in some different place, not in
 For this, set some variables in your .vimrc. E.g.: >
   let g:ruby_debugger_spec_path = 'c:\gembins\spec'         " set Rspec path
   let g:ruby_debugger_cucumber_path = 'c:\gembins\cucumber' " set Cucumber path
+
+==============================================================================
+RUBY 1.9				*ruby-debugger-ruby19*
+
+If you want to use vim-ruby-debugger with Ruby 1.9, the best way will be using
+'rvm' (http://rvm.beginrescueend.com/). Install it and then install ruby 1.9:
+>
+  rvm install 1.9.2
+
+Then, switch to ruby 1.9.2 version: >
+
+  rvm 1.9.2
+
+Make sure you use correct version of Ruby: >
+
+  which ruby
+
+it will show path to current ruby executable, e.g. >
+
+  /Users/anton/.rvm/rubies/ruby-1.9.2-p0/bin/ruby
+
+Then install ruby-debug-ide19 gem: >
+
+  gem install ruby-debug-ide19
+
+After installation of the gem, you need to create symlink of rdebug-ide from
+bin path of gems of selected version of ruby, i.e.: >
+
+  ln -s /Users/anton/.rvm/gems/ruby-1.9.2-p0/gems/ruby-debug-ide19-0.4.12/bin/rdebug-ide /Users/anton/.rvm/gems/ruby-1.9.2-p0/bin/rdebug-ide
+
+Now you can use vim-ruby-debugger for debugging ruby 1.9 scripts. If you want
+to debug Rails 3 applications, you (of course) need to install it: >
+
+  gem install rails --pre
+
+then create new Rails 3 app somewhere: >
+
+  rails new demo
+
+go to the dir with the project, and run vim there. Then, run: >
+
+  :Rdebugger '/usr/bin/rackup config.ru'
+
+to run Rails 3 app. Then, you can set breakpoints, watch variables, etc, as
+usual.
+
+Running Rails 3 with 'rails' command, e.g.: >
+
+  :Rdebugger 'rails server' # doesn't work!!!
+
+doesn't work, and I don't know why yet. If someone investigates something,
+please let me know!
+
+I really recommend to try it with Ruby 1.9 and Rails 3, the plugin will help 
+you to learn how Rails 3 works inside - it is a good experience! :)
 
 ==============================================================================
 TROUBLESHOOTING				*ruby-debugger-issues*
