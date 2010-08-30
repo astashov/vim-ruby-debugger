@@ -158,28 +158,55 @@ function! s:send_message_to_debugger(message)
   if g:ruby_debugger_fast_sender
     call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\"")
   else
-    let script =  "ruby -e \"require 'socket'; "
-    let script .= "attempts = 0; "
-    let script .= "a = nil; "
-    let script .= "begin; "
-    let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
-    let script .=   "a.puts(%q[" . substitute(substitute(a:message, '[', '\[', 'g'), ']', '\]', 'g') . "]);"
-    let script .=   "a.close; "
-    let script .= "rescue Errno::ECONNREFUSED; "
-    let script .=   "attempts += 1; "
-    let script .=   "if attempts < 400; "
-    let script .=     "sleep 0.05; "
-    let script .=     "retry; "
-    let script .=   "else; "
-    let script .=     "puts('" . s:hostname . ":" . s:debugger_port . " can not be opened'); "
-    let script .=     "exit; "
-    let script .=   "end; "
-    let script .= "ensure; "
-    let script .=   "a.close if a; "
-    let script .= "end; \""
-    let output = system(script)
-    if output =~ 'can not be opened'
-      call g:RubyDebugger.logger.put("Can't send a message to rdebug - port is not opened") 
+    if has("ruby")
+ruby << RUBY
+  require 'socket'
+  attempts = 0
+  a = nil
+  host = VIM::evaluate("s:hostname")
+  port = VIM::evaluate("s:debugger_port")
+  message = VIM::evaluate("a:message")
+  begin
+    a = TCPSocket.open(host, port)
+    a.puts(message)
+    a.close
+  rescue Errno::ECONNREFUSED
+   attempts += 1
+   if attempts < 400
+     sleep 0.05
+     retry
+   else
+     puts("#{host}:#{port} can not be opened")
+     exit
+   end
+  ensure
+    a.close if a && !a.closed?
+  end
+RUBY
+    else
+      let script =  "ruby -e \"require 'socket'; "
+      let script .= "attempts = 0; "
+      let script .= "a = nil; "
+      let script .= "begin; "
+      let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
+      let script .=   "a.puts(%q[" . substitute(substitute(a:message, '[', '\[', 'g'), ']', '\]', 'g') . "]);"
+      let script .=   "a.close; "
+      let script .= "rescue Errno::ECONNREFUSED; "
+      let script .=   "attempts += 1; "
+      let script .=   "if attempts < 400; "
+      let script .=     "sleep 0.05; "
+      let script .=     "retry; "
+      let script .=   "else; "
+      let script .=     "puts('" . s:hostname . ":" . s:debugger_port . " can not be opened'); "
+      let script .=     "exit; "
+      let script .=   "end; "
+      let script .= "ensure; "
+      let script .=   "a.close if a && !a.closed?; "
+      let script .= "end; \""
+      let output = system(script)
+      if output =~ 'can not be opened'
+        call g:RubyDebugger.logger.put("Can't send a message to rdebug - port is not opened") 
+      endif
     endif
   endif
 endfunction
