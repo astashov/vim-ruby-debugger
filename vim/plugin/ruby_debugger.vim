@@ -20,6 +20,7 @@ command! -nargs=0 RdbTest call g:RubyDebugger.run_test()
 command! -nargs=1 RdbEval call g:RubyDebugger.eval(<q-args>)
 command! -nargs=1 RdbCond call g:RubyDebugger.conditional_breakpoint(<q-args>)
 command! -nargs=1 RdbCatch call g:RubyDebugger.catch_exception(<q-args>)
+command! -nargs=0 RdbLog call ruby_debugger#load_debugger() | call g:RubyDebugger.show_log()
 
 let g:ruby_debugger_loaded = 1
 

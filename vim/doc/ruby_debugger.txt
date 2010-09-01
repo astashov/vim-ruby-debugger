@@ -188,6 +188,12 @@ will have to restart the server by :Rdebugger command
    To run unit tests, change current directory to some rails project and run >
 	call g:TU.run()
 
+13. To watch standard output of executing of Ruby script, you can use >
+
+        :RdbLog
+
+It actually just opens ~/.vim/tmp/ruby_debugger_output.
+
 ==============================================================================
 DEBUGGING OF TESTS					*ruby-debugger-tests*
 

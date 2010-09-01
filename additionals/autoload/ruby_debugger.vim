@@ -605,6 +605,13 @@ function! RubyDebugger.exit() dict
 endfunction
 
 
+" Show output log of Ruby script
+function! RubyDebugger.show_log() dict
+  exe "view " . s:server_output_file
+  setlocal autoread
+endfunction
+
+
 " Debug current opened test
 function! RubyDebugger.run_test() dict
   let file = s:get_filename()
