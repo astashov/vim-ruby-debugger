@@ -165,7 +165,7 @@ ruby << RUBY
   a = nil
   host = VIM::evaluate("s:hostname")
   port = VIM::evaluate("s:debugger_port")
-  message = VIM::evaluate("a:message")
+  message = VIM::evaluate("a:message").gsub("\\\"", '"')
   begin
     a = TCPSocket.open(host, port)
     a.puts(message)
