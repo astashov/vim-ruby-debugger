@@ -13,7 +13,7 @@ noremap <leader>c  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger
 noremap <leader>e  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.exit()<CR>
 noremap <leader>d  :call ruby_debugger#load_debugger() <bar> call g:RubyDebugger.remove_breakpoints()<CR>
 
-command! -nargs=? -complete=file Rdebugger call ruby_debugger#load_debugger() | call g:RubyDebugger.start(<q-args>) 
+command! -nargs=* -complete=file Rdebugger call ruby_debugger#load_debugger() | call g:RubyDebugger.start(<q-args>)
 command! -nargs=0 RdbStop call g:RubyDebugger.stop() 
 command! -nargs=1 RdbCommand call g:RubyDebugger.send_command_wrapper(<q-args>) 
 command! -nargs=0 RdbTest call g:RubyDebugger.run_test() 
