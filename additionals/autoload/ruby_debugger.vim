@@ -377,10 +377,10 @@ let g:RubyDebugger.queue = s:Queue.new()
 
 
 " Run debugger server. It takes one optional argument with path to debugged
-" ruby script ('script/server webrick' by default)
+" ruby script ('script/rails server webrick' by default)
 function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
-  let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
+  let script = a:0 && !empty(a:1) ? a:1 : 'script/rails server webrick'
   if script[0] != '/'
     let script = getcwd() . '/' . substitute(script, "'", "", "g")
   endif
