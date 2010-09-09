@@ -10,6 +10,10 @@ let s:runtime_dir = expand('<sfile>:h:h')
 " this plugin
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
+" Default id for sign of last line
+let s:last_line = 0
+let s:last_file = ""
+let s:last_line_sign_id = 119
 " Default id for sign of current line
 let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"

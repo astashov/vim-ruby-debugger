@@ -10,6 +10,10 @@ let s:runtime_dir = expand('<sfile>:h:h')
 " this plugin
 let s:tmp_file = s:runtime_dir . '/tmp/ruby_debugger'
 let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
+" Default id for sign of last line
+let s:last_line = 0
+let s:last_file = ""
+let s:last_line_sign_id = 119
 " Default id for sign of current line
 let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"
@@ -28,6 +32,10 @@ sign define breakpoint linehl=Breakpoint  text=xx
 " Init current line signs
 hi def link CurrentLine DiffAdd 
 sign define current_line linehl=CurrentLine text=>>
+
+" Init last line signs
+hi def link LastLine Normal 
+sign define last_line linehl=LastLine text=..
 
 " Loads this file. Required for autoloading the code for this plugin
 fun! ruby_debugger#load_debugger()
@@ -214,6 +222,11 @@ endfunction
 
 function! s:unplace_sign_of_current_line()
   if has("signs")
+    if !empty(s:last_file)
+      exe ":sign unplace " . s:last_line_sign_id
+      let s:last_line_sign_id = s:last_line_sign_id == 119 ? 118 : 119
+      exe ":sign place " . s:last_line_sign_id . " line=" . s:last_line . " name=last_line file=" . s:last_file
+    endif
     exe ":sign unplace " . s:current_line_sign_id
   endif
 endfunction
@@ -604,7 +617,10 @@ endfunction
 " Exit
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.queue.add("exit")
-  call s:clear_current_state()
+  if has("signs")
+    exe ":sign unplace " . s:last_line_sign_id
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -646,6 +662,8 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
 
   if has("signs")
+    let s:last_line = attrs.line
+    let s:last_file = attrs.file
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 endfunction

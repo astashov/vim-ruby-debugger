@@ -10,6 +10,8 @@ function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
 
   if has("signs")
+    let s:last_line = attrs.line
+    let s:last_file = attrs.file
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
   endif
 endfunction

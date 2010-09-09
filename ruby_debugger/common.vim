@@ -146,6 +146,11 @@ endfunction
 
 function! s:unplace_sign_of_current_line()
   if has("signs")
+    if !empty(s:last_file)
+      exe ":sign unplace " . s:last_line_sign_id
+      let s:last_line_sign_id = s:last_line_sign_id == 119 ? 118 : 119
+      exe ":sign place " . s:last_line_sign_id . " line=" . s:last_line . " name=last_line file=" . s:last_file
+    endif
     exe ":sign unplace " . s:current_line_sign_id
   endif
 endfunction

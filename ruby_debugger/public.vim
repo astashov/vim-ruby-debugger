@@ -231,7 +231,10 @@ endfunction
 " Exit
 function! RubyDebugger.exit() dict
   call g:RubyDebugger.queue.add("exit")
-  call s:clear_current_state()
+  if has("signs")
+    exe ":sign unplace " . s:last_line_sign_id
+    exe ":sign unplace " . s:current_line_sign_id
+  endif
   call g:RubyDebugger.queue.execute()
 endfunction
 
