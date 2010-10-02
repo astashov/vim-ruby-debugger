@@ -197,9 +197,10 @@ It actually just opens ~/.vim/tmp/ruby_debugger_output, with options: >
         setlocal wrap
         setlocal nonumber
 
-Also, if plugin AnsiEsc is installed (it colorizes ANSI escape sequences, they are
-used heavily by e.g. ActiveRecord logging), it will be run automatically after
-:RdbLog call to colorize ruby_debugger_output.
+Also, if plugin AnsiEsc is installed 
+(http://www.vim.org/scripts/script.php?script_id=302, (it colorizes ANSI escape 
+sequences, they are used heavily by e.g. ActiveRecord logging)), it will be run 
+ automatically after :RdbLog call to colorize ruby_debugger_output.
 
 
 ==============================================================================
