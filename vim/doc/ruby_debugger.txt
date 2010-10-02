@@ -192,7 +192,15 @@ will have to restart the server by :Rdebugger command
 
         :RdbLog
 
-It actually just opens ~/.vim/tmp/ruby_debugger_output.
+It actually just opens ~/.vim/tmp/ruby_debugger_output, with options: >
+        setlocal autoread
+        setlocal wrap
+        setlocal nonumber
+
+Also, if plugin AnsiEsc is installed (it colorizes ANSI escape sequences, they are
+used heavily by e.g. ActiveRecord logging), it will be run automatically after
+:RdbLog call to colorize ruby_debugger_output.
+
 
 ==============================================================================
 DEBUGGING OF TESTS					*ruby-debugger-tests*

@@ -614,6 +614,9 @@ function! RubyDebugger.show_log() dict
   " Per gorkunov's request 
   setlocal wrap
   setlocal nonumber
+  if exists(":AnsiEsc")
+    exec ":AnsiEsc"
+  endif
 endfunction
 
 
