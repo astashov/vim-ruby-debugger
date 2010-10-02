@@ -237,6 +237,9 @@ endfunction
 function! RubyDebugger.show_log() dict
   exe "view " . s:server_output_file
   setlocal autoread
+  " Per gorkunov's request 
+  setlocal wrap
+  setlocal nonumber
 endfunction
 
 

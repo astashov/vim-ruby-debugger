@@ -30,7 +30,6 @@ sign define current_line linehl=CurrentLine text=>>
 
 " Loads this file. Required for autoloading the code for this plugin
 fun! ruby_debugger#load_debugger()
-  echo "a"
   if !s:check_prerequisites()
     finish
   endif
@@ -162,7 +161,6 @@ function! s:send_message_to_debugger(message)
     call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\"")
   else
     if g:ruby_debugger_builtin_sender
-      echo "1"
 ruby << RUBY
   require 'socket'
   attempts = 0
@@ -188,7 +186,6 @@ ruby << RUBY
   end
 RUBY
     else
-      echo "0"
       let script =  "ruby -e \"require 'socket'; "
       let script .= "attempts = 0; "
       let script .= "a = nil; "
@@ -614,6 +611,9 @@ endfunction
 function! RubyDebugger.show_log() dict
   exe "view " . s:server_output_file
   setlocal autoread
+  " Per gorkunov's request 
+  setlocal wrap
+  setlocal nonumber
 endfunction
 
 
@@ -1939,7 +1939,6 @@ if !exists("g:ruby_debugger_fast_sender")
 endif
 " This variable allows to use built-in Ruby (see ':help ruby' and s:send_message_to_debugger function)
 if !exists("g:ruby_debugger_builtin_sender")
-  echo "b"
   if has("ruby")
     let g:ruby_debugger_builtin_sender = 1
   else
