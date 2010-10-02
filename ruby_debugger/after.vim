@@ -3,6 +3,14 @@
 if !exists("g:ruby_debugger_fast_sender")
   let g:ruby_debugger_fast_sender = 0
 endif
+" This variable allows to use built-in Ruby (see ':help ruby' and s:send_message_to_debugger function)
+if !exists("g:ruby_debugger_builtin_sender")
+  if has("ruby")
+    let g:ruby_debugger_builtin_sender = 1
+  else
+    let g:ruby_debugger_builtin_sender = 0
+  endif
+endif
 if !exists("g:ruby_debugger_spec_path")
   let g:ruby_debugger_spec_path = '/usr/bin/spec'
 endif

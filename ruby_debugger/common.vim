@@ -90,7 +90,8 @@ function! s:send_message_to_debugger(message)
   if g:ruby_debugger_fast_sender
     call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\"")
   else
-    if has("ruby")
+    if g:ruby_debugger_builtin_sender
+      echo "1"
 ruby << RUBY
   require 'socket'
   attempts = 0
@@ -116,6 +117,7 @@ ruby << RUBY
   end
 RUBY
     else
+      echo "0"
       let script =  "ruby -e \"require 'socket'; "
       let script .= "attempts = 0; "
       let script .= "a = nil; "

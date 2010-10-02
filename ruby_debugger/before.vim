@@ -15,7 +15,6 @@ let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"
 let s:sign_id = 0
 
-
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')
   call mkdir(s:runtime_dir . '/tmp')
@@ -52,6 +51,9 @@ fun! s:check_prerequisites()
   if !(has("win32") || has("win64")) && !executable("lsof")
     call add(problems, "RubyDebugger: You don't have 'lsof' installed or executable 'lsof' can't be found in your PATH")
   endif
+  if g:ruby_debugger_builtin_sender && !has("ruby")
+    call add(problems, "RubyDebugger: You are trying to use built-in Ruby in Vim, but your Vim doesn't compiled with +ruby. Set g:ruby_debugger_builtin_sender = 0 in your .vimrc to resolve that issue.")
+  end
   if empty(problems)
     return 1
   else

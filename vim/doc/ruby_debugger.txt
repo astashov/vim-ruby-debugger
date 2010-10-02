@@ -259,7 +259,7 @@ then create new Rails 3 app somewhere: >
 
 go to the dir with the project, and run vim there. Then, run: >
 
-  :Rdebugger '/usr/bin/rackup config.ru'
+  :Rdebugger '/Users/anton/.rvm/gems/ruby-1.9.2-p0/bin/rackup config.ru'
 
 to run Rails 3 app. Then, you can set breakpoints, watch variables, etc, as
 usual.
@@ -294,6 +294,16 @@ full path to executable: >
 2. If you try to set exceptions catcher to unexisted exception class, 
 ruby-debug-ide will be crushed with error. This is issue of the
 ruby-debud-ide.
+
+3. By default, if Vim is compiled with +ruby, the plugin is trying to send
+messages to debugger by built-in Ruby interface (details are in ':help ruby').
+Some users have issues with built-in Ruby interface, so they may try to 
+"degradate" to external Ruby script instead of using built-in Ruby interface.
+For that, add to your .vimrc: >
+  let g:ruby_debugger_builtin_sender = 0
+
+and the plugin will call external ruby interpreter instead of built-in
+interface.
   
 
 ==============================================================================

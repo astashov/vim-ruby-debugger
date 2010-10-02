@@ -15,7 +15,6 @@ let s:current_line_sign_id = 120
 let s:separator = "++vim-ruby-debugger separator++"
 let s:sign_id = 0
 
-
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')
   call mkdir(s:runtime_dir . '/tmp')
@@ -31,6 +30,7 @@ sign define current_line linehl=CurrentLine text=>>
 
 " Loads this file. Required for autoloading the code for this plugin
 fun! ruby_debugger#load_debugger()
+  echo "a"
   if !s:check_prerequisites()
     finish
   endif
@@ -52,6 +52,9 @@ fun! s:check_prerequisites()
   if !(has("win32") || has("win64")) && !executable("lsof")
     call add(problems, "RubyDebugger: You don't have 'lsof' installed or executable 'lsof' can't be found in your PATH")
   endif
+  if g:ruby_debugger_builtin_sender && !has("ruby")
+    call add(problems, "RubyDebugger: You are trying to use built-in Ruby in Vim, but your Vim doesn't compiled with +ruby. Set g:ruby_debugger_builtin_sender = 0 in your .vimrc to resolve that issue.")
+  end
   if empty(problems)
     return 1
   else
@@ -158,7 +161,8 @@ function! s:send_message_to_debugger(message)
   if g:ruby_debugger_fast_sender
     call system(s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\"")
   else
-    if has("ruby")
+    if g:ruby_debugger_builtin_sender
+      echo "1"
 ruby << RUBY
   require 'socket'
   attempts = 0
@@ -184,6 +188,7 @@ ruby << RUBY
   end
 RUBY
     else
+      echo "0"
       let script =  "ruby -e \"require 'socket'; "
       let script .= "attempts = 0; "
       let script .= "a = nil; "
@@ -1931,6 +1936,15 @@ endfunction
 
 if !exists("g:ruby_debugger_fast_sender")
   let g:ruby_debugger_fast_sender = 0
+endif
+" This variable allows to use built-in Ruby (see ':help ruby' and s:send_message_to_debugger function)
+if !exists("g:ruby_debugger_builtin_sender")
+  echo "b"
+  if has("ruby")
+    let g:ruby_debugger_builtin_sender = 1
+  else
+    let g:ruby_debugger_builtin_sender = 0
+  endif
 endif
 if !exists("g:ruby_debugger_spec_path")
   let g:ruby_debugger_spec_path = '/usr/bin/spec'
