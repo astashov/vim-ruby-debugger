@@ -252,15 +252,15 @@ Then install ruby-debug-ide19 gem: >
 
   gem install ruby-debug-ide19
 
-After installation of the gem, you need to create symlink of rdebug-ide from
-bin path of gems of selected version of ruby, i.e.: >
-
-  ln -s /Users/anton/.rvm/gems/ruby-1.9.2-p0/gems/ruby-debug-ide19-0.4.12/bin/rdebug-ide /Users/anton/.rvm/gems/ruby-1.9.2-p0/bin/rdebug-ide
+After installation of the gem, you need make sure path to rdebug-ide points now 
+to RVM dir: >
+  $ which rdebug-ide
+  /Users/anton/.rvm/gems/ruby-1.9.2-p0/bin/rdebug-ide
 
 Now you can use vim-ruby-debugger for debugging ruby 1.9 scripts. If you want
 to debug Rails 3 applications, you (of course) need to install it: >
 
-  gem install rails --pre
+  gem install rails
 
 then create new Rails 3 app somewhere: >
 
@@ -268,17 +268,10 @@ then create new Rails 3 app somewhere: >
 
 go to the dir with the project, and run vim there. Then, run: >
 
-  :Rdebugger '/Users/anton/.rvm/gems/ruby-1.9.2-p0/bin/rackup config.ru'
+  :Rdebugger 'script/rails server'
 
 to run Rails 3 app. Then, you can set breakpoints, watch variables, etc, as
 usual.
-
-Running Rails 3 with 'rails' command, e.g.: >
-
-  :Rdebugger 'rails server' # doesn't work!!!
-
-doesn't work, and I don't know why yet. If someone investigates something,
-please let me know!
 
 I really recommend to try it with Ruby 1.9 and Rails 3, the plugin will help 
 you to learn how Rails 3 works inside - it is a good experience! :)

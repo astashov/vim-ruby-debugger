@@ -8,9 +8,13 @@ let g:RubyDebugger.queue = s:Queue.new()
 " ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
   let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
-  let script = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
+  let script_string = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
+  if script_string[0] != '/'
+    let script_string = "'" . getcwd() . '/' . substitute(script_string, "'", "", "g") . "'"
+  endif
+
   echo "Loading debugger..."
-  call g:RubyDebugger.server.start(script)
+  call g:RubyDebugger.server.start(script_string)
 
   let g:RubyDebugger.exceptions = []
   for breakpoint in g:RubyDebugger.breakpoints
