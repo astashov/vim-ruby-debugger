@@ -10,13 +10,8 @@ function! RubyDebugger.start(...) dict
   call s:log_debug("Executing :Rdebugger...")
   let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
   let script_string = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
-  let script_string_without_quotes = substitute(script_string, "'", "", "g")
-  if script_string_without_quotes[0] != '/'
-    let script_string_without_quotes = "'" . getcwd() . '/' . script_string_without_quotes . "'"
-  endif
-
   echo "Loading debugger..."
-  call g:RubyDebugger.server.start(script_string_without_quotes)
+  call g:RubyDebugger.server.start(s:get_escaped_absolute_path(script_string))
 
   let g:RubyDebugger.exceptions = []
   for breakpoint in g:RubyDebugger.breakpoints

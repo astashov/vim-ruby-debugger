@@ -229,7 +229,7 @@ For this, set some variables in your .vimrc. E.g.: >
   let g:ruby_debugger_cucumber_path = 'c:\gembins\cucumber' " set Cucumber path
 
 ==============================================================================
-RUBY 1.9				*ruby-debugger-ruby19*
+RUBY 1.9 AND RAILS 3				*ruby-debugger-ruby19*
 
 If you want to use vim-ruby-debugger with Ruby 1.9, the best way will be using
 'rvm' (http://rvm.beginrescueend.com/). Install it and then install ruby 1.9:

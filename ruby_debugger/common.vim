@@ -28,6 +28,41 @@ function! s:get_tags(cmd)
 endfunction
 
 
+" Converts command with relative path to absolute path. If given command
+" contains relative path, it will try to use 'which' on it first, and if
+" 'which' returns nothing, it will add current dir path to given command
+function! s:get_escaped_absolute_path(command)
+  " Remove leading and trailing quotes
+  let given_path = a:command
+  let given_path = substitute(given_path, '"', '\"', "g")
+  let given_path = substitute(given_path, "^'", '', "g")
+  let given_path = substitute(given_path, "'$", '', "g")
+  if given_path[0] == '/'
+    let absolute_path = given_path
+  else
+    let parts = split(given_path)
+    let relative_command = remove(parts, 0)
+    let arguments = join(parts)
+    let absolute_command = ""
+    " I don't know Windows analogue for 'which', if you know - feel free to add it here
+    if !(has("win32") || has("win64"))
+      let absolute_command = s:strip(system('which ' . relative_command))
+    endif
+    if empty(absolute_command)
+      let absolute_command = getcwd() . '/' . relative_command
+    endif
+    let absolute_path = "\"'" . absolute_command . "' " . arguments . '"'
+  endif
+  return absolute_path
+endfunction
+
+
+" Return a string without leading and trailing spaces and linebreaks.
+function! s:strip(input_string)
+  return substitute(substitute(a:input_string, "\n", '', 'g'), '(\s*\(.\{-}\)\s*', '\1', 'g')
+endfunction
+
+
 " Shortcut for g:RubyDebugger.logger.debug
 function! s:log_debug(string)
   call g:RubyDebugger.logger.debug(a:string)
