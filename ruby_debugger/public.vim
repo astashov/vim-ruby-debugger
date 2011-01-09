@@ -7,6 +7,7 @@ let g:RubyDebugger.queue = s:Queue.new()
 " Run debugger server. It takes one optional argument with path to debugged
 " ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
+  call s:log_debug("Executing :Rdebugger...")
   let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
   let script_string = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
   let script_string_without_quotes = substitute(script_string, "'", "", "g")
@@ -115,16 +116,21 @@ endfunction
 function! RubyDebugger.toggle_breakpoint(...) dict
   let line = line(".")
   let file = s:get_filename()
+  call s:log_debug("Trying to toggle a breakpoint in the file " . file . ":" . line)
   let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
   " If breakpoint with current file/line doesn't exist, create it. Otherwise -
   " remove it
   if empty(existed_breakpoints)
+    call s:log_debug("There is no already set breakpoint, so create new one")
     let breakpoint = s:Breakpoint.new(file, line)
     call add(g:RubyDebugger.breakpoints, breakpoint)
+    call s:log_debug("Added Breakpoint object to RubyDebugger.breakpoints array")
     call breakpoint.send_to_debugger() 
   else
+    call s:log_debug("There is already set breakpoint presented, so delete it")
     let breakpoint = existed_breakpoints[0]
     call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
+    call s:log_debug("Removed Breakpoint object from RubyDebugger.breakpoints array")
     call breakpoint.delete()
   endif
   " Update info in Breakpoints window

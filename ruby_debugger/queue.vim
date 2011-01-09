@@ -16,6 +16,7 @@ endfunction
 " Execute next command in the queue and remove it from queue
 function! s:Queue.execute() dict
   if !empty(self.queue)
+    call s:log_debug("Executing queue")
     let message = join(self.queue, s:separator)
     call self.empty()
     call g:RubyDebugger.send_command(message)
@@ -32,6 +33,7 @@ endfunction
 
 
 function! s:Queue.add(element) dict
+  call s:log_debug("Adding '" . a:element . "' to queue")
   call add(self.queue, a:element)
 endfunction
 

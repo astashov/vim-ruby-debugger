@@ -38,6 +38,7 @@ endfunction
 " from old server runnings or not assigned breakpoints (e.g., if you at first
 " set some breakpoints, and then run the debugger by :Rdebugger)
 function! RubyDebugger.commands.set_breakpoint(cmd)
+  call s:log_debug("Received the breakpoint message, will add PID and number of breakpoint to the Breakpoint object")
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
   let pid = g:RubyDebugger.server.rdebug_pid
@@ -45,8 +46,10 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   " Find added breakpoint in array and assign debugger's info to it
   for breakpoint in g:RubyDebugger.breakpoints
     if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
+      call s:log_debug("Found the Breakpoint object for " . breakpoint.file . ":" . breakpoint.line)
       let breakpoint.debugger_id = attrs.no
       let breakpoint.rdebug_pid = pid
+      call s:log_debug("Added id: " . breakpoint.debugger_id . ", PID:" . breakpoint.rdebug_pid . " to Breakpoint")
       if has_key(breakpoint, 'condition')
         call breakpoint.add_condition(breakpoint.condition)
       endif

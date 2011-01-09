@@ -306,7 +306,12 @@ For that, add to your .vimrc: >
 
 and the plugin will call external ruby interpreter instead of built-in
 interface.
-  
+
+4. If you still can't fix the issue, you can enable debug mode by: >
+  let g:ruby_debugger_debug_mode = 1
+in your .vimrc, and then open the new issue in Github Issue Tracker
+(or write email to me) and attach ~/.vim/tmp/ruby_debugger_log file.
+
 
 ==============================================================================
 BUGS					*ruby-debugger-bugs*
