@@ -1,3 +1,4 @@
+require 'benchmark'
 require 'socket'
 
 class VimRubyDebugger
@@ -52,7 +53,7 @@ class VimRubyDebugger
         loop do 
           response = select([@rdebug], nil, nil)
           output = read_socket(response, @rdebug)
-          @result << output
+          @result << truncate_variables_values(output)
           # If we stop at breakpoint, add taking of local variables into queue
           stop_commands = [ '<breakpoint ', '<suspended ', '<exception ' ]
           if stop_commands.any? { |c| output.include?(c) }
@@ -112,6 +113,29 @@ class VimRubyDebugger
         command = ":call RubyDebugger.receive_command()"
         starter = (@params[:os] == 'win' ? "<C-\\>" : "<C-\\\\>")
         system("#{@params[:vim_executable]} --servername #{@params[:vim_servername]} -u NONE -U NONE --remote-send \"#{starter}<C-N>#{command}<CR>\"");
+      end
+    end
+
+
+    def truncate_variables_values(message)
+      if message.size > 30000 && message.include?("<variables>")
+        previous_position = 0
+        while(start_position = message.index('value="', previous_position))
+          start_position += 6
+          end_position = message.index('"', start_position + 1)
+          length = end_position - start_position
+          if length > 30000
+            value = message[(start_position + 1)..(start_position + 30000)]
+            value += " (the variable is truncated, its full length is #{length})"
+          else
+            value = message[(start_position + 1)..(end_position - 1)]
+          end
+          message = message[0..start_position] + value + message[end_position..-1]
+          previous_position = start_position
+        end
+        message
+      else
+        message
       end
     end
 
