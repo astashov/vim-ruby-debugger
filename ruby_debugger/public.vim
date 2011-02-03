@@ -7,7 +7,7 @@ let g:RubyDebugger.queue = s:Queue.new()
 " Run debugger server. It takes one optional argument with path to debugged
 " ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
-  call s:log_debug("Executing :Rdebugger...")
+  call s:log("Executing :Rdebugger...")
   let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
   let script_string = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
   echo "Loading debugger..."
@@ -39,7 +39,7 @@ endfunction
 " This function analyzes the special file and gives handling to right command
 function! RubyDebugger.receive_command() dict
   let file_contents = join(readfile(s:tmp_file), "")
-  call g:RubyDebugger.logger.put("Received command: " . file_contents)
+  call s:log("Received command: " . file_contents)
   let commands = split(file_contents, s:separator)
   for cmd in commands
     if !empty(cmd)
@@ -85,7 +85,7 @@ let RubyDebugger.send_command = function("<SID>send_message_to_debugger")
 " Open variables window
 function! RubyDebugger.open_variables() dict
   call s:variables_window.toggle()
-  call g:RubyDebugger.logger.put("Opened variables window")
+  call s:log("Opened variables window")
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -93,7 +93,7 @@ endfunction
 " Open breakpoints window
 function! RubyDebugger.open_breakpoints() dict
   call s:breakpoints_window.toggle()
-  call g:RubyDebugger.logger.put("Opened breakpoints window")
+  call s:log("Opened breakpoints window")
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -101,7 +101,7 @@ endfunction
 " Open frames window
 function! RubyDebugger.open_frames() dict
   call s:frames_window.toggle()
-  call g:RubyDebugger.logger.put("Opened frames window")
+  call s:log("Opened frames window")
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -111,21 +111,21 @@ endfunction
 function! RubyDebugger.toggle_breakpoint(...) dict
   let line = line(".")
   let file = s:get_filename()
-  call s:log_debug("Trying to toggle a breakpoint in the file " . file . ":" . line)
+  call s:log("Trying to toggle a breakpoint in the file " . file . ":" . line)
   let existed_breakpoints = filter(copy(g:RubyDebugger.breakpoints), 'v:val.line == ' . line . ' && v:val.file == "' . escape(file, '\') . '"')
   " If breakpoint with current file/line doesn't exist, create it. Otherwise -
   " remove it
   if empty(existed_breakpoints)
-    call s:log_debug("There is no already set breakpoint, so create new one")
+    call s:log("There is no already set breakpoint, so create new one")
     let breakpoint = s:Breakpoint.new(file, line)
     call add(g:RubyDebugger.breakpoints, breakpoint)
-    call s:log_debug("Added Breakpoint object to RubyDebugger.breakpoints array")
+    call s:log("Added Breakpoint object to RubyDebugger.breakpoints array")
     call breakpoint.send_to_debugger() 
   else
-    call s:log_debug("There is already set breakpoint presented, so delete it")
+    call s:log("There is already set breakpoint presented, so delete it")
     let breakpoint = existed_breakpoints[0]
     call filter(g:RubyDebugger.breakpoints, 'v:val.id != ' . breakpoint.id)
-    call s:log_debug("Removed Breakpoint object from RubyDebugger.breakpoints array")
+    call s:log("Removed Breakpoint object from RubyDebugger.breakpoints array")
     call breakpoint.delete()
   endif
   " Update info in Breakpoints window
@@ -199,7 +199,7 @@ endfunction
 function! RubyDebugger.next() dict
   call g:RubyDebugger.queue.add("next")
   call s:clear_current_state()
-  call g:RubyDebugger.logger.put("Step over")
+  call s:log("Step over")
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -208,7 +208,7 @@ endfunction
 function! RubyDebugger.step() dict
   call g:RubyDebugger.queue.add("step")
   call s:clear_current_state()
-  call g:RubyDebugger.logger.put("Step into")
+  call s:log("Step into")
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -217,7 +217,7 @@ endfunction
 function! RubyDebugger.finish() dict
   call g:RubyDebugger.queue.add("finish")
   call s:clear_current_state()
-  call g:RubyDebugger.logger.put("Step out")
+  call s:log("Step out")
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -226,7 +226,7 @@ endfunction
 function! RubyDebugger.continue() dict
   call g:RubyDebugger.queue.add("cont")
   call s:clear_current_state()
-  call g:RubyDebugger.logger.put("Continue")
+  call s:log("Continue")
   call g:RubyDebugger.queue.execute()
 endfunction
 

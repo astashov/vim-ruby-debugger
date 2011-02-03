@@ -7,7 +7,7 @@
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd) 
   call s:jump_to_file(attrs.file, attrs.line)
-  call g:RubyDebugger.logger.put("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
+  call s:log("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
 
   if has("signs")
     exe ":sign place " . s:current_line_sign_id . " line=" . attrs.line . " name=current_line file=" . attrs.file
@@ -28,7 +28,7 @@ endfunction
 " Confirm setting of exception catcher
 function! RubyDebugger.commands.set_exception(cmd) dict
   let attrs = s:get_tag_attributes(a:cmd)
-  call g:RubyDebugger.logger.put("Exception successfully set: " . attrs.exception)
+  call s:log("Exception successfully set: " . attrs.exception)
 endfunction
 
 
@@ -38,7 +38,7 @@ endfunction
 " from old server runnings or not assigned breakpoints (e.g., if you at first
 " set some breakpoints, and then run the debugger by :Rdebugger)
 function! RubyDebugger.commands.set_breakpoint(cmd)
-  call s:log_debug("Received the breakpoint message, will add PID and number of breakpoint to the Breakpoint object")
+  call s:log("Received the breakpoint message, will add PID and number of breakpoint to the Breakpoint object")
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
   let pid = g:RubyDebugger.server.rdebug_pid
@@ -46,17 +46,17 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   " Find added breakpoint in array and assign debugger's info to it
   for breakpoint in g:RubyDebugger.breakpoints
     if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
-      call s:log_debug("Found the Breakpoint object for " . breakpoint.file . ":" . breakpoint.line)
+      call s:log("Found the Breakpoint object for " . breakpoint.file . ":" . breakpoint.line)
       let breakpoint.debugger_id = attrs.no
       let breakpoint.rdebug_pid = pid
-      call s:log_debug("Added id: " . breakpoint.debugger_id . ", PID:" . breakpoint.rdebug_pid . " to Breakpoint")
+      call s:log("Added id: " . breakpoint.debugger_id . ", PID:" . breakpoint.rdebug_pid . " to Breakpoint")
       if has_key(breakpoint, 'condition')
         call breakpoint.add_condition(breakpoint.condition)
       endif
     endif
   endfor
 
-  call g:RubyDebugger.logger.put("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
+  call s:log("Breakpoint is set: " . file_match[1] . ":" . file_match[2])
   call g:RubyDebugger.queue.execute()
 endfunction
 
@@ -90,18 +90,18 @@ function! RubyDebugger.commands.set_variables(cmd)
     let variable = g:RubyDebugger.current_variable
     if variable != {}
       call variable.add_childs(list_of_variables)
-      call g:RubyDebugger.logger.put("Opening child variable: " . variable.attributes.objectId)
+      call s:log("Opening child variable: " . variable.attributes.objectId)
       " Variables Window is always open if we got subvariables
       call s:variables_window.open()
     else
-      call g:RubyDebugger.logger.put("Can't found variable")
+      call s:log("Can't found variable")
     endif
     unlet g:RubyDebugger.current_variable
   else
     " Otherwise, assign them to unnamed root variable
     if g:RubyDebugger.variables.children == []
       call g:RubyDebugger.variables.add_childs(list_of_variables)
-      call g:RubyDebugger.logger.put("Initializing local variables")
+      call s:log("Initializing local variables")
       if s:variables_window.is_open()
         " show variables only if Variables Window is open
         call s:variables_window.open()
@@ -128,7 +128,7 @@ function! RubyDebugger.commands.processing_exception(cmd)
   let attrs = s:get_tag_attributes(a:cmd) 
   let message = "RubyDebugger Exception, type: " . attrs.type . ", message: " . attrs.message
   echo message
-  call g:RubyDebugger.logger.put(message)
+  call s:log(message)
 endfunction
 
 
@@ -164,7 +164,7 @@ function! RubyDebugger.commands.error(cmd)
   if !empty(error_match)
     let error = error_match[1]
     echo "RubyDebugger Error: " . error
-    call g:RubyDebugger.logger.put("Got error: " . error)
+    call s:log("Got error: " . error)
   endif
 endfunction
 
@@ -176,7 +176,7 @@ function! RubyDebugger.commands.message(cmd)
   if !empty(message_match)
     let message = message_match[1]
     echo "RubyDebugger Message: " . message
-    call g:RubyDebugger.logger.put("Got message: " . message)
+    call s:log("Got message: " . message)
   endif
 endfunction
 

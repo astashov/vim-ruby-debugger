@@ -51,11 +51,6 @@ endfunction
 
 " ** Private methods
 
-function! s:Frame._log(string) dict
-  call g:RubyDebugger.logger.put(a:string)
-endfunction
-
-
 function! s:Frame._set_sign() dict
   if has("signs")
     exe ":sign place " . self.sign_id . " line=" . self.line . " name=frame file=" . self.file

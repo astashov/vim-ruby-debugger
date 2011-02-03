@@ -37,7 +37,7 @@ function! s:Window.close() dict
     " If this is only one window, just quit
     :q
   endif
-  call self._log("Closed window with name: " . self.name)
+  call s:log("Closed window with name: " . self.name)
 endfunction
 
 
@@ -53,7 +53,7 @@ endfunction
 
 " Display data to the window
 function! s:Window.display()
-  call self._log("Start displaying data in window with name: " . self.name)
+  call s:log("Start displaying data in window with name: " . self.name)
   call self.focus()
   setlocal modifiable
 
@@ -67,14 +67,14 @@ function! s:Window.display()
   call self._restore_view(top_line, current_line, current_column)
 
   setlocal nomodifiable
-  call self._log("Complete displaying data in window with name: " . self.name)
+  call s:log("Complete displaying data in window with name: " . self.name)
 endfunction
 
 
 " Put cursor to the window
 function! s:Window.focus() dict
   exe self.get_number() . " wincmd w"
-  call self._log("Set focus to window with name: " . self.name)
+  call s:log("Set focus to window with name: " . self.name)
 endfunction
 
 
@@ -114,7 +114,7 @@ function! s:Window.open() dict
       iabc <buffer>
       setlocal cursorline
       setfiletype ruby_debugger_window
-      call self._log("Opened window with name: " . self.name)
+      call s:log("Opened window with name: " . self.name)
     endif
 
     if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
@@ -127,7 +127,7 @@ endfunction
 
 " Open/close window
 function! s:Window.toggle() dict
-  call self._log("Toggling window with name: " . self.name)
+  call s:log("Toggling window with name: " . self.name)
   if self._exist_for_tab() && self.is_open()
     call self.close()
   else
@@ -158,14 +158,7 @@ function! s:Window._insert_data() dict
   let @p = self.render()
   silent exe "normal \"pP"
   let @p = old_p
-  call self._log("Inserted data to window with name: " . self.name)
-endfunction
-
-
-function! s:Window._log(string) dict
-  if has_key(self, 'logger')
-    call self.logger.put(a:string)
-  endif
+  call s:log("Inserted data to window with name: " . self.name)
 endfunction
 
 
@@ -185,7 +178,7 @@ function! s:Window._restore_view(top_line, current_line, current_column) dict
   normal! zt
   call cursor(a:current_line, a:current_column)
   let &scrolloff = old_scrolloff 
-  call self._log("Restored view of window with name: " . self.name)
+  call s:log("Restored view of window with name: " . self.name)
 endfunction
 
 
@@ -195,5 +188,4 @@ endfunction
 
 
 " *** Window class (end)
-
 

@@ -10,7 +10,7 @@ let s:Exception = { }
 function! s:Exception.new(name)
   let var = copy(self)
   let var.name = a:name
-  call var._log("Trying to set exception: " . var.name)
+  call s:log("Trying to set exception: " . var.name)
   call g:RubyDebugger.queue.add(var.command())
   return var
 endfunction
@@ -26,15 +26,6 @@ endfunction
 function! s:Exception.render() dict
   return self.name
 endfunction
-
-
-" ** Private methods
-
-
-function! s:Exception._log(string) dict
-  call g:RubyDebugger.logger.put(a:string)
-endfunction
-
 
 " *** Exception class (end)
 
