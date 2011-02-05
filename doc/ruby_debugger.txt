@@ -52,17 +52,9 @@ Clone current version of the repo from GitHub: >
 or if you don't have Git, download the archive from here: >
         http://github.com/astashov/vim-ruby-debugger/tarball/master
 
-Then, copy files from ./vim directory to vimfiles (Windows) or ~/.vim 
-(everything else). Or, if you use pathogen, copy ./vim directory contents 
-to ~/.vim/bundle/vim-ruby-debugger. You should have the following files: >
-	plugin/ruby_debugger.vim
-	autoload/ruby_debugger.vim
-	bin/ruby_debugger.rb
-	doc/ruby_debugger.txt
-The first one is a debugger plugin loader (maps shortcuts and commands), 
-second is ruby-debugger itself. Third is a small ruby script, that makes an 
-interaction between the VIM and the ruby-debug-ide gem, and fourth is the 
-help file.
+Then, copy the vim-ruby-debugger dir to the vim directory (to vimfiles 
+(Windows)or ~/.vim (everything else)). Or, if you use pathogen, copy the 
+vim-ruby-debugger dir to ~/.vim/bundle/vim-ruby-debugger.
 
 Then, run: >
 	:helptags ~/.vim/doc
