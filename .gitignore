@@ -1,2 +1,4 @@
 *.swp
 *.un~
+tmp
+doc/tags

@@ -3,7 +3,7 @@ class Collector
   def initialize(input, output)
     @path = File.dirname(__FILE__)
     @input_files = input.map{|i| @path + '/' + i}
-    @output_file = @path + '/' + output
+    @output_file = File.expand_path(@path + '/' + output)
     @file = ''
   end
   
@@ -35,10 +35,10 @@ class Collector
 end
 
 
-plugin = Collector.new(['ruby_debugger_plugin_plan.txt'], 'vim/plugin/ruby_debugger.vim')
+plugin = Collector.new(['ruby_debugger_plugin_plan.txt'], '../plugin/ruby_debugger.vim')
 plugin.accumulate!
 
-auto_load = Collector.new(['ruby_debugger_autoload_plan.txt'], 'vim/autoload/ruby_debugger.vim')
+auto_load = Collector.new(['ruby_debugger_autoload_plan.txt'], '../autoload/ruby_debugger.vim')
 auto_load.accumulate!
 
 with_tests = Collector.new(['ruby_debugger_autoload_plan.txt', 'ruby_test_plan.txt'], 'additionals/autoload/ruby_debugger.vim')
