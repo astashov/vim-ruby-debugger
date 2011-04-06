@@ -1736,7 +1736,7 @@ endfunction
 " (e.g.: 'delete 5')
 function! s:Breakpoint._send_delete_to_debugger() dict
   if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
-    let message = 'delete ' . self.debugger_id
+    let message = 'delete ' . self.line
     call g:RubyDebugger.queue.add(message)
   endif
 endfunction
