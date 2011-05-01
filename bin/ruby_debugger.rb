@@ -108,7 +108,7 @@ class VimRubyDebugger
         log("Putting message to rdebug-ide: #{message}")
         @rdebug.puts(message)
         # Start command doesn't return any response, so send message immediatly
-        send_message if message == 'start'
+        send_message if message.strip == 'start'
       else
         send_message
       end
