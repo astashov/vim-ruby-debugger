@@ -48,7 +48,7 @@ function! s:get_escaped_absolute_path(command)
     if !(has("win32") || has("win64"))
       let absolute_command = s:strip(system('which ' . relative_command))
     endif
-    if empty(absolute_command)
+    if absolute_command[0] != '/'
       let absolute_command = getcwd() . '/' . relative_command
     endif
     let absolute_path = "\"'" . absolute_command . "' " . arguments . '"'
