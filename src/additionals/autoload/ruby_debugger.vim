@@ -434,7 +434,7 @@ let g:RubyDebugger.queue = s:Queue.new()
 function! RubyDebugger.start(...) dict
   call s:log("Executing :Rdebugger...")
   let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
-  let script_string = a:0 && !empty(a:1) ? a:1 : 'script/server webrick'
+  let script_string = a:0 && !empty(a:1) ? a:1 : g:ruby_debugger_default_script
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(s:get_escaped_absolute_path(script_string))
 
@@ -2015,6 +2015,9 @@ if !exists("g:ruby_debugger_cucumber_path")
 endif
 if !exists("g:ruby_debugger_progname")
   let g:ruby_debugger_progname = v:progname
+endif
+if !exists("g:ruby_debugger_default_script")
+  let g:ruby_debugger_default_script = 'script/server webrick'
 endif
 
 " Creating windows

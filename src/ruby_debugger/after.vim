@@ -23,6 +23,9 @@ endif
 if !exists("g:ruby_debugger_progname")
   let g:ruby_debugger_progname = v:progname
 endif
+if !exists("g:ruby_debugger_default_script")
+  let g:ruby_debugger_default_script = 'script/server webrick'
+endif
 
 " Creating windows
 let s:variables_window = s:WindowVariables.new("variables", "Variables_Window")
