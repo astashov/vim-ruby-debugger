@@ -15,10 +15,16 @@ endfunction
 function! s:Logger.put(string) dict
   if g:ruby_debugger_debug_mode
     let string = 'Vim plugin, ' . strftime("%H:%M:%S") . ': ' . a:string
-    execute('set verbosefile=' . g:RubyDebugger.logger.file)
-    silent verbose echo substitute(string,'/^\s*/','',"") 
-    execute('set verbosefile=""')
+    exec 'redir >> ' . g:RubyDebugger.logger.file
+    silent call s:Logger.silent_echo(s:strip(string))
+    exec 'redir END'
   endif
 endfunction
 
+function! s:Logger.silent_echo(string)
+  echo a:string
+endfunction
+
 " *** Logger class (end)
+"
+"
