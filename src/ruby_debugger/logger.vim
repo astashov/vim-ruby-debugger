@@ -11,19 +11,20 @@ endfunction
 
 
 " Log datetime and then message. It logs only if debug mode is enabled
-" TODO: Now to add one line to the log file, it read whole file to memory, add
-" one line and write all that stuff back to file. When log file is large, it
-" affects performance very much. Need to find way to write only to the end of
-" file (preferably - crossplatform way. Maybe Ruby?)
-function! s:Logger.put(string)
+" TODO It outputs a bunch of spaces at the front of the entry - fix that.
+function! s:Logger.put(string) dict
   if g:ruby_debugger_debug_mode
-    let file = readfile(self.file)
     let string = 'Vim plugin, ' . strftime("%H:%M:%S") . ': ' . a:string
-    call add(file, string)
-    call writefile(file, self.file)
+    exec 'redir >> ' . g:RubyDebugger.logger.file
+    silent call s:Logger.silent_echo(s:strip(string))
+    exec 'redir END'
   endif
 endfunction
 
+function! s:Logger.silent_echo(string)
+  echo a:string
+endfunction
+
 " *** Logger class (end)
-
-
+"
+"
