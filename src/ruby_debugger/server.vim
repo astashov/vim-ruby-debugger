@@ -95,14 +95,22 @@ endfunction
 " Just try to get PID of process and return empty string if it was
 " unsuccessful
 function! s:Server._get_pid_attempt(port)
+  if !exists("s:use_power_pc_detection") && has("macunix")
+    if matches(system("arch"),"ppc")
+      let s:use_power_pc_detection = 1
+    else
+      let s:use_power_pc_detection = 0
+    endif
+  endif
+
   if has("win32") || has("win64")
     call s:log("Trying to find listener of port " . a:port)
     let netstat = system("netstat -anop tcp")
     let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
     let pid = len(pid_match) > 0 ? pid_match[1] : ""
-  elseif has("macunix")
-    "lsof is dog slow on the mac - just grep the process list 
-    if a:port == s:relay_port
+  elseif has("macunix") && s:use_power_pc_detection == 1
+    "lsof is dog slow on ppc macs - just grep the process list 
+    if a:port == s:debugger_port
       call s:log("Trying to find ruby_debugger process") 
       let cmd = "ps aux | grep 'ruby_debugger' | grep -v grep | head -n 1 | sed 's/ \\{2,\\}/ /g' | cut -f 2 -d ' '"
     elseif a:port == s:rdebug_port
