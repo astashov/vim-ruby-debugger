@@ -96,7 +96,8 @@ endfunction
 " unsuccessful
 function! s:Server._get_pid_attempt(port)
   if !exists("s:use_power_pc_detection") && has("macunix")
-    if matches(system("arch"),"ppc")
+    if match(system("arch"),"ppc") > 0
+      call s:log("Using a PowerPC, so we have to grep the process list.")
       let s:use_power_pc_detection = 1
     else
       let s:use_power_pc_detection = 0
@@ -108,7 +109,7 @@ function! s:Server._get_pid_attempt(port)
     let netstat = system("netstat -anop tcp")
     let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
     let pid = len(pid_match) > 0 ? pid_match[1] : ""
-  elseif has("macunix") && s:use_power_pc_detection == 1
+  elseif s:use_power_pc_detection 
     "lsof is dog slow on ppc macs - just grep the process list 
     if a:port == s:debugger_port
       call s:log("Trying to find ruby_debugger process") 
