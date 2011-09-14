@@ -21,6 +21,13 @@ This Vim plugin implements interactive Ruby debugger in Vim.
 2.  ruby-debug-ide gem.
 3.  For linux: 'lsof' program.
 
+## MacVim ##
+
+Install homebrew (http://mxcl.github.com/homebrew/)
+
+    brew install macvim
+
+This will install MacVim, along with the mvim command line utility
 
 # Installation #
 
@@ -45,6 +52,14 @@ This Vim plugin implements interactive Ruby debugger in Vim.
         :help ruby-debugger
 
     to get help for the ruby-debugger plugin.
+
+## MacVim ##
+
+Modify your ~/.vimrc to add the following line:
+
+```VimL
+let g:ruby_debugger_progname = 'mvim'
+```
 
 I've tested the plugin in Windows and Linux. All tests should be passed there.
 
