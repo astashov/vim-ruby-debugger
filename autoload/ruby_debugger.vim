@@ -36,6 +36,13 @@ fun! ruby_debugger#load_debugger()
   endif
 endf
 
+fun! ruby_debugger#statusline()
+  let is_running = g:RubyDebugger.is_running()
+  if is_running == 0
+    return ''
+  endif
+  return '[ruby debugger running]'
+endfunction
 
 " Check all requirements for the current plugin
 fun! s:check_prerequisites()
@@ -455,6 +462,12 @@ function! RubyDebugger.stop() dict
   endif
 endfunction
 
+function! RubyDebugger.is_running()
+  if has_key(g:RubyDebugger, 'server')
+    return g:RubyDebugger.server.is_running()
+  endif
+  return 0
+endfunction
 
 " This function receives commands from the debugger. When ruby_debugger.rb
 " gets output from rdebug-ide, it writes it to the special file and 'kick'

@@ -36,6 +36,13 @@ fun! ruby_debugger#load_debugger()
   endif
 endf
 
+fun! ruby_debugger#statusline()
+  let is_running = g:RubyDebugger.is_running()
+  if is_running == 0
+    return ''
+  endif
+  return '[ruby debugger running]'
+endfunction
 
 " Check all requirements for the current plugin
 fun! s:check_prerequisites()

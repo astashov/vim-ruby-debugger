@@ -101,6 +101,13 @@ It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and
    * <Leader>c - continue
    * <Leader>d - remove all breakpoints
 
+6. To see when the ruby debugger is running, you can add the following function call
+to your status line:
+
+   set statusline=%{ruby_debugger#statusline()}
+
+   When the debugger is running you'll see '[ruby debugger running]'
+
 ==============================================================================
 DETAILS					*ruby-debugger-details*
 
