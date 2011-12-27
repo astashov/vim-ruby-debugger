@@ -442,8 +442,9 @@ function! RubyDebugger.start(...) dict
   call s:log("Executing :Rdebugger...")
   let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
   let script_string = a:0 && !empty(a:1) ? a:1 : g:ruby_debugger_default_script
+  let params = a:0 && a:0 > 1 && !empty(a:2) ? a:2 : []
   echo "Loading debugger..."
-  call g:RubyDebugger.server.start(s:get_escaped_absolute_path(script_string))
+  call g:RubyDebugger.server.start(s:get_escaped_absolute_path(script_string), params)
 
   let g:RubyDebugger.exceptions = []
   for breakpoint in g:RubyDebugger.breakpoints
@@ -698,7 +699,7 @@ function! RubyDebugger.run_test() dict
   elseif file =~ '\.feature$'
     call g:RubyDebugger.start(g:ruby_debugger_cucumber_path . ' ' . file)
   elseif file =~ '_test\.rb$'
-    call g:RubyDebugger.start(file)
+    call g:RubyDebugger.start(file, ['-Itest'])
   endif
 endfunction
 
@@ -1884,7 +1885,7 @@ endfunction
 
 
 " Start the server. It will kill any listeners on given ports before.
-function! s:Server.start(script) dict
+function! s:Server.start(script, params) dict
   call s:log("Starting Server, command: " . a:script)
   call s:log("Trying to kill all old servers first")
   call self._stop_server(self.rdebug_port)
@@ -1892,7 +1893,7 @@ function! s:Server.start(script) dict
   call s:log("Servers are killed, trying to start new servers")
   " Remove leading and trailing quotes
   let script_name = substitute(a:script, "\\(^['\"]\\|['\"]$\\)", '', 'g')
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . script_name
+  let rdebug = 'rdebug-ide ' . join(a:params, ' ') . ' -p ' . self.rdebug_port . ' -- ' . script_name
   let os = has("win32") || has("win64") ? 'win' : 'posix'
   " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger posix
   let debugger_parameters =  ' ' . self.hostname . ' ' . self.rdebug_port . ' ' . self.debugger_port

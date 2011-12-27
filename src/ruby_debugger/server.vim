@@ -19,7 +19,7 @@ endfunction
 
 
 " Start the server. It will kill any listeners on given ports before.
-function! s:Server.start(script) dict
+function! s:Server.start(script, params) dict
   call s:log("Starting Server, command: " . a:script)
   call s:log("Trying to kill all old servers first")
   call self._stop_server(self.rdebug_port)
@@ -27,7 +27,7 @@ function! s:Server.start(script) dict
   call s:log("Servers are killed, trying to start new servers")
   " Remove leading and trailing quotes
   let script_name = substitute(a:script, "\\(^['\"]\\|['\"]$\\)", '', 'g')
-  let rdebug = 'rdebug-ide -p ' . self.rdebug_port . ' -- ' . script_name
+  let rdebug = 'rdebug-ide ' . join(a:params, ' ') . ' -p ' . self.rdebug_port . ' -- ' . script_name
   let os = has("win32") || has("win64") ? 'win' : 'posix'
   " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger posix
   let debugger_parameters =  ' ' . self.hostname . ' ' . self.rdebug_port . ' ' . self.debugger_port
