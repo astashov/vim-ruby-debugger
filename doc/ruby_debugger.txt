@@ -317,6 +317,11 @@ interface.
 in your .vimrc, and then open the new issue in Github Issue Tracker
 (or write email to me) and attach ~/.vim/tmp/ruby_debugger_log file.
 
+5. Sometimes the default key bindings can conflict with the key bindings of
+other plugins. In this case you may want to disable the default bindings of
+vim-ruby-debugger and assign your own bindings. For that, use this: >
+  let g:ruby_debugger_no_maps = 1
+in your .vimrc, and then you can specify your own bindings
 
 ==============================================================================
 BUGS					*ruby-debugger-bugs*
