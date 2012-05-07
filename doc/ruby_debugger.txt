@@ -233,6 +233,10 @@ For this, set some variables in your .vimrc. E.g.: >
   let g:ruby_debugger_spec_path = 'c:\gembins\spec'         " set Rspec path
   let g:ruby_debugger_cucumber_path = 'c:\gembins\cucumber' " set Cucumber path
 
+A single rspec test can be invoked by RdbTestSingle which will invoke rspec
+and pass the current line to rspec via "-l" argument to rspec.  For Cucumber
+and Test::Unit all tests/features are run.
+
 ==============================================================================
 RUBY 1.9 AND RAILS 3				*ruby-debugger-ruby19*
 
