@@ -95,12 +95,34 @@ endfunction
 " Just try to get PID of process and return empty string if it was
 " unsuccessful
 function! s:Server._get_pid_attempt(port)
-  call s:log("Trying to find listener of port " . a:port)
+  if !exists("s:use_power_pc_detection") && has("macunix")
+    if match(system("arch"),"ppc") > 0
+      call s:log("Using a PowerPC, so we have to grep the process list.")
+      let s:use_power_pc_detection = 1
+    else
+      let s:use_power_pc_detection = 0
+    endif
+  endif
+
   if has("win32") || has("win64")
+    call s:log("Trying to find listener of port " . a:port)
     let netstat = system("netstat -anop tcp")
     let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
     let pid = len(pid_match) > 0 ? pid_match[1] : ""
+  elseif s:use_power_pc_detection 
+    "lsof is dog slow on ppc macs - just grep the process list 
+    if a:port == s:debugger_port
+      call s:log("Trying to find ruby_debugger process") 
+      let cmd = "ps aux | grep 'ruby_debugger' | grep -v grep | head -n 1 | sed 's/ \\{2,\\}/ /g' | cut -f 2 -d ' '"
+    elseif a:port == s:rdebug_port
+      call s:log("Trying to find rdebug-ide process") 
+      let cmd = "ps aux | grep 'rdebug-ide' | grep -v grep | head -n 1 | sed 's/ \\{2,\\}/ /g' | cut -f 2 -d ' '" 
+    endif
+    call s:log("Executing command: " . cmd)
+    let pid = system(cmd)
+    let pid = substitute(pid, '\n', '', '')
   elseif executable('lsof')
+    call s:log("Trying to find listener of port " . a:port)
     let cmd = "lsof -i tcp:" . a:port . " | grep LISTEN | awk '{print $2}'"
     call s:log("Executing command: " . cmd)
     let pid = system(cmd)
