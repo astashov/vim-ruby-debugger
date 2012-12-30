@@ -692,10 +692,11 @@ endfunction
 
 
 " Debug current opened test
-function! RubyDebugger.run_test() dict
+function! RubyDebugger.run_test(...) dict
   let file = s:get_filename()
   if file =~ '_spec\.rb$'
-    call g:RubyDebugger.start(g:ruby_debugger_spec_path . ' ' . file)
+    let line = a:0 && a:0 > 0 && !empty(a:1) ? a:1 : " "
+    call g:RubyDebugger.start(g:ruby_debugger_spec_path . ' ' . file . line)
   elseif file =~ '\.feature$'
     call g:RubyDebugger.start(g:ruby_debugger_cucumber_path . ' ' . file)
   elseif file =~ '_test\.rb$'
@@ -828,7 +829,7 @@ endfunction
 function! RubyDebugger.commands.eval(cmd)
   " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
   " use usual attribute extractor here...
-  let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\" \\/>")
+  let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\"\\s*\\/>")
   echo "Evaluated expression:\n" . s:unescape_html(match[1]) ."\nResulted value is:\n" . match[2] . "\n"
 endfunction
 
