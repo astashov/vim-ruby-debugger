@@ -105,7 +105,7 @@ And then, in command mode execute
 
 # Screenshot #
 
-![Screenshot](http://astashov.net/images/vim_ruby_debugger.png)
+![Screenshot](https://raw.github.com/astashov/vim-ruby-debugger/master/screenshot.png)
 
 
 # Thanks #
