@@ -6,15 +6,15 @@ class Collector
     @output_file = File.expand_path(@path + '/' + output)
     @file = ''
   end
-  
+
   def accumulate!
     read_file
     save_file
   end
 
-  
+
   protected
-  
+
     def read_file
       @file = ""
       plan = @input_files.inject([]) {|sum, i| sum += File.read(i).split("\n") }
@@ -24,18 +24,18 @@ class Collector
       end
       @file
     end
-    
-    
+
+
     def save_file
       File.open(@output_file, 'w') do |file|
         file.write(@file)
       end
     end
-  
+
 end
 
 
-plugin = Collector.new(['ruby_debugger_plugin_plan.txt'], '../plugin/ruby_debugger.vim')
+plugin = Collector.new(['ruby_debugger_ftplugin_plan.txt'], '../ftplugin/ruby_debugger.vim')
 plugin.accumulate!
 
 auto_load = Collector.new(['ruby_debugger_autoload_plan.txt'], '../autoload/ruby_debugger.vim')
