@@ -27,3 +27,4 @@ command! -nargs=0 RdbLog call ruby_debugger#load_debugger() | call g:RubyDebugge
 
 let g:ruby_debugger_loaded = 1
 
+
