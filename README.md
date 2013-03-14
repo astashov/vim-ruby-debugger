@@ -1,7 +1,7 @@
 # Disclaimer #
 
-From now on, if you use Ruby >= 1.9, it is strongly recommended to use **debugger-xml** gem instead of **ruby-debug-ide**.
-**debugger-xml** is XML/IDE extension for the **debugger** gem, which supports Ruby 1.9.2 and 1.9.3 out-of-the-box. It is also in active development.
+From now on, if you use Ruby >= 1.9, it is strongly recommended to use [**debugger-xml**](https://rubygems.org/gems/debugger-xml) gem instead of **ruby-debug-ide**.
+**debugger-xml** is XML/IDE extension for the [**debugger**](https://rubygems.org/gems/debugger) gem, which supports Ruby 1.9.2 and 1.9.3 out-of-the-box. It is also in active development.
 
 # Description #
 
