@@ -1,3 +1,8 @@
+# Disclaimer #
+
+From now on, if you use Ruby >= 1.9, it is strongly recommended to use **debugger-xml** gem instead of **ruby-debug-ide**.
+**debugger-xml** is XML/IDE extension for the **debugger** gem, which supports Ruby 1.9.2 and 1.9.3 out-of-the-box. It is also in active development.
+
 # Description #
 
 This Vim plugin implements interactive Ruby debugger in Vim.
@@ -5,9 +10,9 @@ This Vim plugin implements interactive Ruby debugger in Vim.
 
 # Features #
 
-1. It can debug any Ruby application (Rails, by default), using **ruby-debug-ide** gem
-2. The debugger looks like in the Netbeans - you can go through the code, watch variables, breakpoints in separate window, set and remove breakpoints.
-3. It supports command-line rdebug commands. E.g., you can execute ':RdbCommand p User.all' in command line of VIM and it will display result like usual echo VIM command.
+1. It can debug any Ruby application (Rails, by default), using **ruby-debug-ide** or **debugger-xml** gem
+2. The debugger looks like in any IDE - you can go through the code, watch variables, breakpoints in separate window, set and remove breakpoints.
+3. It supports execution of commands in the context of stopped line. E.g., you can execute ':RdbEval User.all' in command line of VIM and it will display the result like usual echo VIM command.
 
 
 # Requirements #
@@ -18,7 +23,7 @@ This Vim plugin implements interactive Ruby debugger in Vim.
 
     It should show result '1'.
 
-2.  ruby-debug-ide gem.
+2.  ruby-debug-ide or debugger-xml gem.
 3.  For linux: 'lsof' program.
 4.  For OS X:
 
