@@ -1,8 +1,8 @@
 " *** Common (global) functions
 
-" Split string of tags to List. E.g., 
+" Split string of tags to List. E.g.,
 " <variables><variable name="a" value="b" /><variable name="c" value="d" /></variables>
-" will be splitted to 
+" will be splitted to
 " [ '<variable name="a" value="b" />', '<variable name="c" value="d" />' ]
 function! s:get_tags(cmd)
   let tags = []
@@ -11,7 +11,7 @@ function! s:get_tags(cmd)
   let inner_tags_match = s:get_inner_tags(cmd)
   if !empty(inner_tags_match)
     " Then find every tag and remove it from source string
-    let pattern = '<.\{-}\/>' 
+    let pattern = '<.\{-}\/>'
     let inner_tags = inner_tags_match[1]
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
@@ -70,10 +70,10 @@ endfunction
 
 
 " Return match of inner tags without wrap tags. E.g.:
-" <variables><variable name="a" value="b" /></variables> mathes only <variable /> 
+" <variables><variable name="a" value="b" /></variables> mathes only <variable />
 function! s:get_inner_tags(cmd)
   return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
-endfunction 
+endfunction
 
 
 " Return Dict of attributes.
@@ -87,7 +87,7 @@ function! s:get_tag_attributes(cmd)
   let quote = empty(quote_match) ? "\"" : escape(quote_match[1], "'\"")
   let pattern = "\\(\\w\\+\\)=" . quote . "\\(.\\{-}\\)" . quote
   " Find every attribute and remove it from source string
-  let attrmatch = matchlist(cmd, pattern) 
+  let attrmatch = matchlist(cmd, pattern)
   while !empty(attrmatch)
     " Values of attributes can be escaped by HTML entities, unescape them
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
@@ -96,7 +96,7 @@ function! s:get_tag_attributes(cmd)
     " Remove it from source string
     let cmd = substitute(cmd, attrmatch[0], '', '')
     " Find next attribute
-    let attrmatch = matchlist(cmd, pattern) 
+    let attrmatch = matchlist(cmd, pattern)
   endwhile
   return attributes
 endfunction
@@ -129,66 +129,16 @@ endfunction
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   call s:log("Sending a message to ruby_debugger.rb: '" . a:message . "'")
-  if g:ruby_debugger_fast_sender
-    call s:log("Trying to use experimental 'fast_sender'")
-    let cmd = s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\""
-    call s:log("Executing command: " . cmd)
-    call system(cmd)
-  else
-    if g:ruby_debugger_builtin_sender
-      call s:log("Using Vim built-in Ruby to send message")
 ruby << RUBY
   require 'socket'
-  attempts = 0
-  a = nil
-  host = VIM::evaluate("s:hostname")
-  port = VIM::evaluate("s:debugger_port")
-  message = VIM::evaluate("a:message").gsub("\\\"", '"')
+  @vim_ruby_debugger_socket ||= UNIXSocket.open(VIM.evaluate("s:socket_file"))
+  message = VIM.evaluate("a:message").gsub("\\\"", '"')
   begin
-    a = TCPSocket.open(host, port)
-    a.puts(message)
-    a.close
-  rescue Errno::ECONNREFUSED
-   attempts += 1
-   if attempts < 400
-     sleep 0.05
-     retry
-   else
-     puts("#{host}:#{port} can not be opened")
-     exit
-   end
-  ensure
-    a.close if a && !a.closed?
+    @vim_ruby_debugger_socket.puts(message)
+  rescue Errno::EPIPE
+    VIM.message("Debugger is not running")
   end
 RUBY
-    else
-      let script =  "ruby -e \"require 'socket'; "
-      let script .= "attempts = 0; "
-      let script .= "a = nil; "
-      let script .= "begin; "
-      let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
-      let script .=   "a.puts(%q[" . substitute(substitute(a:message, '[', '\[', 'g'), ']', '\]', 'g') . "]);"
-      let script .=   "a.close; "
-      let script .= "rescue Errno::ECONNREFUSED; "
-      let script .=   "attempts += 1; "
-      let script .=   "if attempts < 400; "
-      let script .=     "sleep 0.05; "
-      let script .=     "retry; "
-      let script .=   "else; "
-      let script .=     "puts('" . s:hostname . ":" . s:debugger_port . " can not be opened'); "
-      let script .=     "exit; "
-      let script .=   "end; "
-      let script .= "ensure; "
-      let script .=   "a.close if a && !a.closed?; "
-      let script .= "end; \""
-      call s:log("Using system-wide Ruby to send message, the command is: " . script)
-      let output = system(script)
-      call s:log("Command has returned following output: " . output)
-      if output =~ 'can not be opened'
-        call s:log("Can't send a message to rdebug - port is not opened") 
-      endif
-    endif
-  endif
 endfunction
 
 
@@ -224,7 +174,7 @@ function! s:jump_to_file(file, line)
     exe window_number . "wincmd w"
   else
     " Check if last accessed window is usable to use it
-    " Usable window - not quickfix, explorer, modified, etc 
+    " Usable window - not quickfix, explorer, modified, etc
     if !s:is_window_usable(winnr("#"))
       exe s:first_normal_window() . "wincmd w"
     else
@@ -237,8 +187,8 @@ function! s:jump_to_file(file, line)
 endfunction
 
 
-" Return 1 if window is usable (not quickfix, explorer, modified, only one 
-" window, ...) 
+" Return 1 if window is usable (not quickfix, explorer, modified, only one
+" window, ...)
 function! s:is_window_usable(winnumber)
   "If there is only one window (winnr("$") - windows count)
   if winnr("$") ==# 1
@@ -255,7 +205,7 @@ function! s:is_window_usable(winnumber)
 
   exe oldwinnr . "wincmd p"
 
-  "if it is a special window, e.g. quickfix or another explorer plugin    
+  "if it is a special window, e.g. quickfix or another explorer plugin
   if specialWindow
     return 0
   endif
@@ -286,7 +236,7 @@ function! s:buf_in_windows(buffer_number)
   endwhile
 
   return count
-endfunction 
+endfunction
 
 
 " Find first 'normal' window (not quickfix, explorer, etc)

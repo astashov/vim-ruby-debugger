@@ -17,7 +17,7 @@ endfunction
 function! s:Queue.execute() dict
   if !empty(self.queue)
     call s:log("Executing queue")
-    let message = join(self.queue, s:separator)
+    let message = join(self.queue, ';')
     call self.empty()
     call g:RubyDebugger.send_command(message)
   endif

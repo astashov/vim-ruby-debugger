@@ -4,7 +4,7 @@ let s:Frame = { }
 
 " ** Public methods
 
-" Constructor of new frame. 
+" Constructor of new frame.
 " Create new frame and set sign to it.
 function! s:Frame.new(attrs)
   let var = copy(self)
@@ -25,8 +25,8 @@ endfunction
 
 " Find and return frame under cursor
 function! s:Frame.get_selected() dict
-  let line = getline(".") 
-  let match = matchlist(line, '^\(\d\+\)') 
+  let line = getline(".")
+  let match = matchlist(line, '^\(\d\+\)')
   let no = get(match, 1)
   let frames = filter(copy(g:RubyDebugger.frames), "v:val.no == " . no)
   if !empty(frames)

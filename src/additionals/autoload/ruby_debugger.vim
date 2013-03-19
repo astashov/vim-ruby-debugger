@@ -1,10 +1,6 @@
 " Init section - set default values, highlight colors
 
-let s:rdebug_port = 39767
-let s:debugger_port = 39768
-" hostname() returns something strange in Windows (E98BD9A419BB41D), so set hostname explicitly
-let s:hostname = '127.0.0.1' "hostname()
-" ~/.vim for Linux, vimfiles for Windows
+" like ~/.vim
 let s:runtime_dir = expand('<sfile>:h:h')
 " File for communicating between intermediate Ruby script ruby_debugger.rb and
 " this plugin
@@ -13,8 +9,9 @@ let s:logger_file = s:runtime_dir . '/tmp/ruby_debugger_log'
 let s:server_output_file = s:runtime_dir . '/tmp/ruby_debugger_output'
 " Default id for sign of current line
 let s:current_line_sign_id = 120
-let s:separator = "++vim-ruby-debugger separator++"
+let s:separator = "++vim-ruby-debugger-separator++"
 let s:sign_id = 0
+let s:rdebug_pid = ""
 
 " Create tmp directory if it doesn't exist
 if !isdirectory(s:runtime_dir . '/tmp')
@@ -26,7 +23,7 @@ hi def link Breakpoint Error
 sign define breakpoint linehl=Breakpoint  text=xx
 
 " Init current line signs
-hi def link CurrentLine DiffAdd 
+hi def link CurrentLine DiffAdd
 sign define current_line linehl=CurrentLine text=>>
 
 " Loads this file. Required for autoloading the code for this plugin
@@ -47,20 +44,17 @@ endfunction
 " Check all requirements for the current plugin
 fun! s:check_prerequisites()
   let problems = []
-  if v:version < 700 
+  if v:version < 700
     call add(problems, "RubyDebugger: This plugin requires Vim >= 7.")
   endif
   if !has("clientserver")
     call add(problems, "RubyDebugger: This plugin requires +clientserver option")
   endif
-  if !executable("rdebug-ide")
-    call add(problems, "RubyDebugger: You don't have installed 'ruby-debug-ide' gem or executable 'rdebug-ide' can't be found in your PATH")
+  if !executable(g:ruby_debugger_executable)
+    call add(problems, "RubyDebugger: You don't have installed 'debugger-xml' gem or executable '" . g:ruby_debugger_executable . "' can't be found in your PATH")
   endif
-  if !(has("win32") || has("win64")) && !executable("lsof")
-    call add(problems, "RubyDebugger: You don't have 'lsof' installed or executable 'lsof' can't be found in your PATH")
-  endif
-  if g:ruby_debugger_builtin_sender && !has("ruby")
-    call add(problems, "RubyDebugger: You are trying to use built-in Ruby in Vim, but your Vim doesn't compiled with +ruby. Set g:ruby_debugger_builtin_sender = 0 in your .vimrc to resolve that issue.")
+  if !has("ruby")
+    call add(problems, "RubyDebugger: This plugin requires +ruby option.")
   end
   if empty(problems)
     return 1
@@ -78,9 +72,9 @@ endf
 
 " *** Common (global) functions
 
-" Split string of tags to List. E.g., 
+" Split string of tags to List. E.g.,
 " <variables><variable name="a" value="b" /><variable name="c" value="d" /></variables>
-" will be splitted to 
+" will be splitted to
 " [ '<variable name="a" value="b" />', '<variable name="c" value="d" />' ]
 function! s:get_tags(cmd)
   let tags = []
@@ -89,7 +83,7 @@ function! s:get_tags(cmd)
   let inner_tags_match = s:get_inner_tags(cmd)
   if !empty(inner_tags_match)
     " Then find every tag and remove it from source string
-    let pattern = '<.\{-}\/>' 
+    let pattern = '<.\{-}\/>'
     let inner_tags = inner_tags_match[1]
     let tagmatch = matchlist(inner_tags, pattern)
     while empty(tagmatch) == 0
@@ -148,10 +142,10 @@ endfunction
 
 
 " Return match of inner tags without wrap tags. E.g.:
-" <variables><variable name="a" value="b" /></variables> mathes only <variable /> 
+" <variables><variable name="a" value="b" /></variables> mathes only <variable />
 function! s:get_inner_tags(cmd)
   return matchlist(a:cmd, '^<.\{-}>\(.\{-}\)<\/.\{-}>$')
-endfunction 
+endfunction
 
 
 " Return Dict of attributes.
@@ -165,7 +159,7 @@ function! s:get_tag_attributes(cmd)
   let quote = empty(quote_match) ? "\"" : escape(quote_match[1], "'\"")
   let pattern = "\\(\\w\\+\\)=" . quote . "\\(.\\{-}\\)" . quote
   " Find every attribute and remove it from source string
-  let attrmatch = matchlist(cmd, pattern) 
+  let attrmatch = matchlist(cmd, pattern)
   while !empty(attrmatch)
     " Values of attributes can be escaped by HTML entities, unescape them
     let attributes[attrmatch[1]] = s:unescape_html(attrmatch[2])
@@ -174,7 +168,7 @@ function! s:get_tag_attributes(cmd)
     " Remove it from source string
     let cmd = substitute(cmd, attrmatch[0], '', '')
     " Find next attribute
-    let attrmatch = matchlist(cmd, pattern) 
+    let attrmatch = matchlist(cmd, pattern)
   endwhile
   return attributes
 endfunction
@@ -207,66 +201,16 @@ endfunction
 " only through g:RubyDebugger.send_command function
 function! s:send_message_to_debugger(message)
   call s:log("Sending a message to ruby_debugger.rb: '" . a:message . "'")
-  if g:ruby_debugger_fast_sender
-    call s:log("Trying to use experimental 'fast_sender'")
-    let cmd = s:runtime_dir . "/bin/socket " . s:hostname . " " . s:debugger_port . " \"" . a:message . "\""
-    call s:log("Executing command: " . cmd)
-    call system(cmd)
-  else
-    if g:ruby_debugger_builtin_sender
-      call s:log("Using Vim built-in Ruby to send message")
 ruby << RUBY
   require 'socket'
-  attempts = 0
-  a = nil
-  host = VIM::evaluate("s:hostname")
-  port = VIM::evaluate("s:debugger_port")
-  message = VIM::evaluate("a:message").gsub("\\\"", '"')
+  @vim_ruby_debugger_socket ||= UNIXSocket.open(VIM.evaluate("s:socket_file"))
+  message = VIM.evaluate("a:message").gsub("\\\"", '"')
   begin
-    a = TCPSocket.open(host, port)
-    a.puts(message)
-    a.close
-  rescue Errno::ECONNREFUSED
-   attempts += 1
-   if attempts < 400
-     sleep 0.05
-     retry
-   else
-     puts("#{host}:#{port} can not be opened")
-     exit
-   end
-  ensure
-    a.close if a && !a.closed?
+    @vim_ruby_debugger_socket.puts(message)
+  rescue Errno::EPIPE
+    VIM.message("Debugger is not running")
   end
 RUBY
-    else
-      let script =  "ruby -e \"require 'socket'; "
-      let script .= "attempts = 0; "
-      let script .= "a = nil; "
-      let script .= "begin; "
-      let script .=   "a = TCPSocket.open('" . s:hostname . "', " . s:debugger_port . "); "
-      let script .=   "a.puts(%q[" . substitute(substitute(a:message, '[', '\[', 'g'), ']', '\]', 'g') . "]);"
-      let script .=   "a.close; "
-      let script .= "rescue Errno::ECONNREFUSED; "
-      let script .=   "attempts += 1; "
-      let script .=   "if attempts < 400; "
-      let script .=     "sleep 0.05; "
-      let script .=     "retry; "
-      let script .=   "else; "
-      let script .=     "puts('" . s:hostname . ":" . s:debugger_port . " can not be opened'); "
-      let script .=     "exit; "
-      let script .=   "end; "
-      let script .= "ensure; "
-      let script .=   "a.close if a && !a.closed?; "
-      let script .= "end; \""
-      call s:log("Using system-wide Ruby to send message, the command is: " . script)
-      let output = system(script)
-      call s:log("Command has returned following output: " . output)
-      if output =~ 'can not be opened'
-        call s:log("Can't send a message to rdebug - port is not opened") 
-      endif
-    endif
-  endif
 endfunction
 
 
@@ -302,7 +246,7 @@ function! s:jump_to_file(file, line)
     exe window_number . "wincmd w"
   else
     " Check if last accessed window is usable to use it
-    " Usable window - not quickfix, explorer, modified, etc 
+    " Usable window - not quickfix, explorer, modified, etc
     if !s:is_window_usable(winnr("#"))
       exe s:first_normal_window() . "wincmd w"
     else
@@ -315,8 +259,8 @@ function! s:jump_to_file(file, line)
 endfunction
 
 
-" Return 1 if window is usable (not quickfix, explorer, modified, only one 
-" window, ...) 
+" Return 1 if window is usable (not quickfix, explorer, modified, only one
+" window, ...)
 function! s:is_window_usable(winnumber)
   "If there is only one window (winnr("$") - windows count)
   if winnr("$") ==# 1
@@ -333,7 +277,7 @@ function! s:is_window_usable(winnumber)
 
   exe oldwinnr . "wincmd p"
 
-  "if it is a special window, e.g. quickfix or another explorer plugin    
+  "if it is a special window, e.g. quickfix or another explorer plugin
   if specialWindow
     return 0
   endif
@@ -364,7 +308,7 @@ function! s:buf_in_windows(buffer_number)
   endwhile
 
   return count
-endfunction 
+endfunction
 
 
 " Find first 'normal' window (not quickfix, explorer, etc)
@@ -399,7 +343,7 @@ endfunction
 function! s:Queue.execute() dict
   if !empty(self.queue)
     call s:log("Executing queue")
-    let message = join(self.queue, s:separator)
+    let message = join(self.queue, ';')
     call self.empty()
     call g:RubyDebugger.send_command(message)
   endif
@@ -440,19 +384,12 @@ let g:RubyDebugger.queue = s:Queue.new()
 " ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
   call s:log("Executing :Rdebugger...")
-  let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
+  let g:RubyDebugger.server = s:Server.new()
   let script_string = a:0 && !empty(a:1) ? a:1 : g:ruby_debugger_default_script
   let params = a:0 && a:0 > 1 && !empty(a:2) ? a:2 : []
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(s:get_escaped_absolute_path(script_string), params)
-
   let g:RubyDebugger.exceptions = []
-  for breakpoint in g:RubyDebugger.breakpoints
-    call g:RubyDebugger.queue.add(breakpoint.command())
-  endfor
-  call g:RubyDebugger.queue.add('start')
-  echo "Debugger started"
-  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -469,6 +406,18 @@ function! RubyDebugger.is_running()
   endif
   return 0
 endfunction
+
+
+function! RubyDebugger.establish_connection()
+  for breakpoint in g:RubyDebugger.breakpoints
+    call g:RubyDebugger.queue.add(breakpoint.command())
+  endfor
+  call g:RubyDebugger.queue.add('start')
+  call g:RubyDebugger.queue.execute()
+  echo "Debugger started"
+  call s:log("Debugger is successfully started")
+endfunction
+
 
 " This function receives commands from the debugger. When ruby_debugger.rb
 " gets output from rdebug-ide, it writes it to the special file and 'kick'
@@ -559,7 +508,7 @@ function! RubyDebugger.toggle_breakpoint(...) dict
     let breakpoint = s:Breakpoint.new(file, line)
     call add(g:RubyDebugger.breakpoints, breakpoint)
     call s:log("Added Breakpoint object to RubyDebugger.breakpoints array")
-    call breakpoint.send_to_debugger() 
+    call breakpoint.send_to_debugger()
   else
     call s:log("There is already set breakpoint presented, so delete it")
     let breakpoint = existed_breakpoints[0]
@@ -682,7 +631,7 @@ endfunction
 function! RubyDebugger.show_log() dict
   exe "view " . s:server_output_file
   setlocal autoread
-  " Per gorkunov's request 
+  " Per gorkunov's request
   setlocal wrap
   setlocal nonumber
   if exists(":AnsiEsc")
@@ -717,7 +666,7 @@ endfunction
 " <suspended file='test.rb' line='1' threadId='1' />
 " Jump to file/line where execution was suspended, set current line sign and get local variables
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
-  let attrs = s:get_tag_attributes(a:cmd) 
+  let attrs = s:get_tag_attributes(a:cmd)
   call s:jump_to_file(attrs.file, attrs.line)
   call s:log("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
 
@@ -753,14 +702,13 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   call s:log("Received the breakpoint message, will add PID and number of breakpoint to the Breakpoint object")
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
-  let pid = g:RubyDebugger.server.rdebug_pid
 
   " Find added breakpoint in array and assign debugger's info to it
   for breakpoint in g:RubyDebugger.breakpoints
     if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
       call s:log("Found the Breakpoint object for " . breakpoint.file . ":" . breakpoint.line)
       let breakpoint.debugger_id = attrs.no
-      let breakpoint.rdebug_pid = pid
+      let breakpoint.rdebug_pid = s:rdebug_pid
       call s:log("Added id: " . breakpoint.debugger_id . ", PID:" . breakpoint.rdebug_pid . " to Breakpoint")
       if has_key(breakpoint, 'condition')
         call breakpoint.add_condition(breakpoint.condition)
@@ -830,14 +778,14 @@ function! RubyDebugger.commands.eval(cmd)
   " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
   " use usual attribute extractor here...
   let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\"\\s*\\/>")
-  echo "Evaluated expression:\n" . s:unescape_html(match[1]) ."\nResulted value is:\n" . match[2] . "\n"
+  echo "Evaluated expression:\n" . s:unescape_html(match[1]) ."\nResulted value is:\n" . s:unescape_html(match[2]) . "\n"
 endfunction
 
 
 " <processingException type="SyntaxError" message="some message" />
 " Just show exception message
 function! RubyDebugger.commands.processing_exception(cmd)
-  let attrs = s:get_tag_attributes(a:cmd) 
+  let attrs = s:get_tag_attributes(a:cmd)
   let message = "RubyDebugger Exception, type: " . attrs.type . ", message: " . attrs.message
   echo message
   call s:log(message)
@@ -872,7 +820,7 @@ endfunction
 " <error>Error</error>
 " Just show error
 function! RubyDebugger.commands.error(cmd)
-  let error_match = s:get_inner_tags(a:cmd) 
+  let error_match = s:get_inner_tags(a:cmd)
   if !empty(error_match)
     let error = error_match[1]
     echo "RubyDebugger Error: " . error
@@ -884,7 +832,7 @@ endfunction
 " <message>Message</message>
 " Just show message
 function! RubyDebugger.commands.message(cmd)
-  let message_match = s:get_inner_tags(a:cmd) 
+  let message_match = s:get_inner_tags(a:cmd)
   if !empty(message_match)
     let message = message_match[1]
     echo "RubyDebugger Message: " . message
@@ -893,15 +841,15 @@ function! RubyDebugger.commands.message(cmd)
 endfunction
 
 
-" *** End of debugger Commands 
+" *** End of debugger Commands
 
 
 
-" *** Window class (start). Abstract Class for creating window. 
+" *** Window class (start). Abstract Class for creating window.
 "     Must be inherited. Mostly, stolen from the NERDTree.
 
-let s:Window = {} 
-let s:Window['next_buffer_number'] = 1 
+let s:Window = {}
+let s:Window['next_buffer_number'] = 1
 let s:Window['position'] = 'botright'
 let s:Window['size'] = 10
 
@@ -1046,7 +994,7 @@ endfunction
 
 " Return 1 if the window exists in current tab
 function! s:Window._exist_for_tab() dict
-  return exists("t:window_" . self.name . "_buf_name") 
+  return exists("t:window_" . self.name . "_buf_name")
 endfunction
 
 
@@ -1076,7 +1024,7 @@ function! s:Window._restore_view(top_line, current_line, current_column) dict
   call cursor(a:top_line, 1)
   normal! zt
   call cursor(a:current_line, a:current_column)
-  let &scrolloff = old_scrolloff 
+  let &scrolloff = old_scrolloff
   call s:log("Restored view of window with name: " . self.name)
 endfunction
 
@@ -1305,9 +1253,9 @@ endfunction
 
 " Get variable under cursor
 function! s:Var.get_selected()
-  let line = getline(".") 
+  let line = getline(".")
   " Get its id - it is last in the string
-  let match = matchlist(line, '.*\t\(\d\+\)$') 
+  let match = matchlist(line, '.*\t\(\d\+\)$')
   let id = get(match, 1)
   if id
     let variable = g:RubyDebugger.variables.find_variable({'id' : id})
@@ -1412,7 +1360,7 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
         endif
       endfor
     endif
-    
+
     " get the last vertical tree part for this line which will be different
     " if this node is the last child of its parent
     if a:is_last_child
@@ -1467,7 +1415,7 @@ function! s:VarChild._match_attributes(attrs)
     if has_key(self.attributes, attr)
       " If current key is contained in attributes of variable (they were
       " attributes in <variable /> tag, then trying to match there.
-      let conditions = conditions && self.attributes[attr] == a:attrs[attr] 
+      let conditions = conditions && self.attributes[attr] == a:attrs[attr]
     elseif has_key(self, attr)
       " Otherwise, if current key is contained in auxiliary attributes of the
       " variable, trying to match there
@@ -1612,7 +1560,7 @@ endfunction
 
 " *** Logger class (start)
 
-let s:Logger = {} 
+let s:Logger = {}
 
 function! s:Logger.new(file)
   let new_variable = copy(self)
@@ -1703,8 +1651,8 @@ endfunction
 
 " Find and return breakpoint under cursor
 function! s:Breakpoint.get_selected() dict
-  let line = getline(".") 
-  let match = matchlist(line, '^\(\d\+\)') 
+  let line = getline(".")
+  let match = matchlist(line, '^\(\d\+\)')
   let id = get(match, 1)
   let breakpoints = filter(copy(g:RubyDebugger.breakpoints), "v:val.id == " . id)
   if !empty(breakpoints)
@@ -1751,7 +1699,7 @@ endfunction
 " Send deleting breakpoint message to debugger, if it is run
 " (e.g.: 'delete 5')
 function! s:Breakpoint._send_delete_to_debugger() dict
-  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running() && has_key(self, 'debugger_id')
     let message = 'delete ' . self.debugger_id
     call g:RubyDebugger.queue.add(message)
   endif
@@ -1800,7 +1748,7 @@ let s:Frame = { }
 
 " ** Public methods
 
-" Constructor of new frame. 
+" Constructor of new frame.
 " Create new frame and set sign to it.
 function! s:Frame.new(attrs)
   let var = copy(self)
@@ -1821,8 +1769,8 @@ endfunction
 
 " Find and return frame under cursor
 function! s:Frame.get_selected() dict
-  let line = getline(".") 
-  let match = matchlist(line, '^\(\d\+\)') 
+  let line = getline(".")
+  let match = matchlist(line, '^\(\d\+\)')
   let no = get(match, 1)
   let frames = filter(copy(g:RubyDebugger.frames), "v:val.no == " . no)
   if !empty(frames)
@@ -1872,120 +1820,47 @@ let s:Server = {}
 " ** Public methods
 
 " Constructor of new server. Just inits it, not runs
-function! s:Server.new(hostname, rdebug_port, debugger_port, runtime_dir, tmp_file, output_file) dict
+function! s:Server.new() dict
   let var = copy(self)
-  let var.hostname = a:hostname
-  let var.rdebug_port = a:rdebug_port
-  let var.debugger_port = a:debugger_port
-  let var.runtime_dir = a:runtime_dir
-  let var.tmp_file = a:tmp_file
-  let var.output_file = a:output_file
-  call s:log("Initializing Server object, with variables: hostname: " . var.hostname . ", rdebug_port: " . var.rdebug_port . ", debugger_port: " . var.debugger_port . ", runtime_dir: " . var.runtime_dir . ", tmp_file: " . var.tmp_file . ", output_file: " . var.output_file)
+  call s:log("Initializing Server object")
   return var
 endfunction
 
 
 " Start the server. It will kill any listeners on given ports before.
 function! s:Server.start(script, params) dict
+  call self.stop()
   call s:log("Starting Server, command: " . a:script)
-  call s:log("Trying to kill all old servers first")
-  call self._stop_server(self.rdebug_port)
-  call self._stop_server(self.debugger_port)
-  call s:log("Servers are killed, trying to start new servers")
   " Remove leading and trailing quotes
   let script_name = substitute(a:script, "\\(^['\"]\\|['\"]$\\)", '', 'g')
-  let rdebug = 'rdebug-ide ' . join(a:params, ' ') . ' -p ' . self.rdebug_port . ' -- ' . script_name
-  let os = has("win32") || has("win64") ? 'win' : 'posix'
-  " Example - ruby ~/.vim/bin/ruby_debugger.rb 39767 39768 vim VIM /home/anton/.vim/tmp/ruby_debugger posix
-  let debugger_parameters =  ' ' . self.hostname . ' ' . self.rdebug_port . ' ' . self.debugger_port
-  let debugger_parameters .= ' ' . g:ruby_debugger_progname . ' ' . v:servername . ' "' . self.tmp_file
-  let debugger_parameters .= '" ' . os . ' ' . g:ruby_debugger_debug_mode . ' ' . s:logger_file
-
-  " Start in background
-  if has("win32") || has("win64")
-    silent exe '! start ' . rdebug
-    let debugger = 'ruby "' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . '"' . debugger_parameters
-    silent exe '! start ' . debugger
-  else
-    let cmd = rdebug . ' > ' . self.output_file . ' 2>&1 &'
-    call s:log("Executing command: ". cmd)
-    call system(cmd)
-    let debugger_cmd = 'ruby ' . expand(self.runtime_dir . "/bin/ruby_debugger.rb") . debugger_parameters . ' &'
-    call s:log("Executing command: ". debugger_cmd)
-    call system(debugger_cmd)
-  endif
-
-  " Set PIDs of processes
-  call s:log("Now we need to store PIDs of servers, retrieving them: ")
-  let self.rdebug_pid = self._get_pid(self.rdebug_port, 1)
-  let self.debugger_pid = self._get_pid(self.debugger_port, 1)
-  call s:log("Server PIDs are: rdebug-ide: " . self.rdebug_pid . ", ruby_debugger.rb: " . self.debugger_pid)
-
-  call s:log("Debugger is successfully started")
-endfunction  
+  let s:socket_file = tempname()
+  let cmd = g:ruby_debugger_executable . ' ' . script_name .  ' --file ' . s:tmp_file . ' --output ' . s:server_output_file . ' --socket ' . s:socket_file . ' --logger_file ' . s:logger_file .  ' --debug_mode ' . g:ruby_debugger_debug_mode .  ' --vim_executable ' . g:ruby_debugger_progname .  ' --vim_servername ' . v:servername . ' --separator ' . s:separator
+  call s:log("Executing command: ". cmd)
+  let s:rdebug_pid = system(cmd)
+  call s:log("PID: " . s:rdebug_pid)
+  call s:log("Waiting for starting debugger...")
+endfunction
 
 
 " Kill servers and empty PIDs
 function! s:Server.stop() dict
-  call self._kill_process(self.rdebug_pid)
-  call self._kill_process(self.debugger_pid)
-  let self.rdebug_pid = ""
-  let self.debugger_pid = ""
+ruby << RUBY
+  if @vim_ruby_debugger_socket
+    @vim_ruby_debugger_socket.close
+    @vim_ruby_debugger_socket = nil
+  end
+RUBY
+  call s:log("Stopping, pid is: " . s:rdebug_pid)
+  if s:rdebug_pid =~ '^\d\+$'
+    call self._kill_process(s:rdebug_pid)
+  endif
+  let s:rdebug_pid = ""
 endfunction
 
 
 " Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
-  return (self._get_pid(self.rdebug_port, 0) =~ '^\d\+$') && (self._get_pid(self.debugger_port, 0) =~ '^\d\+$')
-endfunction
-
-
-" ** Private methods
-
-
-" Get PID of process, that listens given port on given host. If must_get_pid
-" parameter is true, it will try to get PID for 10 seconds.
-function! s:Server._get_pid(port, must_get_pid)
-  call s:log("Trying to find PID of process on " . a:port . " port, must_get_pid = " . a:must_get_pid)
-  let attempt = 0
-  let pid = self._get_pid_attempt(a:port)
-  while a:must_get_pid && pid == "" && attempt < 1000
-    sleep 10m
-    let attempt += 1
-    let pid = self._get_pid_attempt(a:port)
-  endwhile
-  call s:log("PID - " . pid . ", found by " . attempt . " repeats")
-  return pid
-endfunction
-
-
-" Just try to get PID of process and return empty string if it was
-" unsuccessful
-function! s:Server._get_pid_attempt(port)
-  call s:log("Trying to find listener of port " . a:port)
-  if has("win32") || has("win64")
-    let netstat = system("netstat -anop tcp")
-    let pid_match = matchlist(netstat, ':' . a:port . '\s.\{-}LISTENING\s\+\(\d\+\)')
-    let pid = len(pid_match) > 0 ? pid_match[1] : ""
-  elseif executable('lsof')
-    let cmd = "lsof -i tcp:" . a:port . " | grep LISTEN | awk '{print $2}'"
-    call s:log("Executing command: " . cmd)
-    let pid = system(cmd)
-    let pid = substitute(pid, '\n', '', '')
-  else
-    let pid = ""
-  endif
-  call s:log("Found pid - " . pid)
-  return pid
-endfunction
-
-
-" Kill listener of given host/port
-function! s:Server._stop_server(port) dict
-  let pid = self._get_pid(a:port, 0)
-  if pid =~ '^\d\+$'
-    call self._kill_process(pid)
-  endif
+  return empty(s:rdebug_pid)
 endfunction
 
 
@@ -1997,8 +1872,6 @@ function! s:Server._kill_process(pid) dict
   let cmd = "ruby -e 'Process.kill(9," . a:pid . ")'"
   call s:log("Executing command: " . cmd)
   call system(cmd)
-  call s:log("Sleeping 100m...")
-  sleep 100m
   call s:log("Killed server with pid: " . a:pid)
 endfunction
 
@@ -2009,31 +1882,23 @@ endfunction
 
 " *** Creating instances (start)
 
-if !exists("g:ruby_debugger_fast_sender")
-  let g:ruby_debugger_fast_sender = 0
-endif
 if !exists("g:ruby_debugger_debug_mode")
   let g:ruby_debugger_debug_mode = 0
 endif
-" This variable allows to use built-in Ruby (see ':help ruby' and s:send_message_to_debugger function)
-if !exists("g:ruby_debugger_builtin_sender")
-  if has("ruby")
-    let g:ruby_debugger_builtin_sender = 1
-  else
-    let g:ruby_debugger_builtin_sender = 0
-  endif
+if !exists("g:ruby_debugger_executable")
+  let g:ruby_debugger_executable = "rdebug-vim"
 endif
 if !exists("g:ruby_debugger_spec_path")
-  let g:ruby_debugger_spec_path = '/usr/bin/spec'
+  let g:ruby_debugger_spec_path = 'rspec'
 endif
 if !exists("g:ruby_debugger_cucumber_path")
-  let g:ruby_debugger_cucumber_path = '/usr/bin/cucumber'
+  let g:ruby_debugger_cucumber_path = 'cucumber'
 endif
 if !exists("g:ruby_debugger_progname")
   let g:ruby_debugger_progname = v:progname
 endif
 if !exists("g:ruby_debugger_default_script")
-  let g:ruby_debugger_default_script = 'script/server webrick'
+  let g:ruby_debugger_default_script = 'script/rails server'
 endif
 if !exists("g:ruby_debugger_no_maps")
   let g:ruby_debugger_no_maps = 0
@@ -2050,6 +1915,8 @@ let RubyDebugger.logger = s:Logger.new(s:logger_file)
 let s:variables_window.logger = RubyDebugger.logger
 let s:breakpoints_window.logger = RubyDebugger.logger
 let s:frames_window.logger = RubyDebugger.logger
+
+autocmd VimLeavePre * :call RubyDebugger.stop()
 
 " *** Creating instances (end)
 

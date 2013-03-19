@@ -60,8 +60,8 @@ endfunction
 
 " Find and return breakpoint under cursor
 function! s:Breakpoint.get_selected() dict
-  let line = getline(".") 
-  let match = matchlist(line, '^\(\d\+\)') 
+  let line = getline(".")
+  let match = matchlist(line, '^\(\d\+\)')
   let id = get(match, 1)
   let breakpoints = filter(copy(g:RubyDebugger.breakpoints), "v:val.id == " . id)
   if !empty(breakpoints)
@@ -108,7 +108,7 @@ endfunction
 " Send deleting breakpoint message to debugger, if it is run
 " (e.g.: 'delete 5')
 function! s:Breakpoint._send_delete_to_debugger() dict
-  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running()
+  if has_key(g:RubyDebugger, 'server') && g:RubyDebugger.server.is_running() && has_key(self, 'debugger_id')
     let message = 'delete ' . self.debugger_id
     call g:RubyDebugger.queue.add(message)
   endif

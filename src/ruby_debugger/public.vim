@@ -8,19 +8,12 @@ let g:RubyDebugger.queue = s:Queue.new()
 " ruby script ('script/server webrick' by default)
 function! RubyDebugger.start(...) dict
   call s:log("Executing :Rdebugger...")
-  let g:RubyDebugger.server = s:Server.new(s:hostname, s:rdebug_port, s:debugger_port, s:runtime_dir, s:tmp_file, s:server_output_file)
+  let g:RubyDebugger.server = s:Server.new()
   let script_string = a:0 && !empty(a:1) ? a:1 : g:ruby_debugger_default_script
   let params = a:0 && a:0 > 1 && !empty(a:2) ? a:2 : []
   echo "Loading debugger..."
   call g:RubyDebugger.server.start(s:get_escaped_absolute_path(script_string), params)
-
   let g:RubyDebugger.exceptions = []
-  for breakpoint in g:RubyDebugger.breakpoints
-    call g:RubyDebugger.queue.add(breakpoint.command())
-  endfor
-  call g:RubyDebugger.queue.add('start')
-  echo "Debugger started"
-  call g:RubyDebugger.queue.execute()
 endfunction
 
 
@@ -37,6 +30,18 @@ function! RubyDebugger.is_running()
   endif
   return 0
 endfunction
+
+
+function! RubyDebugger.establish_connection()
+  for breakpoint in g:RubyDebugger.breakpoints
+    call g:RubyDebugger.queue.add(breakpoint.command())
+  endfor
+  call g:RubyDebugger.queue.add('start')
+  call g:RubyDebugger.queue.execute()
+  echo "Debugger started"
+  call s:log("Debugger is successfully started")
+endfunction
+
 
 " This function receives commands from the debugger. When ruby_debugger.rb
 " gets output from rdebug-ide, it writes it to the special file and 'kick'
@@ -127,7 +132,7 @@ function! RubyDebugger.toggle_breakpoint(...) dict
     let breakpoint = s:Breakpoint.new(file, line)
     call add(g:RubyDebugger.breakpoints, breakpoint)
     call s:log("Added Breakpoint object to RubyDebugger.breakpoints array")
-    call breakpoint.send_to_debugger() 
+    call breakpoint.send_to_debugger()
   else
     call s:log("There is already set breakpoint presented, so delete it")
     let breakpoint = existed_breakpoints[0]
@@ -250,7 +255,7 @@ endfunction
 function! RubyDebugger.show_log() dict
   exe "view " . s:server_output_file
   setlocal autoread
-  " Per gorkunov's request 
+  " Per gorkunov's request
   setlocal wrap
   setlocal nonumber
   if exists(":AnsiEsc")

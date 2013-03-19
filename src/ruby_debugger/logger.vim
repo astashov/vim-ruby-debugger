@@ -1,6 +1,6 @@
 " *** Logger class (start)
 
-let s:Logger = {} 
+let s:Logger = {}
 
 function! s:Logger.new(file)
   let new_variable = copy(self)
