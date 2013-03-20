@@ -45,7 +45,7 @@ endfunction
 
 " Return 1 if processes with set PID exist.
 function! s:Server.is_running() dict
-  return empty(s:rdebug_pid)
+  return !empty(s:rdebug_pid)
 endfunction
 
 

@@ -50,9 +50,6 @@ fun! s:check_prerequisites()
   if !has("clientserver")
     call add(problems, "RubyDebugger: This plugin requires +clientserver option")
   endif
-  if !executable(g:ruby_debugger_executable)
-    call add(problems, "RubyDebugger: You don't have installed 'debugger-xml' gem or executable '" . g:ruby_debugger_executable . "' can't be found in your PATH")
-  endif
   if !has("ruby")
     call add(problems, "RubyDebugger: This plugin requires +ruby option.")
   end
