@@ -1,26 +1,30 @@
+# Disclaimer #
+
+This is a new version of the plugin, which uses **debugger-xml** gem, and works only with Ruby >= 1.9. If you want to use **ruby-debug-ide** gem and/or Ruby <= 1.8.7, you should check 'v1.0' branch (http://github.com/astashov/vim-ruby-debugger/tree/v1.0)
+
 # Description #
 
 This Vim plugin implements interactive Ruby debugger in Vim.
 
+This version of the plugin works only with Ruby >= 1.9. It uses [**debugger-xml**](https://rubygems.org/gems/debugger-xml) under the hood, which is just a XML/IDE extension for the [**debugger**](https://rubygems.org/gems/debugger) gem, which supports Ruby 1.9.2 and 1.9.3 out-of-the-box, but doesn't support Ruby <= 1.8.7.
 
 # Features #
 
-1. It can debug any Ruby application (Rails, by default), using **ruby-debug-ide** gem
-2. The debugger looks like in the Netbeans - you can go through the code, watch variables, breakpoints in separate window, set and remove breakpoints.
-3. It supports command-line rdebug commands. E.g., you can execute ':RdbCommand p User.all' in command line of VIM and it will display result like usual echo VIM command.
+1. It can debug any Ruby application (Rails, by default), **debugger-xml** gem
+2. The debugger looks like in any IDE - you can go through the code, watch variables, breakpoints in a separate window, set and remove breakpoints.
+3. It supports execution of commands in the context of stopped line. E.g., you can execute ':RdbEval User.all' in the Vim command line and it will display the results like usual echo Vim command.
 
 
 # Requirements #
 
-1.  Vim >= 7.0, compiled with +signs and +clientserver. You can verify it by VIM command: 
+1.  Vim >= 7.0, compiled with +signs, +clientserver and +ruby. You can verify it by VIM command:
 
-        :echo has("signs") && has("clientserver") && v:version > 700
+        :echo has("signs") && has("clientserver") && has("ruby") && v:version > 700
 
     It should show result '1'.
 
-2.  ruby-debug-ide gem.
-3.  For linux: 'lsof' program.
-4.  For OS X:
+2.  debugger-xml gem.
+3.  For OS X:
 
     The vim that ships with OS X does not use ruby, nor does it support --servername, so MacVim must be used.
 
@@ -47,7 +51,7 @@ This Vim plugin implements interactive Ruby debugger in Vim.
 2.  Copy contents of the 'vim-ruby-debugger' dir to your ~/.vim/ (or to ~/.vim/bundle/vim-ruby-debugger if you use pathogen).
 
 3.  Generate the local tags file
-	
+
         :helptags ~/.vim/doc
 
     Now, you can use
@@ -64,12 +68,12 @@ This Vim plugin implements interactive Ruby debugger in Vim.
     let g:ruby_debugger_progname = 'mvim'
     ```
 
-I've tested the plugin in Windows and Linux. All tests should be passed there.
+Windows is not supported, sorry, Windows users.
 
 
-# Using#
+# Using #
 
-1.  Run Vim. If you use gvim, it will automatically start the server, but if you use vim, you need to set
+1.  Run Vim. If you use gvim/mvim, it will automatically start the server, but if you use vim, you need to set
     servername explicitly, e.g., **vim --servername VIM**
 
 2.  Go to the directory with some your Rails application.
@@ -80,11 +84,12 @@ I've tested the plugin in Windows and Linux. All tests should be passed there.
 
          :Rdebugger
 
-    It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and ~/.vim/bin/ruby_debugger.rb on these ports accordingly.
+    It will run debugger-xml's rdebug-vim executable, create a UNIX socket in tmp directory,
+    and connect to debugger-xml through it.
 
-3.  Set breakpoint somewhere by **&lt;Leader&gt;b** (e.g., '\b'). You should see 'xx' symbol at current line.
+3.  Set a breakpoint somewhere by **&lt;Leader&gt;b** (e.g., '\b'). You should see 'xx' symbol at current line.
 
-4.  Open page with the breakpoint in the browser. Vim should automatically set current line to breakpoint.
+4.  Open a page with the breakpoint in a browser. Vim should automatically set the current line to the breakpoint.
 
 5.  After this, you can use commands:
 
@@ -94,6 +99,11 @@ I've tested the plugin in Windows and Linux. All tests should be passed there.
          <Leader>s - step into
          <Leader>c - continue
 
+6.  You may find useful to override default shortcut commands by F5-F8 shortcuts. Add these to your .vimrc:
+
+          map <F7>  :call g:RubyDebugger.step()<CR>
+          map <F5>  :call g:RubyDebugger.next()<CR>
+          map <F8>  :call g:RubyDebugger.continue()<CR>
 
 # Testing #
 

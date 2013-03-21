@@ -1,31 +1,37 @@
 *ruby_debugger.txt*	Plugin for debugging Ruby applications
 
-Author: Anton Astashov 
-<anton (yup) astashov (dot) net>		|ruby-debugger-plugin-author|
+Author: Anton Astashov
+<anton (dot) astashov (at) gmail.com>		|ruby-debugger-plugin-author|
 
 |ruby-debugger-introduction|	Introduction and Feature Summary
 |ruby-debugger-installation|	Installation
 |ruby-debugger-quickstart|	QuickStart
 |ruby-debugger-details|		Some additional details about the plugin
 |ruby-debugger-tests|		Debugging of tests
-|ruby-debugger-ruby19|		Using the plugin with ruby 1.9
 |ruby-debugger-issues|		Troubleshooting
 |ruby-debugger-bugs|		Bugreporting
 |ruby-debugger-about|		About
 
 This plugin is only available if 'compatible' is not set.
-The plugin requires Vim to be compiled with +signs and +clientserver and Vim 
-version >= 7. To check it, run >
-	:echo has("signs") && has("clientserver") && v:version > 700
+The plugin requires Vim to be compiled with +signs, +clientserver and +ruby
+and Vim version >= 7. To check it, run >
+	:echo has("signs") && has("clientserver") && has("ruby") && v:version > 700
 Result should be equal to 1
-If you use Linux, make sure you have "lsof" installed. See >
-	http://en.wikipedia.org/wiki/Lsof
 
-Also, it requires ruby-debug-ide gem. To install it, run >
-	gem install ruby-debug-ide
+Also, it requires debugger-xml gem. To install it, run >
+	gem install debugger-xml
 
-Please make sure, that vim/gvim, rdebug-ide and ruby directories are set in your
-$PATH variable
+or just add it to your Gemfile: >
+        gem 'debugger-xml'
+
+Please make sure, that vim/gvim/mvim, rdebug-vim and ruby directories are set
+in your $PATH variable.
+
+This version of vim-ruby-debugger doesn't work with Ruby <= 1.8.7. If you need
+to debug that version of Ruby, you may try old vim-ruby-debugger, in the "v1.0"
+branch (http://github.com/astashov/vim-ruby-debugger/tree/v1.0)
+
+Windows is not supported.
 
 {Vi does not have any of this}
 
@@ -34,15 +40,17 @@ INTRODUCTION			*ruby-debugger-introduction* *ruby-debugger*
 
 This plugin implements interactive Ruby debugger in Vim.
 
-1. It can debug any Ruby application (Rails, by default), using ruby-debug-ide
+1. It can debug any Ruby application (Rails, by default), using debugger-xml
 gem
 
-2. The debugger looks like in the Netbeans - you can go through the code, watch
-variables, breakpoints in separate window, set and remove breakpoints.
+2. The debugger looks like in any IDE - you can go through the code, watch
+variables, breakpoints in a separate window, set and remove breakpoints.
 
-3. It supports command-line rdebug commands. E.g., you can you can execute >
-	:RdbCommand p User.all
-in command line of VIM and it will display result like usual echo VIM command.
+3. It supports execution of commands in the context of stopped line. E.g., you
+can execute >
+        :RdbEval User.all
+in the Vim command line and it will display the results like usual echo Vim
+command
 
 ==============================================================================
 INSTALLATION					*ruby-debugger-installation*
@@ -52,22 +60,21 @@ Clone current version of the repo from GitHub: >
 or if you don't have Git, download the archive from here: >
         http://github.com/astashov/vim-ruby-debugger/tarball/master
 
-Then, copy the vim-ruby-debugger dir to the vim directory (to vimfiles 
-(Windows)or ~/.vim (everything else)). Or, if you use pathogen, copy the 
-vim-ruby-debugger dir to ~/.vim/bundle/vim-ruby-debugger.
+Then, copy the vim-ruby-debugger dir to the vim directory (~/.vim)). Or, if you
+use pathogen, copy the vim-ruby-debugger dir to ~/.vim/bundle/vim-ruby-debugger.
 
 Then, run: >
 	:helptags ~/.vim/doc
-for generating local tags file.
+for generating the local tags file.
 
 Now you can use the >
 	:help ruby-debugger
-and watch help file you just added.
+and watch the help file you just added.
 
 ==============================================================================
 QUICKSTART					*ruby-debugger-quickstart*
 
-1. Run Vim. If you use gvim, it will automatically start the server, but if
+1. Run Vim. If you use mvim/gvim, it will automatically start the server, but if
    you use vim, you need to set servername explicitly, e.g., >
 	vim --servername VIM
 
@@ -77,8 +84,8 @@ QUICKSTART					*ruby-debugger-quickstart*
 3. Run Server with Debugger: >
 	:Rdebugger
 
-It will kill any listeners of ports 39767 and 39768 and run rdebug-ide and
-~/.vim/bin/ruby_debugger.rb on these ports accordingly.
+It will run debugger-xml's rdebug-vim executable, create a UNIX socket in tmp
+directory, and connect to debugger-xml through it.
 
 3. Set breakpoint somewhere by <Leader>b (usually, '\b'). You should see
    "xx" symbol at the current line.
@@ -125,30 +132,20 @@ DETAILS					*ruby-debugger-details*
         map <Leader>e  :call g:RubyDebugger.exit()<CR>
         map <Leader>d  :call g:RubyDebugger.remove_breakpoints()<CR>
 >
-*  Standard output and errors (STDOUT and STDERR) of running script is 
-redirected to ~/.vim/tmp/ruby_debugger_output file (only for POSIX 
-systems - Linux, MacOS) 
-
-*  If you are using POSIX OS (Linux, MacOS), you can try fast C implementation
-   of message sender to debugger. For this, copy "socket" file from 
-   additionals/bin/ to ~/.vim/bin/, add execution rights to it (chmod +x)
-   and add this string to your .vimrc: >
-        let g:ruby_debugger_fast_sender = 1
-
-*  You can specify path to Ruby (if it is not in your PATH environment or
-   you want to use specific version of Ruby)
+*  Standard output and errors (STDOUT and STDERR) of running script is
+redirected to ~/.vim/tmp/ruby_debugger_output file
 
 *  To run some other Ruby application (not Rails), you should specify its
    path as argument of Rdebugger command. E.g. >
 	:Rdebugger bla.rb
-If your script receives arguments, quote it into single quotes: >
+
+If your script receives arguments, quote them into single quotes: >
         :Rdebugger '/path/to/bla.rb 1234 bla_bla'
 
 *  You can specify default script which will be run when you specify
-   :Rdebugger without arguments. By default it is 'script/server webrick',
-   but you can change it (e.g. if you mostly use Rails 3) by adding such line
-   to your .vimrc: >
-        let g:ruby_debugger_default_script = 'script/rails s'
+   :Rdebugger without arguments. By default it is 'script/rails server',
+   but you can change it by adding such line to your .vimrc: >
+        let g:ruby_debugger_default_script = 'rackup -p 4567'
 
 *  To run some rdebug command, use :RdbCommand. E.g.: >
 	:RdbCommand where
@@ -159,42 +156,31 @@ If your script receives arguments, quote it into single quotes: >
 
 *  To add condition to some breakpoint, you can move cursor on the breakpoint,
    and type command: >
-        :RdbCond condition 
+        :RdbCond condition
 E.g.: >
         :RdbCond current_user.name == "John"
 Then, execution will be stopped on the breakpoint only if condition is true
-
-* To add exceptions catcher, use command: >
-        :RdbCatch NameOfException
-This way, when exception is raised, debugger will catch it, jump to file/line
-of the exception and you'll be allowed to watch variables, backtrace, etc there.
-To reset all catched exceptions just restart the server by :Rdebugger command.
-You can watch placed catchers in the Breakpoints Window (<Leader>m by default). 
-See the bottom line of the window.
-
-WARNING!!! If you try to set catcher to unexisted exception (e.g., if you
-mistyped class of the exception), ruby-debug-ide will be crashed! Then, you
-will have to restart the server by :Rdebugger command
 
 * To stop running server, you can use :RdbStop command: >
         :RdbStop
 
 * For communicating with the rdebug the plugin uses temp file:
-   ~/.vim/tmp/ruby_debugger. Rdebug writes some response to this file, "kicks"
-   the plugin remotely calling RubyDebugger.receive_command() by Vim's
+   ~/.vim/tmp/ruby_debugger. debugger-xml writes some response to this file,
+   "kicks" the plugin remotely calling RubyDebugger.receive_command() by Vim's
    client-server functionality and the plugin make actions. For this reason,
    you need Vim compiled with +clientserver.
 
-*  The plugin logs all its actions to ~/.vim/tmp/ruby_debugger_log.
+*  The plugin will log all its actions to ~/.vim/tmp/ruby_debugger_log, if you
+   set g:ruby_debugger_debug_mode in your .vimrc: >
+        let g:ruby_debugger_debug_mode = 1
 
-*  You also can run Unit tests for the plugin. For this, copy to 
+*  You also can run Unit tests for the plugin. For this, copy to
    ~/.vim/autoload/ ruby_debugger.vim from additionals/autoload (instead of vim/autoload).
-   It has the same functionality, but with unit tests at end of the file. 
+   It has the same functionality, but with unit tests at end of the file.
    To run unit tests, change current directory to some rails project and run >
 	call g:TU.run()
 
-*  To watch standard output of executing of Ruby script, you can use >
-
+*  To watch standard output of executing of the Ruby script, you can use >
         :RdbLog
 
 It actually just opens ~/.vim/tmp/ruby_debugger_output, with options: >
@@ -202,9 +188,9 @@ It actually just opens ~/.vim/tmp/ruby_debugger_output, with options: >
         setlocal wrap
         setlocal nonumber
 
-Also, if plugin AnsiEsc is installed 
-(http://www.vim.org/scripts/script.php?script_id=302, (it colorizes ANSI escape 
-sequences, they are used heavily by e.g. ActiveRecord logging)), it will be run 
+Also, if plugin AnsiEsc is installed
+(http://www.vim.org/scripts/script.php?script_id=302, (it colorizes ANSI escape
+sequences, they are used heavily by e.g. ActiveRecord logging)), it will be run
  automatically after :RdbLog call to colorize ruby_debugger_output.
 
 
@@ -218,103 +204,45 @@ breakpoints and type:  >
 
 It equals to running >
   :Rdebugger /path/to/some_test.rb                      " for Test::Unit tests
-  :Rdebugger '/usr/bin/spec /path/to/some_spec.rb'      " for RSpec
-  :Rdebugger '/usr/bin/cucumber /path/to/some.feature'  " for Cucumber feautres
+  :Rdebugger 'rspec /path/to/some_spec.rb'      " for RSpec
+  :Rdebugger 'cucumber /path/to/some.feature'  " for Cucumber feautres
 
 For debugging Cucumber features, you should set breakpoints in step
 definitions file (e.g., user_steps.rb), but start debugger by :RdbTest command
 in blabla.feature file. You can't set breakpoints in .feature file (I mean you
-can, but they will be ignored), because... well, it is just plain text! :)
+can, but they will be ignored), because... well, it is a just plain text! :)
 
-If you store spec or cucumber executables in some different place, not in
-/usr/bin (e.g., if you have Windows), you should set path to them explicitly.
+If you store rspec or cucumber executables in some different place, not in
+$PATH, you should set path to them explicitly.
 
 For this, set some variables in your .vimrc. E.g.: >
-  let g:ruby_debugger_spec_path = 'c:\gembins\spec'         " set Rspec path
-  let g:ruby_debugger_cucumber_path = 'c:\gembins\cucumber' " set Cucumber path
+  let g:ruby_debugger_spec_path = '/path/to/rspec'         " set Rspec path
+  let g:ruby_debugger_cucumber_path = '/path/to/cucumber' " set Cucumber path
 
 A single rspec test can be invoked by RdbTestSingle which will invoke rspec
 and pass the current line to rspec via "-l" argument to rspec.  For Cucumber
 and Test::Unit all tests/features are run.
 
 ==============================================================================
-RUBY 1.9 AND RAILS 3				*ruby-debugger-ruby19*
-
-If you want to use vim-ruby-debugger with Ruby 1.9, the best way will be using
-'rvm' (http://rvm.beginrescueend.com/). Install it and then install ruby 1.9:
->
-  rvm install 1.9.2
-
-Then, switch to ruby 1.9.2 version: >
-
-  rvm 1.9.2
-
-Make sure you use correct version of Ruby: >
-
-  which ruby
-
-it will show path to current ruby executable, e.g. >
-
-  /Users/anton/.rvm/rubies/ruby-1.9.2-p0/bin/ruby
-
-Then install ruby-debug-ide19 gem: >
-
-  gem install ruby-debug-ide19
-
-After installation of the gem, you need make sure path to rdebug-ide points now 
-to RVM dir: >
-  $ which rdebug-ide
-  /Users/anton/.rvm/gems/ruby-1.9.2-p0/bin/rdebug-ide
-
-Now you can use vim-ruby-debugger for debugging ruby 1.9 scripts. If you want
-to debug Rails 3 applications, you (of course) need to install it: >
-
-  gem install rails
-
-then create new Rails 3 app somewhere: >
-
-  rails new demo
-
-go to the dir with the project, and run vim there. Then, run: >
-
-  :Rdebugger 'script/rails server'
-
-to run Rails 3 app. Then, you can set breakpoints, watch variables, etc, as
-usual.
-
-I really recommend to try it with Ruby 1.9 and Rails 3, the plugin will help 
-you to learn how Rails 3 works inside - it is a good experience! :)
-
-==============================================================================
 TROUBLESHOOTING				*ruby-debugger-issues*
 
-1. Sometimes (e.g., if you use Mac OS and mvim), you can notice strange and 
-not correct behavior of the plugin (only a couple commands work, you can't see 
-variables list, next/step commands don't work). Make sure variable 
-'g:ruby_debugger_progname' contains proper name of Vim's executable (mvim 
+1. Sometimes (e.g., if you use Mac OS and mvim), you can notice strange and
+not correct behavior of the plugin (only a couple commands work, you can't see
+variables list, next/step commands don't work). Make sure variable
+'g:ruby_debugger_progname' contains proper name of Vim's executable (mvim
 if you run mvim, gvim for gvim, vim for vim): >
   :echo g:ruby_debugger_progname
 
 If it contains some incorrect value, set it in your .vimrc. E.g. for mvim: >
   let g:ruby_debugger_progname = 'mvim'
 
-If Vim's executable directory is not in your PATH environment variable, set 
+If Vim's executable directory is not in your PATH environment variable, set
 full path to executable: >
   let g:ruby_debugger_progname = '/opt/local/bin/mvim'
 
-2. If you try to set exceptions catcher to unexisted exception class, 
-ruby-debug-ide will be crushed with error. This is issue of the
-ruby-debud-ide.
-
-3. By default, if Vim is compiled with +ruby, the plugin is trying to send
-messages to debugger by built-in Ruby interface (details are in ':help ruby').
-Some users have issues with built-in Ruby interface, so they may try to 
-"degradate" to external Ruby script instead of using built-in Ruby interface.
-For that, add to your .vimrc: >
-  let g:ruby_debugger_builtin_sender = 0
-
-and the plugin will call external ruby interpreter instead of built-in
-interface.
+2. If rdebug-vim (executable of debugger-xml) is not in your $PATH, you can
+specify where is it explicitly: >
+  let g:ruby_debugger_executable = "bundle exec rdebug-vim"
 
 4. If you still can't fix the issue, you can enable debug mode by: >
   let g:ruby_debugger_debug_mode = 1
@@ -336,7 +264,7 @@ here:
 >
 	http://github.com/astashov/vim-ruby-debugger/issues
 >
-Also, any feedback is highly desired. Please, send all comments, complaints 
+Also, any feedback is highly desired. Please, send all comments, complaints
 and compliments to the author.
 Thanks!
 
@@ -344,7 +272,7 @@ Thanks!
 ABOUT			*ruby-debugger-about* *ruby-debugger-plugin-author*
 
 This plugin was written by Anton Astashov.
-Email: anton (at) astashov (dot) net
+Email: anton (dot) astashov (at) gmail.com
 Website: astashov.net
 
 The latest version of plugin can be found at:

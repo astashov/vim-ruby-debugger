@@ -5,7 +5,7 @@
 " <suspended file='test.rb' line='1' threadId='1' />
 " Jump to file/line where execution was suspended, set current line sign and get local variables
 function! RubyDebugger.commands.jump_to_breakpoint(cmd) dict
-  let attrs = s:get_tag_attributes(a:cmd) 
+  let attrs = s:get_tag_attributes(a:cmd)
   call s:jump_to_file(attrs.file, attrs.line)
   call s:log("Jumped to breakpoint " . attrs.file . ":" . attrs.line)
 
@@ -41,14 +41,13 @@ function! RubyDebugger.commands.set_breakpoint(cmd)
   call s:log("Received the breakpoint message, will add PID and number of breakpoint to the Breakpoint object")
   let attrs = s:get_tag_attributes(a:cmd)
   let file_match = matchlist(attrs.location, '\(.*\):\(.*\)')
-  let pid = g:RubyDebugger.server.rdebug_pid
 
   " Find added breakpoint in array and assign debugger's info to it
   for breakpoint in g:RubyDebugger.breakpoints
     if expand(breakpoint.file) == expand(file_match[1]) && expand(breakpoint.line) == expand(file_match[2])
       call s:log("Found the Breakpoint object for " . breakpoint.file . ":" . breakpoint.line)
       let breakpoint.debugger_id = attrs.no
-      let breakpoint.rdebug_pid = pid
+      let breakpoint.rdebug_pid = s:rdebug_pid
       call s:log("Added id: " . breakpoint.debugger_id . ", PID:" . breakpoint.rdebug_pid . " to Breakpoint")
       if has_key(breakpoint, 'condition')
         call breakpoint.add_condition(breakpoint.condition)
@@ -118,14 +117,14 @@ function! RubyDebugger.commands.eval(cmd)
   " rdebug-ide-gem doesn't escape attributes of tag properly, so we should not
   " use usual attribute extractor here...
   let match = matchlist(a:cmd, "<eval expression=\"\\(.\\{-}\\)\" value=\"\\(.*\\)\"\\s*\\/>")
-  echo "Evaluated expression:\n" . s:unescape_html(match[1]) ."\nResulted value is:\n" . match[2] . "\n"
+  echo "Evaluated expression:\n" . s:unescape_html(match[1]) ."\nResulted value is:\n" . s:unescape_html(match[2]) . "\n"
 endfunction
 
 
 " <processingException type="SyntaxError" message="some message" />
 " Just show exception message
 function! RubyDebugger.commands.processing_exception(cmd)
-  let attrs = s:get_tag_attributes(a:cmd) 
+  let attrs = s:get_tag_attributes(a:cmd)
   let message = "RubyDebugger Exception, type: " . attrs.type . ", message: " . attrs.message
   echo message
   call s:log(message)
@@ -160,7 +159,7 @@ endfunction
 " <error>Error</error>
 " Just show error
 function! RubyDebugger.commands.error(cmd)
-  let error_match = s:get_inner_tags(a:cmd) 
+  let error_match = s:get_inner_tags(a:cmd)
   if !empty(error_match)
     let error = error_match[1]
     echo "RubyDebugger Error: " . error
@@ -172,7 +171,7 @@ endfunction
 " <message>Message</message>
 " Just show message
 function! RubyDebugger.commands.message(cmd)
-  let message_match = s:get_inner_tags(a:cmd) 
+  let message_match = s:get_inner_tags(a:cmd)
   if !empty(message_match)
     let message = message_match[1]
     echo "RubyDebugger Message: " . message
@@ -181,6 +180,6 @@ function! RubyDebugger.commands.message(cmd)
 endfunction
 
 
-" *** End of debugger Commands 
+" *** End of debugger Commands
 
 

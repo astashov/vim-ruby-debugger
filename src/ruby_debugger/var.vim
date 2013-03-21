@@ -16,9 +16,9 @@ endfunction
 
 " Get variable under cursor
 function! s:Var.get_selected()
-  let line = getline(".") 
+  let line = getline(".")
   " Get its id - it is last in the string
-  let match = matchlist(line, '.*\t\(\d\+\)$') 
+  let match = matchlist(line, '.*\t\(\d\+\)$')
   let id = get(match, 1)
   if id
     let variable = g:RubyDebugger.variables.find_variable({'id' : id})

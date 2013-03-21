@@ -88,7 +88,7 @@ function! s:VarChild._render(depth, draw_text, vertical_map, is_last_child)
         endif
       endfor
     endif
-    
+
     " get the last vertical tree part for this line which will be different
     " if this node is the last child of its parent
     if a:is_last_child
@@ -143,7 +143,7 @@ function! s:VarChild._match_attributes(attrs)
     if has_key(self.attributes, attr)
       " If current key is contained in attributes of variable (they were
       " attributes in <variable /> tag, then trying to match there.
-      let conditions = conditions && self.attributes[attr] == a:attrs[attr] 
+      let conditions = conditions && self.attributes[attr] == a:attrs[attr]
     elseif has_key(self, attr)
       " Otherwise, if current key is contained in auxiliary attributes of the
       " variable, trying to match there

@@ -1,8 +1,8 @@
-" *** Window class (start). Abstract Class for creating window. 
+" *** Window class (start). Abstract Class for creating window.
 "     Must be inherited. Mostly, stolen from the NERDTree.
 
-let s:Window = {} 
-let s:Window['next_buffer_number'] = 1 
+let s:Window = {}
+let s:Window['next_buffer_number'] = 1
 let s:Window['position'] = 'botright'
 let s:Window['size'] = 10
 
@@ -147,7 +147,7 @@ endfunction
 
 " Return 1 if the window exists in current tab
 function! s:Window._exist_for_tab() dict
-  return exists("t:window_" . self.name . "_buf_name") 
+  return exists("t:window_" . self.name . "_buf_name")
 endfunction
 
 
@@ -177,7 +177,7 @@ function! s:Window._restore_view(top_line, current_line, current_column) dict
   call cursor(a:top_line, 1)
   normal! zt
   call cursor(a:current_line, a:current_column)
-  let &scrolloff = old_scrolloff 
+  let &scrolloff = old_scrolloff
   call s:log("Restored view of window with name: " . self.name)
 endfunction
 
