@@ -21,7 +21,7 @@ function! s:Server.start(script, params) dict
   let s:socket_file = tempname()
   let cmd = g:ruby_debugger_executable . ' ' . script_name .  ' --file ' . s:tmp_file . ' --output ' . s:server_output_file . ' --socket ' . s:socket_file . ' --logger_file ' . s:logger_file .  ' --debug_mode ' . g:ruby_debugger_debug_mode .  ' --vim_executable ' . g:ruby_debugger_progname .  ' --vim_servername ' . v:servername . ' --separator ' . s:separator
   call s:log("Executing command: ". cmd)
-  let s:rdebug_pid = system(cmd)
+  let s:rdebug_pid = split(system(cmd), "\n")[-1]
   call s:log("PID: " . s:rdebug_pid)
   call s:log("Waiting for starting debugger...")
 endfunction
